@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "trackuriboh-inv"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.112.2"
+uvicorn = "^0.30.6"
+sqlalchemy = "^2.0.32"
+pydantic-settings = "^2.4.0"
+psycopg2-binary = "^2.9.9"
+mypy = "^1.11.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
