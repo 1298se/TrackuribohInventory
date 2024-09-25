@@ -9,6 +9,9 @@ class Environment(BaseSettings):
     db_endpoint: str
     db_port: str
 
+    tcgplayer_client_id: str
+    tcgplayer_client_secret: str
+
     model_config = SettingsConfigDict(env_file=".env")
 
     @property
