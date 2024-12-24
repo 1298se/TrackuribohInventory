@@ -1,17 +1,13 @@
 import asyncio
 import logging
-from venv import create
 
-from sqlalchemy import inspect, select, values
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.engine import row
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
-from database import upsert, SessionLocal
-from models.catalog import Catalog, Condition, Printing, Language, Set, Product, SKU
-from services.schemas.schema import CatalogSetSchema, ProductType
-from services.tcgplayer_catalog_service import TCGPlayerCatalogService
-from utils.workers import create_workers
+from app.models.database import upsert, SessionLocal
+from app.models.catalog import Catalog, Condition, Printing, Language, Set, Product, SKU
+from app.services.schemas.schema import CatalogSetSchema, ProductType
+from app.services.tcgplayer_catalog_service import TCGPlayerCatalogService
+from app.utils.workers import create_workers
 
 logger = logging.getLogger(__name__)
 
@@ -24,14 +20,18 @@ SUPPORTED_CATALOGS = frozenset(
 
 
 async def update_set(
-        service: TCGPlayerCatalogService,
-        tcgplayer_set: CatalogSetSchema,
-        catalog_id: int,
-        printing_tcgplayer_id_to_id_mapping: dict[int, int],
-        condition_tcgplayer_id_to_id_mapping: dict[int, int],
-        language_tcgplayer_id_to_id_mapping: dict[int, int],
+    service: TCGPlayerCatalogService,
+    tcgplayer_set: CatalogSetSchema,
+    catalog_id: int,
+    printing_tcgplayer_id_to_id_mapping: dict[int, int],
+    condition_tcgplayer_id_to_id_mapping: dict[int, int],
+    language_tcgplayer_id_to_id_mapping: dict[int, int],
 ):
     with SessionLocal() as session, session.begin():
+        # existing_set = session.scalars(
+        #     select(Set).where(Set.tcgplayer_id == tcgplayer_set.tcgplayer_id)
+        # ).one_or_none()
+
         # TODO: Check existing set and compare modified dates to see if we need to update it
 
         current_offset = 0
@@ -46,7 +46,7 @@ async def update_set(
                         "name": tcgplayer_set.name,
                         "code": tcgplayer_set.abbreviation,
                         "release_date": tcgplayer_set.published_on,
-                        "modified_date": tcgplayer_set.published_on,
+                        "modified_date": tcgplayer_set.modified_on,
                         "catalog_id": catalog_id,
                     }
                 ],
@@ -56,64 +56,65 @@ async def update_set(
 
         print(f"current set id: {current_set_id}")
 
-        while total is None or current_offset < total:
-            sets_response = await service.get_products(
-                tcgplayer_set_id=tcgplayer_set.tcgplayer_id,
-                offset=current_offset,
-                limit=PAGINATION_SIZE,
-                product_type=ProductType.CARDS,
-            )
-
-            if "No products were found." in sets_response.errors:
-                return
-
-            current_offset += len(sets_response.results)
-            total = sets_response.total_items if sets_response.total_items is not None else 0
-
-            product_values = [
-                {
-                    "tcgplayer_id": product.tcgplayer_id,
-                    "name": product.name,
-                    "clean_name": product.clean_name,
-                    "image_url": product.image_url,
-                    "set_id": current_set_id,
-                    "product_type": ProductType.CARDS.value,
-                    "data": product.extended_data,
-                }
-                for product in sets_response.results
-            ]
-
-            result = session.execute(
-                upsert(
-                    model=Product,
-                    values=product_values,
-                    index_elements=[Product.tcgplayer_id],
-                ).returning(Product.tcgplayer_id, Product.id)
-            )
-
-            product_tcgplayer_id_to_id_mapping = {
-                row.tcgplayer_id: row.id
-                for row in result.all()
-            }
-
-            sku_values = [
-                {
-                    "tcgplayer_id": sku.tcgplayer_id,
-                    "product_id": product_tcgplayer_id_to_id_mapping[sku.tcgplayer_product_id],
-                    "printing_id": printing_tcgplayer_id_to_id_mapping[sku.tcgplayer_printing_id],
-                    "condition_id": condition_tcgplayer_id_to_id_mapping[sku.tcgplayer_condition_id],
-                    "language_id": language_tcgplayer_id_to_id_mapping[sku.tcgplayer_language_id],
-                }
-                for product in sets_response.results for sku in product.skus
-            ]
-
-            session.execute(
-                upsert(
-                    model=SKU,
-                    values=sku_values,
-                    index_elements=[SKU.tcgplayer_id],
+        for product_type in ProductType:
+            while total is None or current_offset < total:
+                sets_response = await service.get_products(
+                    tcgplayer_set_id=tcgplayer_set.tcgplayer_id,
+                    offset=current_offset,
+                    limit=PAGINATION_SIZE,
+                    product_type=product_type,
                 )
-            )
+
+                if "No products were found." in sets_response.errors:
+                    return
+
+                current_offset += len(sets_response.results)
+                total = sets_response.total_items if sets_response.total_items is not None else 0
+
+                product_values = [
+                    {
+                        "tcgplayer_id": product.tcgplayer_id,
+                        "name": product.name,
+                        "clean_name": product.clean_name,
+                        "image_url": product.image_url,
+                        "set_id": current_set_id,
+                        "product_type": product_type,
+                        "data": product.extended_data,
+                    }
+                    for product in sets_response.results
+                ]
+
+                result = session.execute(
+                    upsert(
+                        model=Product,
+                        values=product_values,
+                        index_elements=[Product.tcgplayer_id],
+                    ).returning(Product.tcgplayer_id, Product.id)
+                )
+
+                product_tcgplayer_id_to_id_mapping = {
+                    row.tcgplayer_id: row.id
+                    for row in result.all()
+                }
+
+                sku_values = [
+                    {
+                        "tcgplayer_id": sku.tcgplayer_id,
+                        "product_id": product_tcgplayer_id_to_id_mapping[sku.tcgplayer_product_id],
+                        "printing_id": printing_tcgplayer_id_to_id_mapping[sku.tcgplayer_printing_id],
+                        "condition_id": condition_tcgplayer_id_to_id_mapping[sku.tcgplayer_condition_id],
+                        "language_id": language_tcgplayer_id_to_id_mapping[sku.tcgplayer_language_id],
+                    }
+                    for product in sets_response.results for sku in product.skus
+                ]
+
+                session.execute(
+                    upsert(
+                        model=SKU,
+                        values=sku_values,
+                        index_elements=[SKU.tcgplayer_id],
+                    )
+                )
 
 async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
     with (SessionLocal() as session, session.begin()):
@@ -235,3 +236,7 @@ async def update_card_database():
         for catalog in session.scalars(select(Catalog)).all():
             await update_catalog(service=service, catalog=catalog)
 
+if __name__ == '__main__':
+    asyncio.run(
+        update_card_database(),
+    )

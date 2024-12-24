@@ -1,5 +1,7 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum, StrEnum
+from functools import cached_property
 from typing import Any, Dict
 
 from pydantic import BaseModel, ConfigDict, Field, Json
@@ -128,9 +130,26 @@ class ProductResponseSchema(TCGPlayerCatalogResponseModel):
     errors: List[str]
     results: List[ProductSchema]
 
+class SKUPricingSchema(TCGPlayerCatalogResponseModel):
+    sku_id: int
+    low_price: Optional[Decimal]
+    lowest_shipping: Optional[Decimal]
+    lowest_listing_price: Optional[Decimal]
+    market_price: Optional[Decimal]
+    direct_low_price: Optional[Decimal]
+
+    @cached_property
+    def lowest_listing_price_total(self):
+        return self.lowest_listing_price + self.lowest_shipping
+
+class SKUPricingResponseSchema(BaseModel):
+    success: bool
+    errors: List[str]
+    results: List[SKUPricingSchema]
+
 class ProductType(StrEnum):
     CARDS = "Cards"
-    SEALED = "Sealed"
+    SEALED = "Sealed Products"
 
 
 

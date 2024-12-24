@@ -1,12 +1,10 @@
-import asyncio
-
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.dialects.postgresql import insert, Insert
 from sqlalchemy.orm import sessionmaker, Session
 from typing_extensions import Type
 
-from models.catalog import Base
-from environment import get_environment
+from app.environment import get_environment
+from app.models.catalog import *
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
 DATABASE_POOL_SIZE = 100
@@ -32,3 +30,11 @@ def upsert(model: Type[Base], values: list[dict], index_elements=None) -> Insert
         index_elements=primary_keys if index_elements is None else index_elements,
         set_={c.name: c for c in insert_stmt.excluded if c.name not in primary_keys}
     )
+
+def get_db_session() -> Session:
+    """
+    You should still explicitly commit
+    :return:
+    """
+    with SessionLocal() as session:
+        yield session

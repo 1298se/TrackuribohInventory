@@ -1,20 +1,20 @@
 import logging
+from asyncio import Lock
 from datetime import datetime
-from enum import Enum
-from threading import Lock
+from functools import lru_cache
 
 import aiohttp
 
-from environment import get_environment
-from services.schemas.schema import CatalogDetailResponseSchema, RefreshTokenRequestSchema, \
+from app.environment import get_environment
+from app.services.schemas.schema import CatalogDetailResponseSchema, RefreshTokenRequestSchema, \
     CatalogPrintingResponseSchema, CatalogConditionResponseSchema, CatalogLanguageResponseSchema, \
-    CatalogRarityResponseSchema, CatalogSetResponseSchema, ProductResponseSchema, ProductType
+    CatalogRarityResponseSchema, CatalogSetResponseSchema, ProductResponseSchema, ProductType, SKUPricingResponseSchema
 
 logger = logging.getLogger(__name__)
 
 TCGPLAYER_BASE_URL = "https://api.tcgplayer.com"
 TCGPLAYER_ACCESS_TOKEN_URL = f"{TCGPLAYER_BASE_URL}/token"
-TCGPLAYER_PRICING_URL = f"{TCGPLAYER_BASE_URL}/pricing/sku"
+TCGPLAYER_PRICING_URL = f"{TCGPLAYER_BASE_URL}/pricing"
 TCGPLAYER_CATALOG_URL = f"{TCGPLAYER_BASE_URL}/catalog"
 
 
@@ -26,26 +26,30 @@ def access_token_expired(expiry) -> bool:
 
     return datetime.now() > expiry_date
 
-
 class TCGPlayerCatalogService:
     def __init__(self):
-        self.session = aiohttp.ClientSession()
+        self.session = None
         self.lock = Lock()
         self.access_token = None
         self.access_token_expiry = None
 
     async def __aenter__(self):
+        await self.init()
+
         return self
 
     async def __aexit__(self, *args, **kwargs):
         await self.close()
+
+    async def init(self):
+        self.session = aiohttp.ClientSession()
 
     async def close(self) -> None:
         if not self.session.closed:
             await self.session.close()
 
     async def get_authorization_headers(self) -> dict:
-        with self.lock:
+        async with self.lock:
             headers = {}
 
             await self._check_and_refresh_access_token()
@@ -53,6 +57,7 @@ class TCGPlayerCatalogService:
             headers['Authorization'] = f"bearer {self.access_token}"
 
             return headers
+
 
     async def get_catalogs(self, catalog_ids: list[int]) -> CatalogDetailResponseSchema:
         response = await self.session.get(
@@ -110,12 +115,11 @@ class TCGPlayerCatalogService:
 
         return CatalogSetResponseSchema.model_validate(await response.json())
 
-    async def get_products(self, tcgplayer_set_id: int, offset, limit,
-                           product_type: ProductType) -> ProductResponseSchema:
+    async def get_products(self, tcgplayer_set_id: int, offset, limit, product_type: ProductType) -> ProductResponseSchema:
         query_params = {
             "getExtendedFields": "true",
             "includeSkus": "true",
-            "productTypes": product_type,
+            "productTypes": product_type.value,
             "offset": offset,
             "limit": limit,
             "groupId": tcgplayer_set_id,
@@ -128,6 +132,15 @@ class TCGPlayerCatalogService:
         )
 
         return ProductResponseSchema.model_validate(await response.json())
+
+    async def get_sku_prices(self, tcgplayer_sku_ids: list[int]) -> SKUPricingResponseSchema:
+        response = await self.session.get(
+            f"{TCGPLAYER_PRICING_URL}/sku/{", ".join([str(id) for id in tcgplayer_sku_ids])}",
+            headers=await self.get_authorization_headers(),
+        )
+
+        return SKUPricingResponseSchema.model_validate(await response.json())
+
 
     async def _check_and_refresh_access_token(self) -> bool:
         if access_token_expired(self.access_token_expiry):
@@ -155,6 +168,10 @@ class TCGPlayerCatalogService:
         else:
             return False
 
+@lru_cache()
+def get_tcgplayer_catalog_service() -> TCGPlayerCatalogService:
+    return TCGPlayerCatalogService()
 
 def _get_category_metadata_url(catalog_id):
     return f"{TCGPLAYER_CATALOG_URL}/categories/{catalog_id}"
+

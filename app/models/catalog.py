@@ -1,10 +1,14 @@
+import uuid
 from datetime import datetime
-from enum import unique, Enum
 from typing import List, Any
 
-from sqlalchemy import Integer, String, ForeignKey, Text, inspect, JSON
-from sqlalchemy.orm import relationship, mapped_column, DeclarativeBase, Mapped
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing_extensions import Optional
+from uuid_extensions import uuid7
+
+from app.models import Base
+from app.services.schemas.schema import ProductType
 
 catalog_tablename = "catalog"
 set_tablename = "set"
@@ -14,12 +18,6 @@ condition_tablename = "condition"
 printing_tablename = "printing"
 language_tablename = "language"
 
-class Base(DeclarativeBase):
-    type_annotation_map = {
-        dict[str, Any]: JSON
-    }
-
-    pass
 
 """
     The franchise, such as Pokemon or YuGiOh
@@ -27,23 +25,23 @@ class Base(DeclarativeBase):
 class Catalog(Base):
     __tablename__ = catalog_tablename
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     # Maps to a TCGPlayer "Category"
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
-    modified_date: Mapped[datetime] = mapped_column()
-    display_name: Mapped[str] = mapped_column()
+    modified_date: Mapped[datetime]
+    display_name: Mapped[str]
 
 
 class Set(Base):
     __tablename__ = set_tablename
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     # Maps to a TCGPlayer "Group"
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
-    name: Mapped[str] = mapped_column(String(), index=True)
-    code: Mapped[str] = mapped_column(String())
-    release_date: Mapped[datetime] = mapped_column()
-    modified_date: Mapped[datetime] = mapped_column()
+    name: Mapped[str]
+    code: Mapped[str]
+    release_date: Mapped[datetime]
+    modified_date: Mapped[datetime]
     catalog_id: Mapped[int] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     catalog: Mapped["Catalog"] = relationship()
     products: Mapped[list["Product"]] = relationship(back_populates="set")
@@ -51,18 +49,26 @@ class Set(Base):
 class Product(Base):
     __tablename__ = product_tablename
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
     # Blue-Eyes White Dragon
     name: Mapped[str] = mapped_column(index=True)
     # name but without hyphens, semicolons, etc
     clean_name: Mapped[str] = mapped_column(index=True)
-    image_url: Mapped[Optional[str]] = mapped_column()
+    image_url: Mapped[Optional[str]]
     set_id: Mapped[int] = mapped_column(ForeignKey(f"{set_tablename}.id"))
     set: Mapped["Set"] = relationship(back_populates="products")
     skus: Mapped[List["SKU"]] = relationship(back_populates="product")
-    product_type: Mapped[str] = mapped_column()
-    data: Mapped[dict[str, Any]] = mapped_column()
+    product_type: Mapped[ProductType]
+    data: Mapped[dict[str, Any]]
+
+    @property
+    def tcgplayer_url(self) -> str:
+        return f"www.tcgplayer.com/product/{self.tcgplayer_id}"
+
+    @property
+    def rarity(self) -> str | None:
+        return self.data["rarity"]
 
 
 
@@ -88,7 +94,7 @@ class Condition(Base):
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
     catalog_id: Mapped[int] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
-    abbreviation: Mapped[str] = mapped_column()
+    abbreviation: Mapped[str]
 
 
 class Printing(Base):
@@ -107,6 +113,6 @@ class Language(Base):
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
     catalog_id: Mapped[int] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
-    abbreviation: Mapped[str] = mapped_column()
+    abbreviation: Mapped[str]
 
 
