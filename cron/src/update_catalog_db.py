@@ -28,12 +28,6 @@ async def update_set(
     language_tcgplayer_id_to_id_mapping: dict[int, int],
 ):
     with SessionLocal() as session, session.begin():
-        # existing_set = session.scalars(
-        #     select(Set).where(Set.tcgplayer_id == tcgplayer_set.tcgplayer_id)
-        # ).one_or_none()
-
-        # TODO: Check existing set and compare modified dates to see if we need to update it
-
         current_offset = 0
         total = None
 
@@ -54,7 +48,7 @@ async def update_set(
             ).returning(Set.id)
         ).one()
 
-        print(f"current set id: {current_set_id}")
+        print(f"updating set id: {current_set_id}")
 
         for product_type in ProductType:
             while total is None or current_offset < total:
@@ -134,12 +128,13 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
         result = session.execute(
             upsert(model=Printing, values=printing_values, index_elements=[Printing.tcgplayer_id])
             .returning(Printing.tcgplayer_id, Printing.id)
-        )
+        ).all()
 
         printing_tcgplayer_id_to_id_mapping = {
             row.tcgplayer_id: row.id
-            for row in result.all()
+            for row in result
         }
+
         condition_values = [
             {
                 "tcgplayer_id": condition_detail_response.tcgplayer_id,
@@ -153,11 +148,11 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
         result = session.execute(
             upsert(model=Condition, values=condition_values, index_elements=[Condition.tcgplayer_id])
             .returning(Condition.tcgplayer_id, Condition.id)
-        )
+        ).all()
 
         condition_tcgplayer_id_to_id_mapping = {
             row.tcgplayer_id: row.id
-            for row in result.all()
+            for row in result
         }
 
         languages_values = [
@@ -173,11 +168,11 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
         result = session.execute(
             upsert(model=Language, values=languages_values, index_elements=[Language.tcgplayer_id])
             .returning(Language.tcgplayer_id, Language.id)
-        )
+        ).all()
 
         language_tcgplayer_id_to_id_mapping = {
             row.tcgplayer_id: row.id
-            for row in result.all()
+            for row in result
         }
 
     # We do this because we have a maximum number of simultaneous connections we can make to the database.
@@ -196,18 +191,32 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
             limit=PAGINATION_SIZE
         )
 
+        sets_response_ids = [response.tcgplayer_id for response in sets_response.results]
+
+        sets = session.scalars(select(Set).where(Set.tcgplayer_id.in_(sets_response_ids))).all()
+
+        set_tcgplayer_id_to_set = {
+            set.tcgplayer_id: set
+            for set in sets
+        }
+
         total = sets_response.total_items if sets_response.total_items is not None else 0
         current_offset += len(sets_response.results)
 
-        for catalog_set in sets_response.results:
-            await task_queue.put(update_set(
-                service=service,
-                tcgplayer_set=catalog_set,
-                catalog_id=catalog.id,
-                printing_tcgplayer_id_to_id_mapping=printing_tcgplayer_id_to_id_mapping,
-                condition_tcgplayer_id_to_id_mapping=condition_tcgplayer_id_to_id_mapping,
-                language_tcgplayer_id_to_id_mapping=language_tcgplayer_id_to_id_mapping,
-            ))
+        for response_set in sets_response.results:
+            set = set_tcgplayer_id_to_set.get(response_set.tcgplayer_id)
+
+            if set is None or set.modified_date != response_set.modified_on:
+                await task_queue.put(update_set(
+                    service=service,
+                    tcgplayer_set=response_set,
+                    catalog_id=catalog.id,
+                    printing_tcgplayer_id_to_id_mapping=printing_tcgplayer_id_to_id_mapping,
+                    condition_tcgplayer_id_to_id_mapping=condition_tcgplayer_id_to_id_mapping,
+                    language_tcgplayer_id_to_id_mapping=language_tcgplayer_id_to_id_mapping,
+                ))
+            else:
+                print(f"skipping set: {set.id}")
 
         await task_queue.join()
 
