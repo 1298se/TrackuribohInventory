@@ -2,9 +2,9 @@ from datetime import datetime
 
 from fastapi.testclient import TestClient
 
-from app.main import app
-from app.models.inventory import TransactionType
-from app.routes.transactions.schemas import TransactionCreateRequestSchema, \
+from app.src.main import app
+from core.models.inventory import TransactionType
+from app.src.routes.transactions.schemas import TransactionCreateRequestSchema, \
     LineItemCreateRequestSchema
 
 

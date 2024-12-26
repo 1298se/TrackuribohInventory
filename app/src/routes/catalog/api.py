@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.models.catalog import Product
-from app.models.database import get_db_session
-from app.routes.catalog.schemas import ProductWithSKUsResponseSchema
+from core.models.catalog import Product
+from core.models.database import get_db_session
+from src.routes.catalog.schemas import ProductWithSKUsResponseSchema
 
 router = APIRouter(
     prefix="/catalog",

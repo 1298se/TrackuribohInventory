@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from uuid_extensions import uuid7
 
-from app.models.database import get_db_session
-from app.models.inventory import LineItem, Transaction
-from app.routes.transactions.schemas import TransactionCreateRequestSchema, \
+from core.models.database import get_db_session
+from core.models.inventory import LineItem, Transaction
+from src.routes.transactions.schemas import TransactionCreateRequestSchema, \
     TransactionResponseSchema
-from app.routes.transactions.dao import get_skus_by_id
-from app.services.tcgplayer_catalog_service import TCGPlayerCatalogService, get_tcgplayer_catalog_service
+from src.routes.transactions.dao import get_skus_by_id
+from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService, get_tcgplayer_catalog_service
 
 router = APIRouter(
     prefix="/transactions",

@@ -8,7 +8,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-fastapi = "^0.112.2"
+fastapi = {extras = ["standard"], version = "^0.115.6"}
 uvicorn = "^0.30.6"
 sqlalchemy = "^2.0.32"
 pydantic-settings = "^2.4.0"

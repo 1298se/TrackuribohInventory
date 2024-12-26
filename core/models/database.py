@@ -3,8 +3,8 @@ from sqlalchemy.dialects.postgresql import insert, Insert
 from sqlalchemy.orm import sessionmaker, Session
 from typing_extensions import Type
 
-from app.environment import get_environment
-from app.models.catalog import *
+from core.environment import get_environment
+from core.models.catalog import *
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
 DATABASE_POOL_SIZE = 100

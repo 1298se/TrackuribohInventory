@@ -4,8 +4,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
-from app.models.inventory import TransactionType
-from app.routes.catalog.schemas import SKUWithProductResponseSchema
+from core.models.inventory import TransactionType
+from src.routes.catalog.schemas import SKUWithProductResponseSchema
 
 
 class LineItemCreateRequestSchema(BaseModel):

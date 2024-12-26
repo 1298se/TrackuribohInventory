@@ -3,7 +3,7 @@ from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.catalog import SKU
+from core.models.catalog import SKU
 
 
 def get_skus_by_id(session: Session, ids: list[int]) -> Sequence[SKU]:

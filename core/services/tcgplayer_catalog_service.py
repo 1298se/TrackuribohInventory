@@ -5,8 +5,8 @@ from functools import lru_cache
 
 import aiohttp
 
-from app.environment import get_environment
-from app.services.schemas.schema import CatalogDetailResponseSchema, RefreshTokenRequestSchema, \
+from core.environment import get_environment
+from core.services.schemas.schema import CatalogDetailResponseSchema, RefreshTokenRequestSchema, \
     CatalogPrintingResponseSchema, CatalogConditionResponseSchema, CatalogLanguageResponseSchema, \
     CatalogRarityResponseSchema, CatalogSetResponseSchema, ProductResponseSchema, ProductType, SKUPricingResponseSchema
 

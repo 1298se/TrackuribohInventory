@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel
 
-from app.services.schemas.schema import ProductType
+from core.services.schemas.schema import ProductType
 
 class PrintingResponseSchema(BaseModel):
     name: str
