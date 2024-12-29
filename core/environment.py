@@ -1,5 +1,6 @@
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,7 +14,8 @@ class Environment(BaseSettings):
     tcgplayer_client_id: str
     tcgplayer_client_secret: str
 
-    model_config = SettingsConfigDict()
+    # We provide a fallback env_file so we can run the FastAPI app in Pycharm
+    model_config = SettingsConfigDict(env_file=f"{Path(__file__).parent.parent}/.env")
 
     @property
     def db_url(self):

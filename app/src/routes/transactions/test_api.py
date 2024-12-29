@@ -18,7 +18,7 @@ def test_create_and_get_transaction():
                 counterparty_name="Billy Bob",
                 line_items=[
                     LineItemCreateRequestSchema(
-                        sku_id=2,
+                        sku_id="0676dd88-9641-714d-8000-509a886627ac",
                         quantity=3,
                     )
                 ]

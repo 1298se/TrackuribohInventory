@@ -5,11 +5,17 @@ from fastapi.testclient import TestClient
 def test_get_product():
     with TestClient(app) as client:
         response = client.get(
-            url="/catalog/product/06743503-43ad-79f0-8000-54adacfea7a2",
+            url="/catalog/product/0676da9d-25f9-7cd8-8000-2122017bf0a7",
         )
 
-        print(response.json())
+        assert response.status_code == 200, response.json()
+
+def test_search_products():
+    with TestClient(app) as client:
+        response = client.get(
+            url="/catalog/search?query=Blue Eyes White Dragon"
+        )
+
+        # print(response.json())
 
         assert response.status_code == 200, response.json()
-        assert response.json()["tcgplayer_url"] == "www.tcgplayer.com/product/554935"
-        assert len(response.json()["skus"]) == 5

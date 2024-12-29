@@ -3,7 +3,7 @@ import logging
 
 from sqlalchemy import select
 
-from core.models.database import upsert, SessionLocal
+from database import upsert, SessionLocal
 from core.models.catalog import Catalog, Condition, Printing, Language, Set, Product, SKU
 from core.services.schemas.schema import CatalogSetSchema, ProductType
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
@@ -111,6 +111,7 @@ async def update_set(
                 )
 
 async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
+    # Each coroutine should have its own connection to db
     with (SessionLocal() as session, session.begin()):
         printings_request = service.get_printings(catalog_id=catalog.tcgplayer_id)
         conditions_request = service.get_conditions(catalog_id=catalog.tcgplayer_id)

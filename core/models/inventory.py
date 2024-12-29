@@ -7,7 +7,7 @@ from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_extensions import uuid7
 
-from core.models import Base
+from core.models.base import Base
 from core.models.catalog import SKU, sku_tablename
 
 transaction_tablename = "transaction"

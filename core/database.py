@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from typing_extensions import Type
 
 from core.environment import get_environment
-from core.models.catalog import *
+from core.models import *
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
 DATABASE_POOL_SIZE = 100
@@ -13,7 +13,7 @@ engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_size=DATABASE_POOL_SIZE,
     pool_timeout=120,
-    # echo=True
+    echo=True
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

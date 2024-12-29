@@ -9,7 +9,7 @@ from src.routes.catalog.schemas import SKUWithProductResponseSchema
 
 
 class LineItemCreateRequestSchema(BaseModel):
-    sku_id: int
+    sku_id: uuid.UUID
     quantity: int
 
 class TransactionCreateRequestSchema(BaseModel):

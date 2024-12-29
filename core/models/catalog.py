@@ -2,12 +2,12 @@ import uuid
 from datetime import datetime
 from typing import List, Any
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Index
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing_extensions import Optional
 from uuid_extensions import uuid7
 
-from core.models import Base
+from core.models.base import Base
 from core.services.schemas.schema import ProductType
 
 catalog_tablename = "catalog"
@@ -49,6 +49,15 @@ class Set(Base):
 class Product(Base):
     __tablename__ = product_tablename
 
+    __table_args__ = (
+        Index(
+            'trgm_product_name_idx',
+            'name',
+            postgresql_using='gin',
+            postgresql_ops={'name': 'gin_trgm_ops'}
+        ),
+    )
+
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
     # Blue-Eyes White Dragon
@@ -75,7 +84,7 @@ class Product(Base):
 class SKU(Base):
     __tablename__ = sku_tablename
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
     product_id: Mapped[int] = mapped_column(ForeignKey(f"{product_tablename}.id"))
     product: Mapped["Product"] = relationship(back_populates="skus")
@@ -90,9 +99,9 @@ class SKU(Base):
 class Condition(Base):
     __tablename__ = condition_tablename
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
-    catalog_id: Mapped[int] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
+    catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
     abbreviation: Mapped[str]
 
@@ -100,18 +109,18 @@ class Condition(Base):
 class Printing(Base):
     __tablename__ = printing_tablename
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
-    catalog_id: Mapped[int] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
+    catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
 
 
 class Language(Base):
     __tablename__ = language_tablename
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
-    catalog_id: Mapped[int] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
+    catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
     abbreviation: Mapped[str]
 

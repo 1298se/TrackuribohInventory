@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from uuid_extensions import uuid7
 
-from core.models.database import get_db_session
+from database import get_db_session
 from core.models.inventory import LineItem, Transaction
 from src.routes.transactions.schemas import TransactionCreateRequestSchema, \
     TransactionResponseSchema
