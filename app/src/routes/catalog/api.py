@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
-from core.models.catalog import Product
-from database import get_db_session
 from src.routes.catalog.schemas import ProductWithSKUsResponseSchema, ProductSearchResponseSchema
+from core.database import get_db_session
+from core.src.models import Product
 
 router = APIRouter(
     prefix="/catalog",
@@ -19,10 +19,9 @@ async def get_product(product_id: str, session: Session = Depends(get_db_session
 
     return product
 
-
 @router.get("/search", response_model=ProductSearchResponseSchema)
 def search_products(query: str, session: Session = Depends(get_db_session)):
-    word_similarity = func.word_similarity(Product.name, query)
+    word_similarity = func.word_similarity(query, Product.name)
 
     results = session.scalars(
         select(Product).where(word_similarity > 0.5).order_by(word_similarity.desc()).options(

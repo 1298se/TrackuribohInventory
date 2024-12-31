@@ -2,9 +2,9 @@ import asyncio
 
 from sqlalchemy import select
 
-from core.models.catalog import SKU, Condition, Language
-from database import SessionLocal
-from utils.workers import create_workers
+from src.models.catalog import SKU, Condition, Language
+from core.database import SessionLocal
+from src.utils import create_workers
 
 
 async def update_sku_prices():

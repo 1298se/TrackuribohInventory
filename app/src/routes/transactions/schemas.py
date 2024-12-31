@@ -4,18 +4,24 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
-from core.models.inventory import TransactionType
 from src.routes.catalog.schemas import SKUWithProductResponseSchema
+from src.routes.utils import MoneySchema
+from core.src.models.inventory import TransactionType
 
-
-class LineItemCreateRequestSchema(BaseModel):
+class LineItemBaseSchema(BaseModel):
     sku_id: uuid.UUID
     quantity: int
+
+class LineItemProRataResponseSchema(LineItemBaseSchema):
+    price_per_quantity: MoneySchema
+
+
+class LineItemCreateRequestSchema(LineItemBaseSchema):
+    price_per_item: MoneySchema
 
 class TransactionCreateRequestSchema(BaseModel):
     date: datetime
     type: TransactionType
-    amount: Decimal
     counterparty_name: str
     line_items: list[LineItemCreateRequestSchema]
 

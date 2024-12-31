@@ -1,4 +1,4 @@
-from app.src.main import app
+from src.main import app
 
 from fastapi.testclient import TestClient
 
@@ -13,9 +13,9 @@ def test_get_product():
 def test_search_products():
     with TestClient(app) as client:
         response = client.get(
-            url="/catalog/search?query=Blue Eyes White Dragon"
+            url="/catalog/search?query=Blue Eyes"
         )
 
-        # print(response.json())
+        print(response.json()["results"])
 
         assert response.status_code == 200, response.json()

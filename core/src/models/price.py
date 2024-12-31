@@ -2,7 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import Column, Integer, Numeric, DateTime
 
-from core.models.base import Base
+from src.models import Base
 
 class SKUPricingHistory(Base):
     __tablename__ = 'sku_pricing_history'

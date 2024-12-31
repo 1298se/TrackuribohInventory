@@ -7,8 +7,8 @@ from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing_extensions import Optional
 from uuid_extensions import uuid7
 
-from core.models.base import Base
-from core.services.schemas.schema import ProductType
+from core.src.models.base import Base
+from core.src.services.schemas.schema import ProductType
 
 catalog_tablename = "catalog"
 set_tablename = "set"

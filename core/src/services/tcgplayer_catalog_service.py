@@ -6,9 +6,9 @@ from functools import lru_cache
 import aiohttp
 
 from core.environment import get_environment
-from core.services.schemas.schema import CatalogDetailResponseSchema, RefreshTokenRequestSchema, \
-    CatalogPrintingResponseSchema, CatalogConditionResponseSchema, CatalogLanguageResponseSchema, \
-    CatalogRarityResponseSchema, CatalogSetResponseSchema, ProductResponseSchema, ProductType, SKUPricingResponseSchema
+from core.src.services.schemas.schema import CatalogDetailResponseSchema, CatalogPrintingResponseSchema, \
+    CatalogConditionResponseSchema, CatalogRarityResponseSchema, CatalogLanguageResponseSchema, \
+    CatalogSetResponseSchema, ProductType, ProductResponseSchema, SKUPricingResponseSchema, RefreshTokenRequestSchema
 
 logger = logging.getLogger(__name__)
 

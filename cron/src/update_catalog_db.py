@@ -3,11 +3,11 @@ import logging
 
 from sqlalchemy import select
 
-from database import upsert, SessionLocal
-from core.models.catalog import Catalog, Condition, Printing, Language, Set, Product, SKU
-from core.services.schemas.schema import CatalogSetSchema, ProductType
-from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
-from core.utils.workers import create_workers
+from core.database import upsert, SessionLocal
+from core.src.models import Set, Product, SKU, Catalog, Printing, Condition, Language
+from core.src.services.schemas.schema import CatalogSetSchema, ProductType
+from core.src.services.tcgplayer_catalog_service import TCGPlayerCatalogService
+from core.src.utils.workers import create_workers
 
 logger = logging.getLogger(__name__)
 

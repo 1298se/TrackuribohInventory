@@ -15,7 +15,10 @@ class Environment(BaseSettings):
     tcgplayer_client_secret: str
 
     # We provide a fallback env_file so we can run the FastAPI app in Pycharm
-    model_config = SettingsConfigDict(env_file=f"{Path(__file__).parent.parent}/.env")
+    model_config = SettingsConfigDict(
+        env_file=f"{Path(__file__).parent.parent}/.env",
+        extra="allow",
+    )
 
     @property
     def db_url(self):

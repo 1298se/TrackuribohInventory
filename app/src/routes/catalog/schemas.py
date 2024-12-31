@@ -1,12 +1,11 @@
 import uuid
-from typing import List
 
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy.orm import Load, joinedload, selectinload
+from pydantic import BaseModel
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
-from core.services.schemas.schema import ProductType
-from models import Product, SKU
+from core.src.models import Product, SKU
+from core.src.services.schemas.schema import ProductType
 from src.routes.utils import ORMModel
 
 
