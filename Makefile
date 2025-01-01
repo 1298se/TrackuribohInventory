@@ -43,15 +43,6 @@ define docker_run
 	docker run -d --name trackuriboh-$(1) $(2) --env-file .env $(3)
 endef
 
-# Run targets locally
-.PHONY: run-cron
-run-cron: build-cron
-	$(call docker_run,cron,,$(CRON_REPO))
-
-.PHONY: run-api
-run-api: build-api
-	$(call docker_run,api,-p 80:80,$(API_REPO))
-
 # Build targets
 .PHONY: build-cron
 build-cron:

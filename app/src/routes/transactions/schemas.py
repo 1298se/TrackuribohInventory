@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from src.routes.catalog.schemas import SKUWithProductResponseSchema
 from src.routes.utils import MoneySchema
-from core.src.models.inventory import TransactionType
+from core.models.inventory import TransactionType
 
 class LineItemBaseSchema(BaseModel):
     sku_id: uuid.UUID

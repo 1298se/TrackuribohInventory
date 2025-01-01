@@ -2,13 +2,13 @@ import uuid
 from datetime import datetime
 from typing import List, Any
 
-from sqlalchemy import ForeignKey, Index
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing_extensions import Optional
 from uuid_extensions import uuid7
 
-from core.src.models.base import Base
-from core.src.services.schemas.schema import ProductType
+from core.models.base import Base
+from core.services.schemas.schema import ProductType
 
 catalog_tablename = "catalog"
 set_tablename = "set"
@@ -48,15 +48,6 @@ class Set(Base):
 
 class Product(Base):
     __tablename__ = product_tablename
-
-    __table_args__ = (
-        Index(
-            'trgm_product_name_idx',
-            'name',
-            postgresql_using='gin',
-            postgresql_ops={'name': 'gin_trgm_ops'}
-        ),
-    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)

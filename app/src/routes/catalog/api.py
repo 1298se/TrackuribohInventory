@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from src.routes.catalog.schemas import ProductWithSKUsResponseSchema, ProductSearchResponseSchema
 from core.database import get_db_session
-from core.src.models import Product
+from core.models import Product
 
 router = APIRouter(
     prefix="/catalog",

@@ -1,13 +1,14 @@
 import asyncio
 import logging
+import uuid
 
 from sqlalchemy import select
 
 from core.database import upsert, SessionLocal
-from core.src.models import Set, Product, SKU, Catalog, Printing, Condition, Language
-from core.src.services.schemas.schema import CatalogSetSchema, ProductType
-from core.src.services.tcgplayer_catalog_service import TCGPlayerCatalogService
-from core.src.utils.workers import create_workers
+from core.models import Set, Product, SKU, Catalog, Printing, Condition, Language
+from core.services.schemas.schema import CatalogSetSchema, ProductType
+from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
+from core.utils.workers import process_task_queue
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ SUPPORTED_CATALOGS = frozenset(
 async def update_set(
     service: TCGPlayerCatalogService,
     tcgplayer_set: CatalogSetSchema,
-    catalog_id: int,
+    catalog_id: uuid.UUID,
     printing_tcgplayer_id_to_id_mapping: dict[int, int],
     condition_tcgplayer_id_to_id_mapping: dict[int, int],
     language_tcgplayer_id_to_id_mapping: dict[int, int],
@@ -112,7 +113,7 @@ async def update_set(
 
 async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
     # Each coroutine should have its own connection to db
-    with (SessionLocal() as session, session.begin()):
+    with SessionLocal() as session:
         printings_request = service.get_printings(catalog_id=catalog.tcgplayer_id)
         conditions_request = service.get_conditions(catalog_id=catalog.tcgplayer_id)
         languages_request = service.get_languages(catalog_id=catalog.tcgplayer_id)
@@ -176,11 +177,7 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
             for row in result
         }
 
-    # We do this because we have a maximum number of simultaneous connections we can make to the database.
-    # The number 20 was picked arbitrarily, but works quite well.
-    task_queue = asyncio.Queue(maxsize=20)
-
-    worker_tasks = create_workers(count=20, queue=task_queue)
+    task_queue = asyncio.Queue()
 
     current_offset = 0
     total = None
@@ -219,17 +216,14 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
             else:
                 print(f"skipping set: {set.id}")
 
-        await task_queue.join()
-
-    for task in worker_tasks:
-        task.cancel()
-
-    await asyncio.gather(*worker_tasks, return_exceptions=True)
+        # We do this because we have a maximum number of simultaneous connections we can make to the database.
+        # The number 20 was picked arbitrarily, but works quite well.
+        await process_task_queue(task_queue, num_workers=20)
 
 
 async def update_card_database():
     async with TCGPlayerCatalogService() as service:
-        with SessionLocal() as session, session.begin():
+        with SessionLocal() as session:
             catalog_response = await service.get_catalogs(list(SUPPORTED_CATALOGS))
 
             catalog_values = [

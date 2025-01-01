@@ -139,8 +139,8 @@ class SKUPricingSchema(TCGPlayerCatalogResponseModel):
     direct_low_price: Optional[Decimal]
 
     @cached_property
-    def lowest_listing_price_total(self):
-        return self.lowest_listing_price + self.lowest_shipping
+    def lowest_listing_price_total(self) -> int | None:
+        return self.lowest_listing_price + self.lowest_shipping or 0 if self.lowest_listing_price is not None else None
 
 class SKUPricingResponseSchema(BaseModel):
     success: bool

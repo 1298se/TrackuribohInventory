@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from uuid_extensions import uuid7
 
 from core.database import get_db_session
-from core.src.models.inventory import Transaction, LineItem
-from core.src.models.types import Money
-from core.src.services.tcgplayer_catalog_service import TCGPlayerCatalogService, get_tcgplayer_catalog_service
+from core.models.inventory import Transaction, LineItem
+from core.models.types import Money
+from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService, get_tcgplayer_catalog_service
 from src.routes.transactions.dao import get_skus_by_id
 from src.routes.transactions.schemas import TransactionResponseSchema, TransactionCreateRequestSchema, \
     LineItemBaseSchema, LineItemProRataResponseSchema

@@ -7,7 +7,7 @@ from core.environment import get_environment
 from src.routes.transactions.api import router as transactions_router
 from src.routes.catalog.api import router as catalog_router
 from src.routes.inventory.api import router as inventory_router
-from core.src.services.tcgplayer_catalog_service import get_tcgplayer_catalog_service
+from core.services.tcgplayer_catalog_service import get_tcgplayer_catalog_service
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
 

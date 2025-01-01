@@ -1,8 +1,8 @@
 from sqlalchemy import func, case, literal, select, Select
 from sqlalchemy.orm import Session
 
-from core.src.models import SKU
-from core.src.models.inventory import Transaction, TransactionType, LineItem
+from core.models import SKU
+from core.models.inventory import Transaction, TransactionType, LineItem
 
 
 def query_inventory_items(session: Session) -> Select:

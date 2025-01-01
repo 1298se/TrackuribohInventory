@@ -1,14 +1,13 @@
 import uuid
 from datetime import datetime
-from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import ForeignKey, Numeric
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship, composite
 from uuid_extensions import uuid7
 
-from core.src.models import Base, sku_tablename, SKU
-from core.src.models.types import Money
+from core.models import Base, sku_tablename, SKU
+from core.models.types import Money
 
 transaction_tablename = "transaction"
 line_item_tablename = "line_item"

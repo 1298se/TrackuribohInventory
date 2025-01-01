@@ -4,8 +4,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
-from core.src.models import Product, SKU
-from core.src.services.schemas.schema import ProductType
+from core.models import Product, SKU
+from core.services.schemas.schema import ProductType
 from src.routes.utils import ORMModel
 
 

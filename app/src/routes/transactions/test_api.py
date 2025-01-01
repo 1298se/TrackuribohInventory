@@ -1,14 +1,12 @@
-import math
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from random import random
 
 from fastapi.testclient import TestClient
 
-from core.src.models.inventory import TransactionType
+from core.models.inventory import TransactionType
 from src.main import app
-from src.routes.transactions.api import TransactionProRataResponseSchema, TransactionProRataRequestSchema
+from src.routes.transactions.api import TransactionProRataRequestSchema
 from src.routes.transactions.schemas import TransactionCreateRequestSchema, \
     LineItemCreateRequestSchema, LineItemBaseSchema
 from src.routes.utils import MoneySchema

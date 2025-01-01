@@ -4,7 +4,7 @@ from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.src.models import SKU
+from core.models import SKU
 
 
 def get_skus_by_id(session: Session, ids: list[uuid.UUID]) -> Sequence[SKU]:

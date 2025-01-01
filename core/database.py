@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from typing_extensions import Type
 
 from core.environment import get_environment
-from core.src.models.base import Base
+from core.models import Base
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
 DATABASE_POOL_SIZE = 100
