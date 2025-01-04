@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from src.routes.catalog.schemas import SKUWithProductResponseSchema
+from app.routes.catalog.schemas import SKUWithProductResponseSchema
 
 
 class InventoryItemResponseSchema(BaseModel):

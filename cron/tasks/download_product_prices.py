@@ -9,7 +9,7 @@ from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
 from core.utils.workers import process_task_queue
 
 
-async def update_sku_prices(skus: list[SKU]):
+async def download_sku_pricing_data(skus: list[SKU]):
     async with TCGPlayerCatalogService() as service:
         with SessionLocal() as session, session.begin():
             print(f"updating skus: {[sku.id for sku in skus]}")
@@ -41,7 +41,7 @@ async def update_sku_prices(skus: list[SKU]):
             )
 
 
-async def update_product_prices():
+async def download_product_price_data():
     with SessionLocal() as session:
         # We do this because we have a maximum number of simultaneous connections we can make to the database.
         # The number 20 was picked arbitrarily, but works quite well.
@@ -55,12 +55,12 @@ async def update_product_prices():
         )
 
         for partition in near_mint_english_skus.yield_per(200).partitions():
-            await task_queue.put(update_sku_prices(list(partition)))
+            await task_queue.put(download_sku_pricing_data(list(partition)))
 
         await process_task_queue(task_queue, num_workers=20)
 
 
 if __name__ == '__main__':
     asyncio.run(
-        update_product_prices(),
+        download_product_price_data(),
     )

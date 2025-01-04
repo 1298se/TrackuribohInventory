@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from src.routes.inventory.dao import query_inventory_items
-from src.routes.inventory.schemas import InventoryResponseSchema, InventoryItemResponseSchema
+from app.routes.inventory.dao import query_inventory_items
+from app.routes.inventory.schemas import InventoryResponseSchema, InventoryItemResponseSchema
 from core.database import get_db_session
 
 router = APIRouter(

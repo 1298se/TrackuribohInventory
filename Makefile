@@ -8,12 +8,20 @@ ECR_URL = $(ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
 .PHONY: deploy-all
 deploy-all: deploy-cron deploy-api
 
+.PHONY: update-service
+update-service:
+	aws ecs update-service \
+		--cluster $(CLUSTER) \
+		--service $(SERVICE) \
+		--force-new-deployment
+
 .PHONY: deploy-cron
-deploy-cron: login build-cron tag-cron push-cron update-lambda
+deploy-cron: login build-cron tag-cron push-cron
+	$(MAKE) update-service CLUSTER=$(CRON_CLUSTER_NAME) SERVICE=$(CRON_SERVICE_NAME)
 
 .PHONY: deploy-api
 deploy-api: login build-api tag-api push-api
-	aws ecs update-service --cluster $(API_CLUSTER_NAME) --service $(API_SERVICE_NAME) --force-new-deployment
+	$(MAKE) update-service CLUSTER=$(API_CLUSTER_NAME) SERVICE=$(API_SERVICE_NAME)
 
 # Login to ECR
 .PHONY: login
@@ -56,7 +64,7 @@ build-api:
 # Run targets locally
 .PHONY: run-cron
 run-cron: build-cron
-	$(call docker_run,cron,,$(CRON_REPO))
+	$(call docker_run,cron,-p 9000:8080,$(CRON_REPO))
 
 .PHONY: run-api
 run-api: build-api
@@ -79,8 +87,3 @@ push-cron:
 .PHONY: push-api
 push-api:
 	$(call push_image,$(API_REPO))
-
-# Update Lambda function
-.PHONY: update-lambda
-update-lambda:
-	aws lambda update-function-code --function-name $(LAMBDA_FUNCTION) --image-uri $(ECR_URL)/$(CRON_REPO):$(IMAGE_TAG)

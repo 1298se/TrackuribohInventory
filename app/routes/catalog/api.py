@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
-from src.routes.catalog.schemas import ProductWithSKUsResponseSchema, ProductSearchResponseSchema
+from app.routes.catalog.schemas import ProductWithSKUsResponseSchema, ProductSearchResponseSchema
 from core.database import get_db_session
 from core.models import Product
 

@@ -4,12 +4,12 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
+from app.main import app
+from app.routes.transactions.api import TransactionProRataRequestSchema
+from app.routes.transactions.schemas import LineItemBaseSchema, TransactionCreateRequestSchema, \
+    LineItemCreateRequestSchema
+from app.routes.utils import MoneySchema
 from core.models.inventory import TransactionType
-from src.main import app
-from src.routes.transactions.api import TransactionProRataRequestSchema
-from src.routes.transactions.schemas import TransactionCreateRequestSchema, \
-    LineItemCreateRequestSchema, LineItemBaseSchema
-from src.routes.utils import MoneySchema
 
 test_sku_id = uuid.UUID("06770852-f60c-7f9e-8000-edad80b54f57")
 
