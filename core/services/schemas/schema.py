@@ -114,7 +114,7 @@ class ExtendedDataSchema(TCGPlayerCatalogResponseModel):
 class ProductSchema(TCGPlayerCatalogResponseModel):
     tcgplayer_id: int = Field(alias="productId")
     name: str
-    clean_name: str
+    clean_name: str | None
     image_url: str
     catalog_tcgplayer_id: int = Field(alias="categoryId")
     set_tcgplayer_id: int = Field(alias="groupId")

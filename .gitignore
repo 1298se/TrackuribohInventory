@@ -7,3 +7,13 @@
 /dataSources/
 /dataSources.local.xml
 .env
+/node_modules/
+/.next/
+/out/
+/dist/
+/build/
+/coverage/
+*.log
+.DS_Store
+__pycache__/
+*.py[cod]

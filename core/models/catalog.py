@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List, Any
 
 from sqlalchemy import ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing_extensions import Optional
 from uuid_extensions import uuid7
@@ -54,22 +55,26 @@ class Product(Base):
     # Blue-Eyes White Dragon
     name: Mapped[str] = mapped_column(index=True)
     # name but without hyphens, semicolons, etc
-    clean_name: Mapped[str] = mapped_column(index=True)
+    clean_name: Mapped[str | None] = mapped_column(index=True)
     image_url: Mapped[Optional[str]]
     set_id: Mapped[int] = mapped_column(ForeignKey(f"{set_tablename}.id"))
     set: Mapped["Set"] = relationship(back_populates="products")
     skus: Mapped[List["SKU"]] = relationship(back_populates="product")
     product_type: Mapped[ProductType]
-    data: Mapped[dict[str, Any]]
+    data: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
 
     @property
     def tcgplayer_url(self) -> str:
         return f"www.tcgplayer.com/product/{self.tcgplayer_id}"
 
     @property
-    def rarity(self) -> str | None:
-        return self.data["rarity"]
-
+    def rarity(self) -> Optional[str]:
+        if isinstance(self.data, list):
+            for item in self.data:
+                # Ensure item is a dictionary and matches "name": "Rarity"
+                if isinstance(item, dict) and item.get("name") == "Rarity":
+                    return item.get("value")  # Return the "value" if found
+        return None  # Return None if no match is found
 
 
 class SKU(Base):

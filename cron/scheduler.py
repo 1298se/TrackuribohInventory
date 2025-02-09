@@ -23,7 +23,7 @@ scheduler.add_job(
     download_product_price_data,
     id="fetch_all_near_mint_listing",
     trigger='cron',
-    hour=','.join([f'{i * DOWNLOAD_PRODUCT_PRICE_DATA_JOB_FREQUENCY}' for i in range(24 // DOWNLOAD_PRODUCT_PRICE_DATA_JOB_FREQUENCY)])
+    hour=','.join([f'{i * DOWNLOAD_PRODUCT_PRICE_DATA_JOB_FREQUENCY + 1}' for i in range(24 // DOWNLOAD_PRODUCT_PRICE_DATA_JOB_FREQUENCY)])
 )
 
 if __name__ == "__main__":

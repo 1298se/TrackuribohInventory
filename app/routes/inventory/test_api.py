@@ -10,4 +10,6 @@ def test_get_inventory():
             url="/inventory",
         )
 
+        print(response.json())
+
         assert response.status_code == 200, response.json()

@@ -29,9 +29,6 @@ async def update_set(
     language_tcgplayer_id_to_id_mapping: dict[int, int],
 ):
     with SessionLocal() as session, session.begin():
-        current_offset = 0
-        total = None
-
         current_set_id = session.scalars(
             upsert(
                 model=Set,
@@ -52,6 +49,9 @@ async def update_set(
         print(f"updating set id: {current_set_id}")
 
         for product_type in ProductType:
+            current_offset = 0
+            total = None
+
             while total is None or current_offset < total:
                 sets_response = await service.get_products(
                     tcgplayer_set_id=tcgplayer_set.tcgplayer_id,
@@ -61,6 +61,7 @@ async def update_set(
                 )
 
                 if "No products were found." in sets_response.errors:
+                    print(f"no products were found for product type: {product_type}")
                     return
 
                 current_offset += len(sets_response.results)
@@ -113,7 +114,7 @@ async def update_set(
 
 async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
     # Each coroutine should have its own connection to db
-    with SessionLocal() as session:
+    with SessionLocal() as session, session.begin():
         printings_request = service.get_printings(catalog_id=catalog.tcgplayer_id)
         conditions_request = service.get_conditions(catalog_id=catalog.tcgplayer_id)
         languages_request = service.get_languages(catalog_id=catalog.tcgplayer_id)
@@ -204,17 +205,14 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
         for response_set in sets_response.results:
             set = set_tcgplayer_id_to_set.get(response_set.tcgplayer_id)
 
-            if set is None or set.modified_date != response_set.modified_on:
-                await task_queue.put(update_set(
-                    service=service,
-                    tcgplayer_set=response_set,
-                    catalog_id=catalog.id,
-                    printing_tcgplayer_id_to_id_mapping=printing_tcgplayer_id_to_id_mapping,
-                    condition_tcgplayer_id_to_id_mapping=condition_tcgplayer_id_to_id_mapping,
-                    language_tcgplayer_id_to_id_mapping=language_tcgplayer_id_to_id_mapping,
-                ))
-            else:
-                print(f"skipping set: {set.id}")
+            await task_queue.put(update_set(
+                service=service,
+                tcgplayer_set=response_set,
+                catalog_id=catalog.id,
+                printing_tcgplayer_id_to_id_mapping=printing_tcgplayer_id_to_id_mapping,
+                condition_tcgplayer_id_to_id_mapping=condition_tcgplayer_id_to_id_mapping,
+                language_tcgplayer_id_to_id_mapping=language_tcgplayer_id_to_id_mapping,
+            ))
 
         # We do this because we have a maximum number of simultaneous connections we can make to the database.
         # The number 20 was picked arbitrarily, but works quite well.
@@ -223,7 +221,7 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
 
 async def update_card_database():
     async with TCGPlayerCatalogService() as service:
-        with SessionLocal() as session:
+        with SessionLocal() as session, session.begin():
             catalog_response = await service.get_catalogs(list(SUPPORTED_CATALOGS))
 
             catalog_values = [

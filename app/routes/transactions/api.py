@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import and_, asc, desc, select
 from sqlalchemy.orm import Session
 from uuid_extensions import uuid7
 
 from app.routes.transactions.dao import get_skus_by_id
 from app.routes.transactions.schemas import TransactionResponseSchema, LineItemProRataResponseSchema, \
-    LineItemBaseSchema, TransactionCreateRequestSchema
+    LineItemBaseSchema, TransactionCreateRequestSchema, TransactionsResponseSchema
 from app.routes.utils import MoneySchema
 from core.database import get_db_session
+from core.models import TransactionType, LineItemConsumption
 from core.models.inventory import Transaction, LineItem
 from core.models.types import Money
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService, get_tcgplayer_catalog_service
@@ -15,6 +17,13 @@ from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService, get
 router = APIRouter(
     prefix="/transactions",
 )
+
+@router.get("/", response_model=TransactionsResponseSchema)
+async def get_transactions(session: Session = Depends(get_db_session)):
+    transactions = session.scalars(select(Transaction).order_by(desc(Transaction.date)).options(
+        *TransactionResponseSchema.get_load_options()
+    )).all()
+    return TransactionsResponseSchema(transactions=transactions)
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponseSchema)
@@ -109,6 +118,61 @@ async def create_transaction(
     ]
 
     session.add_all(line_items)
+    # Flush to get LineItem ids
+    session.flush()
+
+    match request.type:
+        case TransactionType.PURCHASE:
+            for line_item in line_items:
+                line_item.remaining_quantity = line_item.quantity
+
+        case TransactionType.SALE:
+            for sale_line_item in line_items:
+                sell_quantity = sale_line_item.quantity
+
+                fifo_purchase_line_items = (
+                    session.query(LineItem)
+                    .join(Transaction)
+                    .where(
+                        and_(
+                        LineItem.sku_id == sale_line_item.sku_id,
+                        LineItem.remaining_quantity is not None,
+                        LineItem.remaining_quantity > 0
+                    ))
+                    .order_by(desc(Transaction.date), asc(LineItem.id))
+                    .all()
+                )
+
+                for purchase_line_item in fifo_purchase_line_items:
+                    if sell_quantity == 0:
+                        break
+
+                    if purchase_line_item.remaining_quantity >= sell_quantity:
+                        purchase_line_item.remaining_quantity -= sell_quantity
+
+                        session.add(
+                            LineItemConsumption(
+                                sale_line_item_id=sale_line_item.id,
+                                purchase_line_item_id=purchase_line_item.id,
+                                quantity=sell_quantity,
+                            )
+                        )
+
+                        sell_quantity = 0
+                    else:
+                        sell_quantity -= purchase_line_item.remaining_quantity
+
+                        session.add(
+                            LineItemConsumption(
+                                sale_line_item_id=sale_line_item.id,
+                                purchase_line_item_id=purchase_line_item.id,
+                                quantity=purchase_line_item.remaining_quantity,
+                            )
+                        )
+                        purchase_line_item.remaining_quantity = 0
+
+                    if sell_quantity > 0:
+                        raise HTTPException(status_code=400, detail="Not enough inventory to complete sale")
 
     session.commit()
 

@@ -7,16 +7,15 @@ from typing import Coroutine
 async def process_task_queue(queue: asyncio.Queue, num_workers: int):
     worker_tasks = []
 
-    try:
-        for i in range(num_workers):
-            worker_tasks.append(asyncio.create_task(_worker(queue, name=f"worker-{i}")))
-    finally:
-        await queue.join()
+    for i in range(num_workers):
+        worker_tasks.append(asyncio.create_task(_worker(queue, name=f"worker-{i}")))
 
-        for task in worker_tasks:
-            task.cancel()
+    await queue.join()
 
-        await asyncio.gather(*worker_tasks, return_exceptions=True)
+    for task in worker_tasks:
+        task.cancel()
+
+    await asyncio.gather(*worker_tasks, return_exceptions=True)
 
 
 async def _worker(queue, name=None):

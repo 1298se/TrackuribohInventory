@@ -68,7 +68,7 @@ run-cron: build-cron
 
 .PHONY: run-api
 run-api: build-api
-	$(call docker_run,api,-p 80:80,$(API_REPO))
+	$(call docker_run,api,-p 8000:8000,$(API_REPO))
 
 # Tag targets
 .PHONY: tag-cron

@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 from core.environment import get_environment
 from app.routes.transactions.api import router as transactions_router
@@ -28,6 +29,19 @@ async def lifespan(app: FastAPI):
     await tcgplayer_catalog_service.close()
 
 app = FastAPI(lifespan=lifespan)
+
+origins = [
+    "http://localhost:3000",  # React default port
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(transactions_router)
 app.include_router(catalog_router)
 
