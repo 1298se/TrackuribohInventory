@@ -4,6 +4,8 @@ import {
   getCoreRowModel,
   useReactTable,
   Row,
+  RowSelectionState,
+  OnChangeFn,
 } from "@tanstack/react-table"
 
 import {
@@ -25,20 +27,36 @@ export type Column<TData, TValue> = ColumnDef<TData, TValue> & {
 interface DataTableProps<TData, TValue> {
   columns: Column<TData, TValue>[]
   data: TData[]
+  rowSelectionProps?: RowSelectionProps<TData>
   loading?: boolean
   onRowClick?: (row: Row<TData>) => void
+  getRowId?: (row: TData) => string
+}
+
+interface RowSelectionProps<TData> {
+  enableRowSelection?: boolean
+  rowSelectionState?: RowSelectionState,
+  onRowSelectionStateChange?: OnChangeFn<RowSelectionState>
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  rowSelectionProps,
   loading = false,
   onRowClick,
+  getRowId,
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
     columns,
+    state: {
+      rowSelection: rowSelectionProps?.rowSelectionState,
+    },
     getCoreRowModel: getCoreRowModel(),
+    enableRowSelection: rowSelectionProps?.enableRowSelection,
+    onRowSelectionChange: rowSelectionProps?.onRowSelectionStateChange,
+    getRowId: getRowId,
   })
 
   return (

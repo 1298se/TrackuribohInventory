@@ -33,5 +33,3 @@ def get_inventory(session: Session = Depends(get_db_session)):
     return InventoryResponseSchema(
         inventory_items=inventory_items
     )
-
-

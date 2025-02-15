@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import insert, Insert
 from sqlalchemy.orm import sessionmaker, Session
 from typing_extensions import Type
 
-from core.environment import get_environment
+from core.environment import Env, get_environment
 from core.models import Base
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
@@ -13,7 +13,7 @@ engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_size=DATABASE_POOL_SIZE,
     pool_timeout=120,
-    # echo=True
+    echo=get_environment().env == Env.DEBUG
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

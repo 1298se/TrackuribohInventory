@@ -54,3 +54,6 @@ class TransactionResponseSchema(ORMModel):
 
 class TransactionsResponseSchema(BaseModel):
     transactions: list[TransactionResponseSchema]
+
+class BulkTransactionDeleteRequestSchema(BaseModel):
+    transaction_ids: list[uuid.UUID]

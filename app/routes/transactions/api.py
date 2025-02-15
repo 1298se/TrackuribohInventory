@@ -1,12 +1,25 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import and_, asc, desc, select
 from sqlalchemy.orm import Session
 from uuid_extensions import uuid7
+from typing import List
 
-from app.routes.transactions.dao import get_skus_by_id
-from app.routes.transactions.schemas import TransactionResponseSchema, LineItemProRataResponseSchema, \
-    LineItemBaseSchema, TransactionCreateRequestSchema, TransactionsResponseSchema
+from app.routes.transactions.dao import (
+    InsufficientInventoryError,
+    process_sale_line_items,
+    get_skus_by_id,
+    delete_transactions, TransactionNotFoundError
+)
+from app.routes.transactions.schemas import (
+    TransactionResponseSchema,
+    LineItemProRataResponseSchema,
+    LineItemBaseSchema,
+    TransactionCreateRequestSchema,
+    TransactionsResponseSchema,
+    BulkTransactionDeleteRequestSchema
+)
 from app.routes.utils import MoneySchema
 from core.database import get_db_session
 from core.models import TransactionType, LineItemConsumption
@@ -27,7 +40,7 @@ async def get_transactions(session: Session = Depends(get_db_session)):
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponseSchema)
-async def get_transaction(transaction_id: str, session: Session = Depends(get_db_session)):
+async def get_transaction(transaction_id: uuid.UUID, session: Session = Depends(get_db_session)):
     transaction = session.get(Transaction, transaction_id)
 
     return transaction
@@ -127,53 +140,22 @@ async def create_transaction(
                 line_item.remaining_quantity = line_item.quantity
 
         case TransactionType.SALE:
-            for sale_line_item in line_items:
-                sell_quantity = sale_line_item.quantity
-
-                fifo_purchase_line_items = (
-                    session.query(LineItem)
-                    .join(Transaction)
-                    .where(
-                        and_(
-                        LineItem.sku_id == sale_line_item.sku_id,
-                        LineItem.remaining_quantity is not None,
-                        LineItem.remaining_quantity > 0
-                    ))
-                    .order_by(desc(Transaction.date), asc(LineItem.id))
-                    .all()
-                )
-
-                for purchase_line_item in fifo_purchase_line_items:
-                    if sell_quantity == 0:
-                        break
-
-                    if purchase_line_item.remaining_quantity >= sell_quantity:
-                        purchase_line_item.remaining_quantity -= sell_quantity
-
-                        session.add(
-                            LineItemConsumption(
-                                sale_line_item_id=sale_line_item.id,
-                                purchase_line_item_id=purchase_line_item.id,
-                                quantity=sell_quantity,
-                            )
-                        )
-
-                        sell_quantity = 0
-                    else:
-                        sell_quantity -= purchase_line_item.remaining_quantity
-
-                        session.add(
-                            LineItemConsumption(
-                                sale_line_item_id=sale_line_item.id,
-                                purchase_line_item_id=purchase_line_item.id,
-                                quantity=purchase_line_item.remaining_quantity,
-                            )
-                        )
-                        purchase_line_item.remaining_quantity = 0
-
-                    if sell_quantity > 0:
-                        raise HTTPException(status_code=400, detail="Not enough inventory to complete sale")
+                try:
+                    process_sale_line_items(session, request.line_items)
+                except InsufficientInventoryError:
+                    raise HTTPException(status_code=400, detail="Not enough inventory to complete sale")
 
     session.commit()
 
     return transaction
+
+
+@router.post("/bulk", status_code=204)
+async def bulk_delete_transactions(
+    request: BulkTransactionDeleteRequestSchema,
+    session: Session = Depends(get_db_session),
+):
+    try:
+        delete_transactions(session, request.transaction_ids)
+    except TransactionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))

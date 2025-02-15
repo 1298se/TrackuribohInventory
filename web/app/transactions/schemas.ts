@@ -60,3 +60,8 @@ export const TransactionsResponseSchema = z.object({
 
 export type TransactionResponse = z.infer<typeof TransactionResponseSchema>
 export type TransactionsResponse = z.infer<typeof TransactionsResponseSchema>
+
+export const BulkTransactionDeleteRequestSchema = z.object({
+    transaction_ids: z.array(z.string().uuid()),
+});
+export type BulkTransactionDeleteRequest = z.infer<typeof BulkTransactionDeleteRequestSchema>
