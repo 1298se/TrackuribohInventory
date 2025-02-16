@@ -148,6 +148,56 @@ def test_bulk_delete_transaction():
         )
         assert delete_response.status_code == 204, delete_response.text
 
+def test_bulk_delete_fail_on_insufficient_inventory():
+    with TestClient(app) as client:
+        # Create a transaction with insufficient inventory
+        test_sku = get_test_sku()
+
+        json = TransactionCreateRequestSchema(
+            date=datetime.now(),
+            type=TransactionType.PURCHASE,
+            counterparty_name="Billy Bob",
+            line_items=[
+                LineItemCreateRequestSchema(
+                    sku_id=test_sku.id,
+                    quantity=1,
+                    price_per_item=MoneySchema(
+                        amount=Decimal("10.00"),
+                        currency="USD",
+                    )
+                )
+            ]
+        ).model_dump_json()
+
+        purchase_response = client.post(
+            url="/transactions/",
+            content=json,
+        )
+        
+        sale = TransactionCreateRequestSchema(
+            date=datetime.now(),
+            type=TransactionType.SALE,
+            counterparty_name="Billy Bob",
+            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=1, price_per_item=MoneySchema(amount=Decimal("10.00"), currency="USD"))]
+        ).model_dump_json()
+
+        client.post(
+            url="/transactions/",
+            content=sale,
+        )
+
+        bulk_delete_payload = BulkTransactionDeleteRequestSchema(
+            transaction_ids=[purchase_response.json()["id"]]
+        ).model_dump_json()
+
+        delete_response = client.post(
+            url="/transactions/bulk",
+            content=bulk_delete_payload,
+        )
+
+        assert delete_response.status_code == 400, delete_response.json()
+
+        
 
 def get_test_sku() -> SKU:
     with SessionLocal() as session:

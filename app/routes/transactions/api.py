@@ -141,7 +141,7 @@ async def create_transaction(
 
         case TransactionType.SALE:
                 try:
-                    process_sale_line_items(session, request.line_items)
+                    process_sale_line_items(session, line_items)
                 except InsufficientInventoryError:
                     raise HTTPException(status_code=400, detail="Not enough inventory to complete sale")
 
@@ -159,3 +159,5 @@ async def bulk_delete_transactions(
         delete_transactions(session, request.transaction_ids)
     except TransactionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except InsufficientInventoryError as e:
+        raise HTTPException(status_code=400, detail=str(e))
