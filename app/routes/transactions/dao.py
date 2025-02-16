@@ -1,5 +1,5 @@
 import uuid
-from typing import Sequence
+from typing import Sequence, assert_never
 from collections import defaultdict
 
 from sqlalchemy import and_, asc, desc, select
@@ -100,35 +100,45 @@ def delete_transactions(session: Session, transaction_ids: list[uuid.UUID]) -> N
     if len(transactions) != len(transaction_ids):
         raise TransactionNotFoundError(f"Transactions not found: {set(transaction_ids) - {t.id for t in transactions}}")
 
-    for transaction in transactions:
-        line_item_ids = [line_item.id for line_item in transaction_id_to_line_items[transaction.id]]
+    # Reorder transactions to process SALE transactions before PURCHASE transactions using exhaustive match‑case
+    def transaction_priority(t: Transaction) -> int:
+        match t.type:
+            case TransactionType.SALE:
+                return 0
+            case TransactionType.PURCHASE:
+                return 1
+            case _:
+                assert_never(t.type)
 
+    ordered_transactions = sorted(transactions, key=transaction_priority)
+
+    for transaction in ordered_transactions:
+        line_item_ids = [line_item.id for line_item in transaction_id_to_line_items[transaction.id]]
+        
         # Delete all associated line items
         for line_item in line_items:
             session.delete(line_item)
-
+        
         # Delete the transaction itself
         session.delete(transaction)
-
-        print(line_items)
-
+        
         match transaction.type:
             case TransactionType.PURCHASE:
                 consumptions = session.query(LineItemConsumption)\
                     .filter(LineItemConsumption.purchase_line_item_id.in_(line_item_ids))\
                     .all()
                 sale_line_item_ids = {consumption.sale_line_item_id for consumption in consumptions}
-                sale_line_items = session.query(LineItem)\
-                    .filter(LineItem.id.in_(sale_line_item_ids))\
-                    .all()
+                sale_line_items = session.scalars(
+                    select(LineItem).where(LineItem.id.in_(sale_line_item_ids))
+                ).all()
 
                 # Delete all associated consumptions
                 for consumption in consumptions:
                     session.delete(consumption)
-
+        
                 # Re-process sale line items
                 process_sale_line_items(session, sale_line_items)
-
+        
             case TransactionType.SALE:
                 consumptions = session.query(LineItemConsumption)\
                     .filter(LineItemConsumption.sale_line_item_id.in_(line_item_ids))\
@@ -138,12 +148,12 @@ def delete_transactions(session: Session, transaction_ids: list[uuid.UUID]) -> N
                     .filter(LineItem.id.in_(purchase_line_item_ids))\
                     .all()
                 purchase_line_item_dict = {line_item.id: line_item for line_item in purchase_line_items}
-
+        
                 for consumption in consumptions:
                     # Restore the purchase line item quantity
                     purchase_line_item_dict[consumption.purchase_line_item_id].remaining_quantity += consumption.quantity
-
+        
                     # Delete the consumption
                     session.delete(consumption)
 
-    session.commit()
+        session.flush()

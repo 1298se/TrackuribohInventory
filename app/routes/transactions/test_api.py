@@ -197,7 +197,54 @@ def test_bulk_delete_fail_on_insufficient_inventory():
 
         assert delete_response.status_code == 400, delete_response.json()
 
-        
+def test_bulk_delete_sale_and_purchase_simultaneous():
+    with TestClient(app) as client:
+        # Create a purchase transaction
+        test_sku = get_test_sku()
+
+        purchase_json = TransactionCreateRequestSchema(
+            date=datetime.now(),
+            type=TransactionType.PURCHASE,
+            counterparty_name="Billy Bob",
+            line_items=[
+                LineItemCreateRequestSchema(
+                    sku_id=test_sku.id,
+                    quantity=3,
+                    price_per_item=MoneySchema(
+                        amount=Decimal("10.00"),
+                        currency="USD",
+                    )
+                )
+            ]
+        ).model_dump_json()
+
+        purchase_response = client.post(
+            url="/transactions/",
+            content=purchase_json,
+        )
+
+        sale_json = TransactionCreateRequestSchema(
+            date=datetime.now(),
+            type=TransactionType.SALE,
+            counterparty_name="Billy Bob",
+            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=3, price_per_item=MoneySchema(amount=Decimal("10.00"), currency="USD"))]
+        ).model_dump_json()
+
+        sale_response = client.post(
+            url="/transactions/",
+            content=sale_json,
+        )
+
+        bulk_delete_payload = BulkTransactionDeleteRequestSchema(
+            transaction_ids=[purchase_response.json()["id"], sale_response.json()["id"]]
+        ).model_dump_json()
+
+        delete_response = client.post(
+            url="/transactions/bulk",
+            content=bulk_delete_payload,
+        )
+
+        assert delete_response.status_code == 204, delete_response.text
 
 def get_test_sku() -> SKU:
     with SessionLocal() as session:

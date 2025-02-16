@@ -35,6 +35,17 @@ export const TransactionCreateFormSchema = TransactionCreateRequestSchema.extend
 type TransactionCreateFormLineItem = z.infer<typeof TransactionCreateFormLineItemSchema>
 type TransactionCreateForm = z.infer<typeof TransactionCreateFormSchema>
 
+// Helper function to map the transaction type enum to a display string
+function getTransactionTypeDisplay(type: string): string {
+    const typeMapping: Record<string, string> = {
+        "SALE": "Sale",
+        "PURCHASE": "Purchase",
+        // Add additional mappings here as needed.
+    };
+
+    return typeMapping[type] || (type.charAt(0).toUpperCase() + type.slice(1).toLowerCase());
+}
+
 export default function CreateTransactionFormDialog() {
 
     const form = useForm<TransactionCreateForm>({
@@ -292,7 +303,7 @@ export default function CreateTransactionFormDialog() {
                                                 <SelectContent>
                                                     {TransactionTypeSchema.options.map((type) => (
                                                         <SelectItem key={type} value={type}>
-                                                            {type}
+                                                            {getTransactionTypeDisplay(type)}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
