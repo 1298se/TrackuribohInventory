@@ -20,7 +20,7 @@ import { DataTable } from "../inventory/data-table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateTransaction, useCalculateProRata } from "./api";
 import { ProductWithSetAndSKUsResponseSchema, ProductWithSetAndSKUsResponse } from "../inventory/schemas";
-import { LineItemCreateRequestSchema, TransactionCreateRequestSchema, TransactionCreateRequest, TransactionTypeSchema } from "./schemas";
+import { LineItemCreateRequestSchema, TransactionCreateRequestSchema, TransactionCreateRequest, TransactionTypeSchema, TransactionType } from "./schemas";
 import { Textarea } from "@/components/ui/textarea"
 
 export const TransactionCreateFormLineItemSchema = LineItemCreateRequestSchema.extend({
@@ -36,14 +36,15 @@ type TransactionCreateFormLineItem = z.infer<typeof TransactionCreateFormLineIte
 type TransactionCreateForm = z.infer<typeof TransactionCreateFormSchema>
 
 // Helper function to map the transaction type enum to a display string
-function getTransactionTypeDisplay(type: string): string {
-    const typeMapping: Record<string, string> = {
-        "SALE": "Sale",
-        "PURCHASE": "Purchase",
-        // Add additional mappings here as needed.
-    };
-
-    return typeMapping[type] || (type.charAt(0).toUpperCase() + type.slice(1).toLowerCase());
+function getTransactionTypeDisplay(type: TransactionType): string {
+    switch (type) {
+        case "SALE":
+            return "Sale";
+        case "PURCHASE":
+            return "Purchase";
+        default:
+            return type;
+    }
 }
 
 export default function CreateTransactionFormDialog() {
