@@ -1,23 +1,15 @@
-import { Button } from "@/components/ui/button"
-import { Command, CommandInput } from "@/components/ui/command"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { SidebarInput } from "@/components/ui/sidebar"
-import { cn } from "@/lib/utils"
 import { DialogProps } from "@radix-ui/react-dialog"
 import { Search, Loader2 } from "lucide-react"
-import { useInventory, useSearchProducts, useCatalogs } from "./api"
+import { useSearchProducts, useCatalogs } from "./api"
 import { useState } from "react"
 import { ProductWithSetAndSKUsResponse } from "./schemas"
 import { useDebounce } from "@/hooks/use-debounce"

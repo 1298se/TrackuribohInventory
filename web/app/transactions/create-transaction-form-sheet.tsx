@@ -24,6 +24,7 @@ import { LineItemCreateRequestSchema, TransactionCreateRequestSchema, Transactio
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation";
 import { MoneySchema } from "../schemas";
+import { MoneyInput } from "@/components/ui/money-input";
 
 export const TransactionCreateFormMoneySchema = MoneySchema.extend({
     amount: z.string(),
@@ -240,17 +241,9 @@ export default function CreateTransactionFormDialog() {
                         render={({ field }) => (
                             <FormItem>
                                 <FormControl>
-                                    <Input
-                                        type="text"
-                                        inputMode="decimal"
-                                        className="w-24"
+                                    <MoneyInput
                                         value={field.value || ''}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
-                                                field.onChange(value);
-                                            }
-                                        }}
+                                        onChange={(e) => field.onChange(e.target.value)}
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -438,18 +431,10 @@ export default function CreateTransactionFormDialog() {
                         <CardHeader className="flex items-center justify-between">
                             <FormItem>
                                 <div className="flex items-center justify-end gap-2">
-                                    <Input
-                                        type="text"
-                                        inputMode="decimal"
-                                        className="w-24"
+                                    <MoneyInput
                                         disabled={fields.length === 0}
                                         value={totalAmount}
-                                        onChange={(e) => {
-                                            const newVal = e.target.value;
-                                            if (newVal === "" || /^\d*\.?\d{0,2}$/.test(newVal)) {
-                                                setTotalAmount(newVal);
-                                            }
-                                        }}
+                                        onChange={(e) => setTotalAmount(e.target.value)}
                                     />
                                     <Button
                                         type="button"
