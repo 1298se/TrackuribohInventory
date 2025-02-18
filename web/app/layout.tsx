@@ -16,12 +16,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body className="min-h-screen bg-background text-foreground antialiased">
         <SidebarProvider>
           <AppSidebar />
-          <main className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <main className="flex flex-1 flex-col gap-6 p-6">
             <SidebarTrigger />
-              {children}
+            {children}
           </main>
         </SidebarProvider>
       </body>

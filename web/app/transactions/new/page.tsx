@@ -4,7 +4,7 @@ import CreateTransactionFormDialog from '../create-transaction-form-sheet';
 
 export default function NewTransactionPage() {
   return (
-    <div className="container mx-auto py-10">
+    <div className="container">
       <CreateTransactionFormDialog />
     </div>
   )

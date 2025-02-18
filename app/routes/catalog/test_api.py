@@ -1,7 +1,9 @@
-
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.main import app
+from core.database import SessionLocal
+from core.models.catalog import Catalog
 
 
 def test_get_product():
@@ -13,11 +15,16 @@ def test_get_product():
         assert response.status_code == 200, response.json()
 
 def test_search_products():
-    with TestClient(app) as client:
+    with SessionLocal() as session, TestClient(app) as client:
+        pokemon_catalog = session.scalar(select(Catalog).where(Catalog.tcgplayer_id == 3))
+
         response = client.get(
-            url="/catalog/search?query=Blue Eyes"
+            url=f"/catalog/search?query=Blue Eyes&catalog_id={pokemon_catalog.id}"
         )
 
-        print(response.json()["results"])
+        assert response.status_code == 200, response.json()
 
+def test_get_catalogs():
+    with TestClient(app) as client:
+        response = client.get("/catalog/catalogs")
         assert response.status_code == 200, response.json()

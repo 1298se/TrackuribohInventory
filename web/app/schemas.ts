@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 export const MoneySchema = z.object({
-    amount: z.string(),
+    amount: z.number(),
     currency: z.string(),
 })
 

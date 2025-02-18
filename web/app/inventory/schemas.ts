@@ -138,3 +138,18 @@ export type ProductSearchResponse = z.infer<typeof ProductSearchResponseSchema>
 export type LineItemBase = z.infer<typeof LineItemBaseSchema>
 export type LineItemProRataResponse = z.infer<typeof LineItemProRataResponseSchema>
 export type SKUWithProductResponse = z.infer<typeof SKUWithProductResponseSchema>
+
+/* -----------------------------------------------------
+ * Catalog Schemas
+ * ----------------------------------------------------- */
+export const CatalogSchema = z.object({
+  id: z.string().uuid(),
+  display_name: z.string(),
+});
+
+export const CatalogsResponseSchema = z.object({
+  catalogs: z.array(CatalogSchema),
+});
+
+export type Catalog = z.infer<typeof CatalogSchema>;
+export type CatalogsResponse = z.infer<typeof CatalogsResponseSchema>;

@@ -7,7 +7,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronsUpDown, Search, Trash, X, Plus, Loader2, Package2 } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, Search, Trash, X, Plus, Loader2, Package2, ArrowLeft } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogOverlay, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -22,9 +22,16 @@ import { useCreateTransaction, useCalculateProRata } from "./api";
 import { ProductWithSetAndSKUsResponseSchema, ProductWithSetAndSKUsResponse } from "../inventory/schemas";
 import { LineItemCreateRequestSchema, TransactionCreateRequestSchema, TransactionCreateRequest, TransactionTypeSchema, TransactionType } from "./schemas";
 import { Textarea } from "@/components/ui/textarea"
+import { useRouter } from "next/navigation";
+import { MoneySchema } from "../schemas";
+
+export const TransactionCreateFormMoneySchema = MoneySchema.extend({
+    amount: z.string(),
+})
 
 export const TransactionCreateFormLineItemSchema = LineItemCreateRequestSchema.extend({
     product: ProductWithSetAndSKUsResponseSchema,
+    price_per_item: TransactionCreateFormMoneySchema
 })
 
 export const TransactionCreateFormSchema = TransactionCreateRequestSchema.extend({
@@ -76,7 +83,7 @@ export default function CreateTransactionFormDialog() {
                 line_items: data.line_items.map(item => ({
                     sku_id: item.sku_id,
                     quantity: item.quantity,
-                    price_per_item: item.price_per_item
+                    price_per_item:  MoneySchema.parse(item.price_per_item)
                 }))
             }
 
@@ -91,31 +98,31 @@ export default function CreateTransactionFormDialog() {
         if (!totalAmountStr || fields.length === 0) return;
 
         try {
-            // Get the full form data to access selected SKUs
-            const formData = form.getValues();
+        // Get the full form data to access selected SKUs
+        const formData = form.getValues();
 
-            const result = await calculateProRata({
-                line_items: formData.line_items.map(item => ({
-                    sku_id: item.sku_id,
+        const result = await calculateProRata({
+            line_items: formData.line_items.map(item => ({
+                sku_id: item.sku_id,
                     quantity: item.quantity
-                })),
-                total_amount: {
+            })),
+            total_amount: {
                     amount: totalAmountStr,
                     currency: "USD"
                 }
-            });
+        });
 
-            // Update each line item's price with the calculated pro-rata amount
-            result.line_items.forEach((item, index) => {
-                form.setValue(
-                    `line_items.${index}.price_per_item.amount`,
-                    item.price_per_quantity.amount
-                );
-                form.setValue(
-                    `line_items.${index}.price_per_item.currency`,
-                    item.price_per_quantity.currency
-                );
-            });
+        // Update each line item's price with the calculated pro-rata amount
+        result.line_items.forEach((item, index) => {
+            form.setValue(
+                `line_items.${index}.price_per_item.amount`,
+                item.price_per_quantity.amount
+            );
+            form.setValue(
+                `line_items.${index}.price_per_item.currency`,
+                item.price_per_quantity.currency
+            );
+        });
         } catch (error) {
             console.error("Failed to calculate pro-rata distribution:", error);
         }
@@ -276,6 +283,14 @@ export default function CreateTransactionFormDialog() {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
+                {/* ✨ NEW: Back Button */}
+                <div className="flex items-center">
+                    <Button type="button" variant="ghost" onClick={() => router.back()}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back
+                    </Button>
+                </div>
+
                 {/* Transaction Details Card */}
                 <Card>
                     <CardHeader>
@@ -409,7 +424,6 @@ export default function CreateTransactionFormDialog() {
                         <div className="flex flex-row items-center">
                             <CardHeader>
                                 <CardTitle>Line Items</CardTitle>
-                                <CardDescription>Add items to this transaction</CardDescription>
                             </CardHeader>
                             <Button
                                 type="button"
@@ -443,7 +457,7 @@ export default function CreateTransactionFormDialog() {
                                         disabled={fields.length === 0}
                                         title="Distribute the entered total among your items"
                                         onClick={() => {
-                                            if (totalAmount) {
+                                            if (totalAmount !== undefined) {
                                                 handleProRataFill(totalAmount);
                                             }
                                         }}

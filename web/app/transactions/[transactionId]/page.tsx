@@ -11,7 +11,7 @@ interface PageProps {
 
 export default function TransactionPage({ params }: PageProps) {
     return (
-        <div className="container mx-auto py-6">
+        <div className="container py-6">
             <TransactionDetails transactionId={params.transactionId} />
         </div>
     )
