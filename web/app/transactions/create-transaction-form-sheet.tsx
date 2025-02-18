@@ -53,6 +53,8 @@ export default function CreateTransactionFormDialog() {
         resolver: zodResolver(TransactionCreateFormSchema)
     })
 
+    const router = useRouter();
+
     const { fields, append, remove } = useFieldArray({
         control: form.control,
         name: "line_items",
