@@ -1,10 +1,9 @@
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import and_, asc, desc, select
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 from uuid_extensions import uuid7
-from typing import List
 
 from app.routes.transactions.dao import (
     InsufficientInventoryError,
@@ -15,16 +14,13 @@ from app.routes.transactions.dao import (
 from app.routes.transactions.schemas import (
     TransactionResponseSchema,
     LineItemProRataResponseSchema,
-    LineItemBaseSchema,
     TransactionCreateRequestSchema,
     TransactionsResponseSchema,
-    BulkTransactionDeleteRequestSchema
+    BulkTransactionDeleteRequestSchema, TransactionProRataRequestSchema, TransactionProRataResponseSchema
 )
-from app.routes.utils import MoneySchema
 from core.database import get_db_session
-from core.models import TransactionType, LineItemConsumption
+from core.models import TransactionType
 from core.models.inventory import Transaction, LineItem
-from core.models.types import Money
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService, get_tcgplayer_catalog_service
 
 router = APIRouter(
@@ -41,18 +37,13 @@ async def get_transactions(session: Session = Depends(get_db_session)):
 
 @router.get("/{transaction_id}", response_model=TransactionResponseSchema)
 async def get_transaction(transaction_id: uuid.UUID, session: Session = Depends(get_db_session)):
-    transaction = session.get(Transaction, transaction_id)
+    transaction = session.scalar(
+        select(Transaction)
+        .options(*TransactionResponseSchema.get_load_options())
+        .where(Transaction.id == transaction_id)
+    )
 
     return transaction
-
-
-class TransactionProRataResponseSchema(BaseModel):
-    line_items: list[LineItemProRataResponseSchema]
-
-
-class TransactionProRataRequestSchema(BaseModel):
-    line_items: list[LineItemBaseSchema]
-    total_amount: MoneySchema
 
 
 @router.post("/pro-rata/calculate", response_model=TransactionProRataResponseSchema)
@@ -141,6 +132,13 @@ async def create_transaction(
                     raise HTTPException(status_code=400, detail="Not enough inventory to complete sale")
 
     session.commit()
+
+    # Reload transaction with the appropriate load options
+    transaction = session.scalar(
+        select(Transaction)
+        .options(*TransactionResponseSchema.get_load_options())
+        .where(Transaction.id == transaction_id)
+    )
 
     return transaction
 

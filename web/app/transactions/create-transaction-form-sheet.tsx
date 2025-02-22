@@ -502,7 +502,7 @@ export default function CreateTransactionFormDialog() {
     function onProductSelected(product: ProductWithSetAndSKUsResponse) {
         append({
             product: product,
-            sku_id: "",
+            sku_id: product.skus[0].id,
             quantity: 1,
             price_per_item_amount: "",
         })

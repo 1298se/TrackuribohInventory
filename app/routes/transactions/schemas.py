@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from app.routes.catalog.schemas import SKUWithProductResponseSchema
-from app.routes.utils import MoneyAmountSchema, ORMModel
+from app.routes.utils import MoneyAmountSchema, ORMModel, MoneySchema
 from core.models import LineItem, Transaction
 from core.models.inventory import TransactionType
 
@@ -60,3 +60,11 @@ class TransactionsResponseSchema(BaseModel):
 
 class BulkTransactionDeleteRequestSchema(BaseModel):
     transaction_ids: list[uuid.UUID]
+
+class TransactionProRataResponseSchema(BaseModel):
+    line_items: list[LineItemProRataResponseSchema]
+
+
+class TransactionProRataRequestSchema(BaseModel):
+    line_items: list[LineItemBaseSchema]
+    total_amount: MoneySchema

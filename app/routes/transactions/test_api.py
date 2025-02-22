@@ -9,7 +9,7 @@ from app.main import app
 from app.routes.transactions.api import TransactionProRataRequestSchema
 from app.routes.transactions.schemas import BulkTransactionDeleteRequestSchema, LineItemBaseSchema, TransactionCreateRequestSchema, \
     LineItemCreateRequestSchema
-from app.routes.utils import MoneyAmountSchema
+from app.routes.utils import MoneyAmountSchema, MoneySchema
 from core.database import SessionLocal
 from core.models import Product, SKU
 from core.models.inventory import TransactionType
@@ -29,7 +29,10 @@ def test_transaction_pro_rata():
                     quantity=3,
                 )
             ],
-            total_amount=MoneyAmountSchema("10.00")
+            total_amount=MoneySchema(
+                amount=Decimal(10.00),
+                currency="USD",
+            )
         ).model_dump_json()
 
         pro_rata_response_schema = client.post(
