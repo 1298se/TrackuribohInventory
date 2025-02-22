@@ -138,7 +138,7 @@ def delete_transactions(session: Session, transaction_ids: list[uuid.UUID]) -> N
         
                 # Re-process sale line items
                 process_sale_line_items(session, sale_line_items)
-        
+
             case TransactionType.SALE:
                 consumptions = session.query(LineItemConsumption)\
                     .filter(LineItemConsumption.sale_line_item_id.in_(line_item_ids))\

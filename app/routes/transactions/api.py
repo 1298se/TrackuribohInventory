@@ -113,6 +113,7 @@ async def create_transaction(
         date=request.date,
         type=request.type,
         counterparty_name=request.counterparty_name,
+        comment=request.comment,
     )
 
     session.add(transaction)

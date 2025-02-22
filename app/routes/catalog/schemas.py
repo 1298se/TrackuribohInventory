@@ -39,7 +39,6 @@ class SetBaseResponseSchema(ORMModel):
     name: str
     code: str
     release_date: datetime
-    modified_date: datetime
 
 class SKUBaseResponseSchema(ORMModel):
     id: uuid.UUID
