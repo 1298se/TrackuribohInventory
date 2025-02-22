@@ -69,3 +69,11 @@ class Transaction(Base):
     counterparty_name: Mapped[str | None]
     comment: Mapped[str | None]  # Add comment column for transactions
     line_items: Mapped[list[LineItem]] = relationship(back_populates="transaction")
+
+    _shipping_price_amount: Mapped[MoneyAmount] = mapped_column(server_default='0.00')
+    _shipping_price_currency: Mapped[str] = mapped_column(server_default='USD')
+
+    shipping_price: Mapped[Money] = composite(
+        "_shipping_price_amount",
+        "_shipping_price_currency",
+    )
