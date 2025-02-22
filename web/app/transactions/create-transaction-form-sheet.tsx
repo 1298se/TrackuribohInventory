@@ -84,7 +84,10 @@ export default function CreateTransactionFormDialog() {
                 line_items: data.line_items.map(item => ({
                     sku_id: item.sku_id,
                     quantity: item.quantity,
-                    price_per_item:  MoneySchema.parse(item.price_per_item)
+                    price_per_item: {
+                        amount: item.price_per_item.amount,
+                        currency: item.price_per_item.currency
+                    }
                 }))
             }
 
@@ -117,13 +120,15 @@ export default function CreateTransactionFormDialog() {
         result.line_items.forEach((item, index) => {
             form.setValue(
                 `line_items.${index}.price_per_item.amount`,
-                item.price_per_quantity.amount
+                item.price_per_quantity.amount.toString()
             );
             form.setValue(
                 `line_items.${index}.price_per_item.currency`,
                 item.price_per_quantity.currency
             );
         });
+
+        console.log(form.formState)
         } catch (error) {
             console.error("Failed to calculate pro-rata distribution:", error);
         }

@@ -49,8 +49,7 @@ export const SetBaseResponseSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   code: z.string(),
-  release_date: z.date(),    // could refine with z.string().datetime() if desired
-  modified_date: z.date(),   // could refine with z.string().datetime() if desired
+  release_date: z.string(),
 });
 
 // SKUBaseResponseSchema
