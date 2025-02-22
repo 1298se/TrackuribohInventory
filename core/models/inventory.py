@@ -43,13 +43,7 @@ class LineItem(Base):
     # For purchases. Sales will subtract from this number
     remaining_quantity: Mapped[Optional[int]]
 
-    _price_per_item_amount: Mapped[MoneyAmount]
-    _price_per_item_currency: Mapped[str]
-
-    price_per_item: Mapped[Money] = composite(
-        "_price_per_item_amount",
-        "_price_per_item_currency",
-    )
+    price_per_item_amount: Mapped[MoneyAmount]
 
     transaction_id: Mapped[str] = mapped_column(ForeignKey(f"{transaction_tablename}.id"))
     transaction: Mapped["Transaction"] = relationship(back_populates="line_items")
@@ -69,11 +63,4 @@ class Transaction(Base):
     counterparty_name: Mapped[str | None]
     comment: Mapped[str | None]  # Add comment column for transactions
     line_items: Mapped[list[LineItem]] = relationship(back_populates="transaction")
-
-    _shipping_price_amount: Mapped[MoneyAmount] = mapped_column(server_default='0.00')
-    _shipping_price_currency: Mapped[str] = mapped_column(server_default='USD')
-
-    shipping_price: Mapped[Money] = composite(
-        "_shipping_price_amount",
-        "_shipping_price_currency",
-    )
+    currency_code: Mapped[str]

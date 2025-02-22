@@ -99,7 +99,7 @@ const columns: Column<TransactionResponse, any>[] = [
         cell: ({ row }) => {
             const lineItems = row.original.line_items
             const totalAmount = lineItems.reduce((sum, item) => {
-                const amount = parseFloat(item.price_per_item.amount)
+                const amount = parseFloat(item.price_per_item_amount)
                 return sum + (amount * item.quantity)
             }, 0)
 
@@ -107,7 +107,7 @@ const columns: Column<TransactionResponse, any>[] = [
                 <div className="font-medium">
                     {new Intl.NumberFormat("en-US", {
                         style: "currency",
-                        currency: lineItems[0]?.price_per_item.currency || "USD",
+                        currency: row.original.currency_code
                     }).format(totalAmount)}
                 </div>
             )
@@ -127,7 +127,7 @@ const columns: Column<TransactionResponse, any>[] = [
                 <div className="h-14 flex items-center">
                     <div className="flex -space-x-2">
                         {displayItems.map((item, index) => (
-                            <HoverCard key={item.id}>
+                            <HoverCard key={item.sku_id + "-" + index}>
                                 <HoverCardTrigger>
                                     <div
                                         className="relative"
@@ -154,7 +154,7 @@ const columns: Column<TransactionResponse, any>[] = [
                     </div>
                     {remainingCount > 0 && (
                         <Avatar>
-                            <AvatarFallback> +{remainingCount}</AvatarFallback>
+                            <AvatarFallback>+{remainingCount}</AvatarFallback>
                         </Avatar>
                     )}
                 </div>

@@ -87,30 +87,6 @@ export const ProductSearchResponseSchema = z.object({
   results: z.array(ProductWithSetAndSKUsResponseSchema),
 });
 
-/* -----------------------------------------------------
- * 4) Line Items
- * ----------------------------------------------------- */
-
-// LineItemBaseSchema
-export const LineItemBaseSchema = z.object({
-  sku_id: z.string().uuid(),
-  quantity: z.number(),
-});
-
-// LineItemProRataResponseSchema
-export const LineItemProRataResponseSchema = z.object({
-  sku_id: z.string().uuid(),
-  quantity: z.number(),
-  price_per_quantity: MoneySchema,
-});
-
-// LineItemResponseSchema
-export const LineItemResponseSchema = z.object({
-  id: z.string().uuid(),
-  sku: SKUWithProductResponseSchema,
-  price_per_item: MoneySchema,
-  quantity: z.number(),
-});
 
 /* -----------------------------------------------------
  * 5) Inventory Schemas
@@ -134,8 +110,6 @@ export type ProductWithSetAndSKUsResponse = z.infer<typeof ProductWithSetAndSKUs
 export type InventoryItemResponse = z.infer<typeof InventoryItemResponseSchema>
 export type InventoryResponse = z.infer<typeof InventoryResponseSchema>
 export type ProductSearchResponse = z.infer<typeof ProductSearchResponseSchema>
-export type LineItemBase = z.infer<typeof LineItemBaseSchema>
-export type LineItemProRataResponse = z.infer<typeof LineItemProRataResponseSchema>
 export type SKUWithProductResponse = z.infer<typeof SKUWithProductResponseSchema>
 
 /* -----------------------------------------------------

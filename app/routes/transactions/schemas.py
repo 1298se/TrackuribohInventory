@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from app.routes.catalog.schemas import SKUWithProductResponseSchema
-from app.routes.utils import MoneySchema, ORMModel
+from app.routes.utils import MoneyAmountSchema, ORMModel
 from core.models import LineItem, Transaction
 from core.models.inventory import TransactionType
 
@@ -15,12 +15,13 @@ class LineItemBaseSchema(ORMModel):
     sku_id: uuid.UUID
     quantity: int
 
-class LineItemProRataResponseSchema(LineItemBaseSchema):
-    price_per_quantity: MoneySchema
+class LineItemProRataResponseSchema(BaseModel):
+    sku_id: uuid.UUID
+    price_per_quantity_amount: MoneyAmountSchema
 
 
 class LineItemCreateRequestSchema(LineItemBaseSchema):
-    price_per_item: MoneySchema
+    price_per_item_amount: MoneyAmountSchema
 
 class TransactionCreateRequestSchema(BaseModel):
     date: datetime
@@ -28,11 +29,12 @@ class TransactionCreateRequestSchema(BaseModel):
     counterparty_name: str
     comment: str | None = None
     line_items: list[LineItemCreateRequestSchema]
+    currency_code: str
 
 
 class LineItemResponseSchema(LineItemBaseSchema):
     sku: SKUWithProductResponseSchema
-    price_per_item: MoneySchema
+    price_per_item_amount: MoneyAmountSchema
     quantity: int
 
     @classmethod
@@ -47,6 +49,7 @@ class TransactionResponseSchema(ORMModel):
     counterparty_name: str
     comment: str | None
     line_items: list[LineItemResponseSchema]
+    currency_code: str
 
     @classmethod
     def get_load_options(cls) -> list[_AbstractLoad]:

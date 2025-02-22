@@ -91,11 +91,7 @@ async def calculate_pro_rata(
         line_items=[
             LineItemProRataResponseSchema(
                 sku_id=line_item.sku_id,
-                quantity=line_item.quantity,
-                price_per_quantity=MoneySchema(
-                    amount=tcgplayer_id_to_lowest_price[sku_id_to_tcgplayer_id[line_item.sku_id]] * ratio,
-                    currency="USD",
-                )
+                price_per_quantity_amount=tcgplayer_id_to_lowest_price[sku_id_to_tcgplayer_id[line_item.sku_id]] * ratio,
             )
             for line_item in request.line_items
         ]
@@ -114,6 +110,7 @@ async def create_transaction(
         type=request.type,
         counterparty_name=request.counterparty_name,
         comment=request.comment,
+        currency_code=request.currency_code,
     )
 
     session.add(transaction)
@@ -123,10 +120,7 @@ async def create_transaction(
             transaction_id=transaction_id,
             sku_id=line_item.sku_id,
             quantity=line_item.quantity,
-            price_per_item=Money(
-                amount=line_item.price_per_item.amount,
-                currency=line_item.price_per_item.currency,
-            )
+            price_per_item_amount=line_item.price_per_item_amount,
         )
         for line_item in request.line_items
     ]

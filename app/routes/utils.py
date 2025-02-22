@@ -1,7 +1,8 @@
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Annotated
 
 from pydantic import ConfigDict, BaseModel, Field, field_validator, AfterValidator
+from pydantic_core import core_schema
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 def round_money(amount: Decimal):
@@ -14,7 +15,9 @@ class ORMModel(BaseModel):
     def get_load_options(cls) -> list[_AbstractLoad]:
         return []
 
+MoneyAmountSchema = Annotated[Decimal, AfterValidator(round_money)]
+
 class MoneySchema(ORMModel):
-    amount: Annotated[Decimal, AfterValidator(round_money)]
+    amount: MoneyAmountSchema
     currency: str
 

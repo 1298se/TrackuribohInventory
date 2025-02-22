@@ -71,9 +71,11 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     }
 
     const totalAmount = transaction.line_items.reduce((sum, item) => {
-        const amount = parseFloat(item.price_per_item.amount)
-        return sum + (amount * item.quantity)
+        const amount = parseFloat(item.price_per_item_amount)
+        return sum + amount * item.quantity
     }, 0)
+
+    const currency_code = transaction.currency_code
 
     return (
         <div className="space-y-4">
@@ -94,7 +96,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 <div className="text-2xl font-bold">
                     {new Intl.NumberFormat("en-US", {
                         style: "currency",
-                        currency: transaction.line_items[0]?.price_per_item.currency || "USD",
+                        currency: currency_code,
                     }).format(totalAmount)}
                 </div>
             </div>
@@ -104,7 +106,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             <div className="space-y-4">
                 <h3 className="text-sm font-medium">Items</h3>
                 {transaction.line_items.map((item) => (
-                    <div key={item.id} className="flex items-start gap-4">
+                    <div key={item.sku_id} className="flex items-start gap-4">
                         <div className="h-16 w-16">
                             <img
                                 src={item.sku.product.image_url}
@@ -119,14 +121,14 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                             <div className="font-medium">
                                 {new Intl.NumberFormat("en-US", {
                                     style: "currency",
-                                    currency: item.price_per_item.currency,
-                                }).format(parseFloat(item.price_per_item.amount) * item.quantity)}
+                                    currency: currency_code,
+                                }).format(parseFloat(item.price_per_item_amount) * item.quantity)}
                             </div>
                             <div className="text-sm text-muted-foreground">
                                 {item.quantity}x @ {new Intl.NumberFormat("en-US", {
                                     style: "currency",
-                                    currency: item.price_per_item.currency,
-                                }).format(parseFloat(item.price_per_item.amount))}
+                                    currency: currency_code,
+                                }).format(parseFloat(item.price_per_item_amount))}
                             </div>
                         </div>
                     </div>

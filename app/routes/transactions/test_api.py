@@ -9,7 +9,7 @@ from app.main import app
 from app.routes.transactions.api import TransactionProRataRequestSchema
 from app.routes.transactions.schemas import BulkTransactionDeleteRequestSchema, LineItemBaseSchema, TransactionCreateRequestSchema, \
     LineItemCreateRequestSchema
-from app.routes.utils import MoneySchema
+from app.routes.utils import MoneyAmountSchema
 from core.database import SessionLocal
 from core.models import Product, SKU
 from core.models.inventory import TransactionType
@@ -29,10 +29,7 @@ def test_transaction_pro_rata():
                     quantity=3,
                 )
             ],
-            total_amount=MoneySchema(
-                amount=Decimal("10.00"),
-                currency="USD",
-            )
+            total_amount=MoneyAmountSchema("10.00")
         ).model_dump_json()
 
         pro_rata_response_schema = client.post(
@@ -57,12 +54,10 @@ def test_create_purchase_transaction():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=3,
-                    price_per_item=MoneySchema(
-                        amount=Decimal("10.00"),
-                        currency="USD",
-                    )
+                    price_per_item_amount=MoneyAmountSchema("10.00")
                 )
-            ]
+            ],
+            currency_code="USD",
         ).model_dump_json()
 
         create_transaction_response = client.post(
@@ -85,12 +80,10 @@ def test_create_sale_transaction():
                     LineItemCreateRequestSchema(
                         sku_id=test_sku.id,
                         quantity=5,
-                        price_per_item=MoneySchema(
-                            amount=Decimal("20.00"),
-                            currency="USD",
-                        )
+                        price_per_item_amount=MoneyAmountSchema("20.00")
                     )
-                ]
+                ],
+                currency_code="USD",
             ).model_dump_json()
 
         create_transaction_response = client.post(
@@ -121,12 +114,10 @@ def test_bulk_delete_transaction():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=3,
-                    price_per_item=MoneySchema(
-                        amount=Decimal("10.00"),
-                        currency="USD",
-                    )
+                    price_per_item_amount=MoneyAmountSchema("10.00")
                 )
-            ]
+            ],
+            currency_code="USD",
         ).model_dump_json()
 
         create_transaction_response = client.post(
@@ -161,12 +152,10 @@ def test_bulk_delete_fail_on_insufficient_inventory():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=1,
-                    price_per_item=MoneySchema(
-                        amount=Decimal("10.00"),
-                        currency="USD",
-                    )
+                    price_per_item_amount=MoneyAmountSchema("10.00")
                 )
-            ]
+            ],
+            currency_code="USD",
         ).model_dump_json()
 
         purchase_response = client.post(
@@ -178,7 +167,8 @@ def test_bulk_delete_fail_on_insufficient_inventory():
             date=datetime.now(),
             type=TransactionType.SALE,
             counterparty_name="Billy Bob",
-            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=1, price_per_item=MoneySchema(amount=Decimal("10.00"), currency="USD"))]
+            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=1, price_per_item_amount=MoneyAmountSchema("10.00"))],
+            currency_code="USD",
         ).model_dump_json()
 
         client.post(
@@ -210,12 +200,10 @@ def test_bulk_delete_sale_and_purchase_simultaneous():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=3,
-                    price_per_item=MoneySchema(
-                        amount=Decimal("10.00"),
-                        currency="USD",
-                    )
+                    price_per_item_amount=MoneyAmountSchema("10.00")
                 )
-            ]
+            ],
+            currency_code="USD",
         ).model_dump_json()
 
         purchase_response = client.post(
@@ -227,7 +215,8 @@ def test_bulk_delete_sale_and_purchase_simultaneous():
             date=datetime.now(),
             type=TransactionType.SALE,
             counterparty_name="Billy Bob",
-            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=3, price_per_item=MoneySchema(amount=Decimal("10.00"), currency="USD"))]
+            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=3, price_per_item_amount=MoneyAmountSchema("10.00"))],
+            currency_code="USD",
         ).model_dump_json()
 
         sale_response = client.post(

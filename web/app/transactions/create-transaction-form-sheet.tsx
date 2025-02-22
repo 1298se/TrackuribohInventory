@@ -26,18 +26,15 @@ import { useRouter } from "next/navigation";
 import { MoneySchema } from "../schemas";
 import { MoneyInput } from "@/components/ui/money-input";
 
-export const TransactionCreateFormMoneySchema = MoneySchema.extend({
-    amount: z.string(),
-})
-
 export const TransactionCreateFormLineItemSchema = LineItemCreateRequestSchema.extend({
     product: ProductWithSetAndSKUsResponseSchema,
-    price_per_item: TransactionCreateFormMoneySchema
 })
 
 export const TransactionCreateFormSchema = TransactionCreateRequestSchema.extend({
     line_items: z.array(TransactionCreateFormLineItemSchema).min(1, "At least one item is required"),
     comment: z.string().max(500, "Comment must be less than 500 characters").optional(),
+}).omit({
+    currency_code: true,
 })
 
 type TransactionCreateFormLineItem = z.infer<typeof TransactionCreateFormLineItemSchema>
@@ -80,15 +77,13 @@ export default function CreateTransactionFormDialog() {
                 date: data.date,
                 type: data.type,
                 counterparty_name: data.counterparty_name,
-                comment: data.comment,
+                comment: data.comment ?? null,
+                currency_code: "USD",
                 line_items: data.line_items.map(item => ({
                     sku_id: item.sku_id,
                     quantity: item.quantity,
-                    price_per_item: {
-                        amount: item.price_per_item.amount,
-                        currency: item.price_per_item.currency
-                    }
-                }))
+                    price_per_item_amount: item.price_per_item_amount,
+                })),
             }
 
             await createTransaction(request)
@@ -102,33 +97,31 @@ export default function CreateTransactionFormDialog() {
         if (!totalAmountStr || fields.length === 0) return;
 
         try {
-        // Get the full form data to access selected SKUs
-        const formData = form.getValues();
+            const formData = form.getValues();
 
-        const result = await calculateProRata({
-            line_items: formData.line_items.map(item => ({
-                sku_id: item.sku_id,
-                    quantity: item.quantity
-            })),
-            total_amount: {
+            const result = await calculateProRata({
+                line_items: formData.line_items.map((item) => ({
+                    sku_id: item.sku_id,
+                    quantity: item.quantity,
+                })),
+                total_amount: {
                     amount: totalAmountStr,
-                    currency: "USD"
+                    currency: "USD",
+                },
+            });
+
+            // Match each returned line_item by SKU
+            result.line_items.forEach((responseItem) => {
+                const targetIndex = formData.line_items.findIndex(
+                    (li) => li.sku_id === responseItem.sku_id
+                );
+                if (targetIndex !== -1) {
+                    form.setValue(
+                        `line_items.${targetIndex}.price_per_item_amount`,
+                        responseItem.price_per_quantity_amount
+                    );
                 }
-        });
-
-        // Update each line item's price with the calculated pro-rata amount
-        result.line_items.forEach((item, index) => {
-            form.setValue(
-                `line_items.${index}.price_per_item.amount`,
-                item.price_per_quantity.amount.toString()
-            );
-            form.setValue(
-                `line_items.${index}.price_per_item.currency`,
-                item.price_per_quantity.currency
-            );
-        });
-
-        console.log(form.formState)
+            });
         } catch (error) {
             console.error("Failed to calculate pro-rata distribution:", error);
         }
@@ -236,13 +229,13 @@ export default function CreateTransactionFormDialog() {
             }
         },
         {
-            accessorKey: "price_per_item",
+            accessorKey: "price_per_item_amount",
             header: "Price",
             cell: ({ row }) => {
                 return (
                     <FormField
                         control={form.control}
-                        name={`line_items.${row.index}.price_per_item.amount`}
+                        name={`line_items.${row.index}.price_per_item_amount`}
                         render={({ field }) => (
                             <FormItem>
                                 <FormControl>
@@ -511,10 +504,7 @@ export default function CreateTransactionFormDialog() {
             product: product,
             sku_id: "",
             quantity: 1,
-            price_per_item: {
-                amount: "",
-                currency: "USD",
-            },
+            price_per_item_amount: "",
         })
 
         setIsSelectProductDialogOpen(false)

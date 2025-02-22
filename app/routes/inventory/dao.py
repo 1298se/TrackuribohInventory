@@ -18,7 +18,7 @@ def query_inventory_items() -> Select:
     ).label('total_quantity')
 
     total_cost = func.sum(
-        LineItem._price_per_item_amount * LineItem.remaining_quantity,
+        LineItem.price_per_item_amount * LineItem.remaining_quantity,
     ).label('total_cost')
 
     inventory_sku_quantity_cte = (

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Annotated
 
@@ -7,5 +7,5 @@ MoneyAmount = Annotated[Decimal, 2]
 
 @dataclass
 class Money:
-    amount: MoneyAmount
-    currency: str
+    amount: MoneyAmount = field(default=Decimal(0))
+    currency: str = field(default="USD")
