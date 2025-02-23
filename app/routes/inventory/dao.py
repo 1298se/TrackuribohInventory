@@ -1,18 +1,9 @@
-from sqlalchemy import func, select, Select
+from sqlalchemy import func, select, Select, CTE
 
-from core.dao.prices import query_latest_sku_prices
-from core.models import SKU
+from core.models import SKU, SKULatestPriceData
 from core.models.inventory import Transaction, LineItem
 
-
-def query_inventory_items() -> Select:
-    """
-    Query inventory items with their quantities and prices.
-    
-    Returns:
-        Select query that returns rows matching InventoryItem TypedDict structure
-        when executed
-    """
+def get_sku_cost_quantity_cte() -> CTE:
     total_quantity = func.sum(
         LineItem.remaining_quantity,
     ).label('total_quantity')
@@ -21,7 +12,7 @@ def query_inventory_items() -> Select:
         LineItem.price_per_item_amount * LineItem.remaining_quantity,
     ).label('total_cost')
 
-    inventory_sku_quantity_cte = (
+    return  (
         select(
             LineItem.sku_id,
             total_quantity,
@@ -32,18 +23,26 @@ def query_inventory_items() -> Select:
         .having(total_quantity > 0)
     ).cte()
 
-    latest_sku_prices_cte = query_latest_sku_prices().cte()
+
+def query_inventory_items() -> Select:
+    """
+    Query inventory items with their quantities and prices.
+    
+    Returns:
+        Select query that returns rows matching InventoryItem TypedDict structure
+        when executed
+    """
+    inventory_sku_quantity_cte = get_sku_cost_quantity_cte()
 
     query = select(
         SKU,
         inventory_sku_quantity_cte.c.total_quantity,
         inventory_sku_quantity_cte.c.total_cost,
-        latest_sku_prices_cte.c._lowest_listing_price_amount,
-        latest_sku_prices_cte.c._market_price_amount,
+        SKULatestPriceData,
     ).join(
         inventory_sku_quantity_cte, SKU.id == inventory_sku_quantity_cte.c.sku_id
     ).outerjoin(
-        latest_sku_prices_cte, SKU.id == latest_sku_prices_cte.c.sku_id
+        SKULatestPriceData, SKU.id == SKULatestPriceData.sku_id
     )
 
     return query

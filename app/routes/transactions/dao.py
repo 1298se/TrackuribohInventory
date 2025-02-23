@@ -9,8 +9,7 @@ from core.models import SKU, TransactionType
 from core.models.inventory import LineItem, LineItemConsumption, Transaction
 
 
-def get_skus_by_id(session: Session, ids: list[uuid.UUID]) -> Sequence[SKU]:
-    return session.scalars(select(SKU).where(SKU.id.in_(ids))).all()
+
 
 class InsufficientInventoryError(Exception):
     pass

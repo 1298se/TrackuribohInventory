@@ -9,7 +9,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { ProductDisplay } from "@/components/ui/product-display"
+import { SKUDisplay } from "@/components/ui/sku-display"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { RowSelectionState } from "@tanstack/react-table"
@@ -147,7 +147,7 @@ const columns: Column<TransactionResponse, any>[] = [
                                     </div>
                                 </HoverCardTrigger>
                                 <HoverCardContent>
-                                    <ProductDisplay sku={item.sku} />
+                                    <SKUDisplay sku={item.sku} />
                                 </HoverCardContent>
                             </HoverCard>
                         ))}

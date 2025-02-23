@@ -2,10 +2,8 @@ import uuid
 from datetime import datetime, UTC
 from typing import Optional, Tuple
 
-from sqlalchemy import ForeignKey, case
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, composite, mapped_column, relationship
-from sqlalchemy.util import hybridproperty
 
 from core.models import Base, sku_tablename
 from core.models.types import Money, MoneyAmount
@@ -13,6 +11,15 @@ from core.models.types import Money, MoneyAmount
 sku_price_snapshot_job_tablename = "sku_price_snapshot_job"
 sku_price_snapshot_tablename = "sku_price_snapshot"
 sku_listing_snapshot_tablename = "sku_listing_snapshot"
+
+class SKULatestPriceData(Base):
+    __tablename__ = "sku_latest_price_data"
+
+    sku_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{sku_tablename}.id"), primary_key=True)
+
+    lowest_listing_price_amount: Mapped[Optional[MoneyAmount]]
+    market_price_amount: Mapped[Optional[MoneyAmount]]
+    updated_at: Mapped[datetime]
 
 class SKUPriceSnapshotJob(Base):
     __tablename__ = sku_price_snapshot_job_tablename

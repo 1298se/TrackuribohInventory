@@ -60,7 +60,7 @@ export default function CreateTransactionFormDialog() {
 
     const router = useRouter();
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields, prepend, remove } = useFieldArray({
         control: form.control,
         name: "line_items",
     })
@@ -149,12 +149,14 @@ export default function CreateTransactionFormDialog() {
             accessorKey: "product.name",
             header: "Name",
             cell: ({ row }) => {
-                const name = row.original.product.name
+                const product = row.original.product
 
                 return (
                     <div>
-                        {name}
-                        {/* You can add more product details here */}
+                        {product.name}
+                        <div className="text-sm text-muted-foreground">
+                            <div>{product.set.name}</div>
+                        </div>
                     </div>
                 )
             }
@@ -500,7 +502,7 @@ export default function CreateTransactionFormDialog() {
     )
 
     function onProductSelected(product: ProductWithSetAndSKUsResponse) {
-        append({
+        prepend({
             product: product,
             sku_id: product.skus[0].id,
             quantity: 1,

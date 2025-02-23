@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.dialects.postgresql import insert, Insert
 from sqlalchemy.orm import sessionmaker, Session
 from typing_extensions import Type
+from typing import Generator
 
 from core.environment import Env, get_environment
 from core.models import Base
@@ -31,7 +32,7 @@ def upsert(model: Type[Base], values: list[dict], index_elements=None) -> Insert
         set_={c.name: c for c in insert_stmt.excluded if c.name not in primary_keys}
     )
 
-def get_db_session() -> Session:
+def get_db_session() -> Generator[Session, None, None]:
     """
     You should still explicitly commit
     :return:

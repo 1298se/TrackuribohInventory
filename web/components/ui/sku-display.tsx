@@ -1,11 +1,11 @@
 import { SKUWithProductResponse } from "@/app/inventory/schemas"
 import { z } from "zod"
 
-interface ProductDisplayProps {
+interface SKUDisplayProps {
     sku: SKUWithProductResponse
 }
 
-export function ProductDisplay({ sku }: ProductDisplayProps) {
+export function SKUDisplay({ sku }: SKUDisplayProps) {
     return (
         <div className="space-y-1">
             <h4 className="text-sm font-semibold">{sku.product.name}</h4>

@@ -1,7 +1,7 @@
 "use client"
 
 import { format } from "date-fns"
-import { ProductDisplay } from "@/components/ui/product-display"
+import { SKUDisplay } from "@/components/ui/sku-display"
 import { Separator } from "@/components/ui/separator"
 import { useTransaction } from "../api"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -115,7 +115,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                             />
                         </div>
                         <div className="flex-1 space-y-1">
-                            <ProductDisplay sku={item.sku} />
+                            <SKUDisplay sku={item.sku} />
                         </div>
                         <div className="text-right space-y-1">
                             <div className="font-medium">

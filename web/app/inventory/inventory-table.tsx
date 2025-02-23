@@ -8,7 +8,7 @@ import { Package2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { type Column } from "./data-table"
-import { ProductDisplay } from "@/components/ui/product-display"
+import { SKUDisplay } from "@/components/ui/sku-display"
 
 const ImageLoading = () => <Skeleton className="h-16 w-16 rounded-md" />
 const ProductLoading = () => (
@@ -43,7 +43,7 @@ export const columns: Column<InventoryItemResponse, any>[] = [
         header: "Product",
         loading: ProductLoading,
         cell: ({ row }) => {
-            return <ProductDisplay sku={row.original.sku} />
+            return <SKUDisplay sku={row.original.sku} />
         }
     },
     {

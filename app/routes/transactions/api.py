@@ -8,7 +8,6 @@ from uuid_extensions import uuid7
 from app.routes.transactions.dao import (
     InsufficientInventoryError,
     process_sale_line_items,
-    get_skus_by_id,
     delete_transactions, TransactionNotFoundError
 )
 from app.routes.transactions.schemas import (
@@ -18,6 +17,7 @@ from app.routes.transactions.schemas import (
     TransactionsResponseSchema,
     BulkTransactionDeleteRequestSchema, TransactionProRataRequestSchema, TransactionProRataResponseSchema
 )
+from core.dao.skus import get_skus_by_id
 from core.database import get_db_session
 from core.models import TransactionType
 from core.models.inventory import Transaction, LineItem
