@@ -18,8 +18,8 @@ def get_inventory(session: Session = Depends(get_db_session)):
         InventoryItemResponseSchema(
             sku=sku,
             quantity=total_quantity,
-            cost_per_item=MoneySchema(
-                amount=total_cost / total_cost,
+            average_cost_per_item=MoneySchema(
+                amount=total_cost / total_quantity,
                 currency="USD"
             ),
             lowest_listing_price=MoneySchema(

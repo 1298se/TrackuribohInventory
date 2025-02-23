@@ -96,7 +96,7 @@ export const ProductSearchResponseSchema = z.object({
 export const InventoryItemResponseSchema = z.object({
   sku: SKUWithProductResponseSchema,
   quantity: z.number(),
-  cost_per_item: MoneySchema,
+  average_cost_per_item: MoneySchema,
   lowest_listing_price: MoneySchema.nullable(),
 });
 

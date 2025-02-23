@@ -59,10 +59,10 @@ export const columns: Column<InventoryItemResponse, any>[] = [
         header: "Average Cost",
         loading: DefaultLoading,
         cell: ({ row }) => {
-            const amount = parseFloat(row.original.cost_per_item.amount)
+            const amount = parseFloat(row.original.average_cost_per_item.amount)
             const formatted = new Intl.NumberFormat("en-US", {
                 style: "currency",
-                currency: row.original.cost_per_item.currency,
+                currency: row.original.average_cost_per_item.currency,
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
             }).format(amount)
@@ -102,7 +102,7 @@ export const columns: Column<InventoryItemResponse, any>[] = [
             }
 
             const listingAmount = parseFloat(lowestListingPrice.amount)
-            const costAmount = parseFloat(row.original.cost_per_item.amount)
+            const costAmount = parseFloat(row.original.average_cost_per_item.amount)
             const quantity = row.original.quantity
             
             const profit = (listingAmount - costAmount) * quantity

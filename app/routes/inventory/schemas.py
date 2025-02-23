@@ -9,7 +9,7 @@ from app.routes.utils import MoneySchema
 class InventoryItemResponseSchema(BaseModel):
     sku: SKUWithProductResponseSchema
     quantity: int
-    cost_per_item: MoneySchema
+    average_cost_per_item: MoneySchema
     lowest_listing_price: MoneySchema | None
 
 
