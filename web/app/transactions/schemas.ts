@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { MoneySchema } from "../schemas"
+import { MoneyAmountSchema, MoneySchema } from "../schemas"
 import { SKUWithProductResponseSchema } from "../inventory/schemas"
 
 /**
@@ -23,13 +23,13 @@ export type LineItemBase = z.infer<typeof LineItemBaseSchema>
  */
 export const LineItemProRataResponseSchema = z.object({
     sku_id: z.string().uuid(),
-    price_per_quantity_amount: z.string(),
+    price_per_quantity_amount: MoneyAmountSchema,
 });
 
 export const LineItemCreateRequestSchema = z.object({
-    sku_id: z.string(),
+    sku_id: z.string().uuid(),
     quantity: z.number().min(1),
-    price_per_item_amount: z.string(),
+    price_per_item_amount: MoneyAmountSchema,
 })
 
 export type LineItemProRataResponse = z.infer<typeof LineItemProRataResponseSchema>
@@ -41,7 +41,7 @@ export const LineItemResponseSchema = z.object({
     sku_id: z.string().uuid(),
     quantity: z.number(),
     sku: SKUWithProductResponseSchema,
-    price_per_item_amount: z.string(),
+    price_per_item_amount: MoneyAmountSchema,
 });
 
 export type LineItemResponse = z.infer<typeof LineItemResponseSchema>
@@ -56,6 +56,7 @@ export const TransactionCreateRequestSchema = z.object({
     comment: z.string().nullable().optional(),
     line_items: z.array(LineItemCreateRequestSchema),
     currency_code: z.string(),
+    shipping_cost_amount: MoneyAmountSchema,
 })
 
 export type TransactionCreateRequest = z.infer<typeof TransactionCreateRequestSchema>

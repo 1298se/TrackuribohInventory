@@ -7,23 +7,19 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronsUpDown, Search, Trash, X, Plus, Loader2, Package2, ArrowLeft } from "lucide-react";
+import { CalendarIcon, Trash, Plus, Loader2, Package2, ArrowLeft } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogOverlay, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectProductDialog } from "../inventory/select-product-dialog";
-import { Label } from "@/components/ui/label";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "../inventory/data-table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateTransaction, useCalculateProRata } from "./api";
 import { ProductWithSetAndSKUsResponseSchema, ProductWithSetAndSKUsResponse } from "../inventory/schemas";
-import { LineItemCreateRequestSchema, TransactionCreateRequestSchema, TransactionCreateRequest, TransactionTypeSchema, TransactionType } from "./schemas";
+import { LineItemCreateRequestSchema, TransactionCreateRequestSchema, TransactionCreateRequest, TransactionTypeSchema, TransactionType, TransactionProRataRequestSchema } from "./schemas";
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation";
-import { MoneySchema } from "../schemas";
 import { MoneyInput } from "@/components/ui/money-input";
 
 export const TransactionCreateFormLineItemSchema = LineItemCreateRequestSchema.extend({
@@ -55,7 +51,10 @@ function getTransactionTypeDisplay(type: TransactionType): string {
 export default function CreateTransactionFormDialog() {
 
     const form = useForm<TransactionCreateForm>({
-        resolver: zodResolver(TransactionCreateFormSchema)
+        resolver: zodResolver(TransactionCreateFormSchema),
+        defaultValues: {
+            shipping_cost_amount: 0.00,
+        },
     })
 
     const router = useRouter();
@@ -69,7 +68,11 @@ export default function CreateTransactionFormDialog() {
     const { trigger: calculateProRata } = useCalculateProRata()
 
     const [isSelectProductDialogOpen, setIsSelectProductDialogOpen] = useState(false)
-    const [totalAmount, setTotalAmount] = useState("");
+    const [totalAmount, setTotalAmount] = useState<number | undefined>(undefined);
+
+    console.log("Form values:", form.getValues());
+    console.log("Form errors:", form.formState.errors);
+
 
     const onSubmit = async (data: TransactionCreateForm) => {
         try {
@@ -79,6 +82,7 @@ export default function CreateTransactionFormDialog() {
                 counterparty_name: data.counterparty_name,
                 comment: data.comment ?? null,
                 currency_code: "USD",
+                shipping_cost_amount: data.shipping_cost_amount ?? 0.00,
                 line_items: data.line_items.map(item => ({
                     sku_id: item.sku_id,
                     quantity: item.quantity,
@@ -93,22 +97,23 @@ export default function CreateTransactionFormDialog() {
         }
     }
 
-    const handleProRataFill = async (totalAmountStr: string) => {
-        if (!totalAmountStr || fields.length === 0) return;
-
+    const handleProRataFill = async (totalAmount: number) => {
         try {
             const formData = form.getValues();
 
-            const result = await calculateProRata({
+            // Validate the request using TransactionProRataRequestSchema
+            const request = TransactionProRataRequestSchema.parse({
                 line_items: formData.line_items.map((item) => ({
                     sku_id: item.sku_id,
                     quantity: item.quantity,
                 })),
                 total_amount: {
-                    amount: totalAmountStr,
+                    amount: totalAmount,
                     currency: "USD",
                 },
             });
+
+            const result = await calculateProRata(request);
 
             // Match each returned line_item by SKU
             result.line_items.forEach((responseItem) => {
@@ -243,7 +248,8 @@ export default function CreateTransactionFormDialog() {
                                 <FormControl>
                                     <MoneyInput
                                         value={field.value || ''}
-                                        onChange={(e) => field.onChange(e.target.value)}
+                                        onChange={(amount) => field.onChange(amount)}
+                                        className="w-full"
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -294,7 +300,7 @@ export default function CreateTransactionFormDialog() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {/* Transaction Details Section */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <FormField
                                 control={form.control}
                                 name="type"
@@ -383,6 +389,23 @@ export default function CreateTransactionFormDialog() {
                                     </FormItem>
                                 )}
                             />
+
+                            <FormField
+                                control={form.control}
+                                name="shipping_cost_amount"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Shipping Cost (Optional)</FormLabel>
+                                        <FormControl>
+                                            <MoneyInput
+                                                value={field.value}
+                                                onChange={(amount) => field.onChange(amount)}
+                                                className="w-full"
+                                                />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
                         </div>
 
                         <FormField
@@ -390,10 +413,10 @@ export default function CreateTransactionFormDialog() {
                             name="comment"
                             render={({ field }) => (
                                 <FormItem className="max-w-[600px]">
-                                    <FormLabel>Comment</FormLabel>
+                                    <FormLabel>Comment (Optional)</FormLabel>
                                     <FormControl>
                                         <Textarea
-                                            placeholder="Add any additional notes about this transaction (optional)"
+                                            placeholder="Add any additional notes about this transaction."
                                             className="min-h-[80px]"
                                             maxLength={500}
                                             {...field}
@@ -434,7 +457,7 @@ export default function CreateTransactionFormDialog() {
                                     <MoneyInput
                                         disabled={fields.length === 0}
                                         value={totalAmount}
-                                        onChange={(e) => setTotalAmount(e.target.value)}
+                                        onChange={(amount) => setTotalAmount(amount)}
                                     />
                                     <Button
                                         type="button"
@@ -506,10 +529,9 @@ export default function CreateTransactionFormDialog() {
             product: product,
             sku_id: product.skus[0].id,
             quantity: 1,
-            price_per_item_amount: "",
+            price_per_item_amount: undefined as any,
         })
 
         setIsSelectProductDialogOpen(false)
-
     }
 }

@@ -1,16 +1,21 @@
 import * as React from "react";
 import { Input } from "./input";
 import { cn } from "@/lib/utils";
+import { MoneyAmountSchema } from "@/app/schemas";
 
-export interface MoneyInputProps extends React.ComponentPropsWithoutRef<"input"> {}
+export interface MoneyInputProps extends Omit<React.ComponentPropsWithoutRef<"input">, "onChange"> {
+  onChange?: (value: number | undefined) => void;
+}
 
 const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
   ({ className, onChange, ...props }, ref) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
-      // Only allow empty string or a valid decimal with at most 2 decimal places.
-      if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
-        onChange && onChange(e);
+      const parseResponse = MoneyAmountSchema.safeParse(value);
+
+      if (parseResponse.success) {
+        const numericValue = value === "" ? undefined : parseResponse.data;
+        onChange && onChange(numericValue);
       }
     };
 

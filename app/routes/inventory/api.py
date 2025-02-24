@@ -32,7 +32,7 @@ def get_inventory(
             lowest_listing_price=MoneySchema(
                 amount=price_data.lowest_listing_price_amount,
                 currency="USD"
-            ) if price_data.lowest_listing_price_amount else None,
+            ) if price_data and price_data.lowest_listing_price_amount else None,
         )
         for (sku, total_quantity, total_cost, price_data) in skus_with_quantity
     ]

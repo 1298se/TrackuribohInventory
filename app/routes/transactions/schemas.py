@@ -30,6 +30,7 @@ class TransactionCreateRequestSchema(BaseModel):
     comment: str | None = None
     line_items: list[LineItemCreateRequestSchema]
     currency_code: str
+    shipping_cost_amount: MoneyAmountSchema
 
 
 class LineItemResponseSchema(LineItemBaseSchema):
@@ -50,6 +51,7 @@ class TransactionResponseSchema(ORMModel):
     comment: str | None
     line_items: list[LineItemResponseSchema]
     currency_code: str
+    shipping_cost_amount: MoneyAmountSchema
 
     @classmethod
     def get_load_options(cls) -> list[_AbstractLoad]:

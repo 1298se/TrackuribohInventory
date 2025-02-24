@@ -10,19 +10,6 @@ export const ProductTypeSchema = z.enum(["Cards", "Sealed Products"]);
  * 2) Basic Schemas (used by others)
  * ----------------------------------------------------- */
 
-// ValidationError
-export const ValidationErrorSchema = z.object({
-  loc: z.array(z.union([z.string(), z.number()])), // OpenAPI says: array of string or integer
-  msg: z.string(),
-  type: z.string(),
-});
-
-// HTTPValidationError
-export const HTTPValidationErrorSchema = z.object({
-  // Not listed as required, so it can be optional
-  detail: z.array(ValidationErrorSchema).optional(),
-});
-
 // ConditionResponseSchema
 export const ConditionResponseSchema = z.object({
   name: z.string(),

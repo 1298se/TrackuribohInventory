@@ -64,3 +64,4 @@ class Transaction(Base):
     comment: Mapped[str | None]  # Add comment column for transactions
     line_items: Mapped[list[LineItem]] = relationship(back_populates="transaction")
     currency_code: Mapped[str]
+    shipping_cost_amount: Mapped[MoneyAmount] = mapped_column(server_default="0")

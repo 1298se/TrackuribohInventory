@@ -102,6 +102,7 @@ async def create_transaction(
         counterparty_name=request.counterparty_name,
         comment=request.comment,
         currency_code=request.currency_code,
+        shipping_cost_amount=request.shipping_cost_amount,
     )
 
     session.add(transaction)
