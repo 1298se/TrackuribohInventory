@@ -32,25 +32,34 @@ def search_products(
     query_text = search_params.query
     catalog_id = search_params.catalog_id
 
-    # Use PostgreSQL full text search on Product.name
-    ts_vector = func.to_tsvector('english', Product.name)
-    ts_query = func.plainto_tsquery('english', query_text)
-    
-    # Compute rank based on the search relevance
-    rank = func.ts_rank(ts_vector, ts_query)
-    
-    filters = [ts_vector.op('@@')(ts_query)]
-    
-    base_search_query = select(Product).where(*filters).order_by(rank.desc())
-    
+    # Split the search query into terms
+    search_terms = query_text.split()
+
+    # Define weighted TS vectors
+    product_ts_vector_weighted = func.setweight(func.to_tsvector('english', Product.name), 'A')
+    set_ts_vector_weighted = func.setweight(func.to_tsvector('english', Set.name), 'B')
+    rarity_ts_vector_weighted = func.setweight(func.to_tsvector('english', Product.rarity), 'B')
+    combined_ts_vector_weighted = product_ts_vector_weighted.op('||')(set_ts_vector_weighted).op('||')(rarity_ts_vector_weighted)
+
+    # Create TS query
+    ts_query = func.plainto_tsquery('english', ' & '.join(search_terms))
+
+    # Define combined rank
+    combined_rank = func.ts_rank(combined_ts_vector_weighted, ts_query)
+
+    # Build search query
+    base_search_query = (
+        select(Product)
+        .join(Set, Product.set_id == Set.id)
+        .where(combined_ts_vector_weighted.op('@@')(ts_query))
+        .order_by(combined_rank.desc())
+    )
+
+    # Apply catalog_id filter if provided
     if catalog_id:
-        # Join the Set table to filter by catalog_id
-        base_search_query = (
-            base_search_query
-            .join(Set, Product.set_id == Set.id)
-            .where(Set.catalog_id == catalog_id)
-        )
-    
+        base_search_query = base_search_query.where(Set.catalog_id == catalog_id)
+
+    # Execute query
     results = session.scalars(
         base_search_query.options(
             *ProductWithSetAndSKUsResponseSchema.get_load_options()

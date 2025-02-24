@@ -14,13 +14,14 @@ def test_get_product():
 
         assert response.status_code == 200, response.json()
 
-def test_search_products():
+def test_search_products_with_catalog():
     with SessionLocal() as session, TestClient(app) as client:
         pokemon_catalog = session.scalar(select(Catalog).where(Catalog.tcgplayer_id == 3))
 
         response = client.get(
             url=f"/catalog/search?query=Blue Eyes&catalog_id={pokemon_catalog.id}"
         )
+
 
         assert response.status_code == 200, response.json()
 
