@@ -15,7 +15,7 @@ import { SelectProductDialog } from "../inventory/select-product-dialog";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "../inventory/data-table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateTransaction, useCalculateProRata } from "./api";
+import { useCreateTransaction } from "./api";
 import { ProductWithSetAndSKUsResponseSchema, ProductWithSetAndSKUsResponse } from "../inventory/schemas";
 import { LineItemCreateRequestSchema, TransactionCreateRequestSchema, TransactionCreateRequest, TransactionTypeSchema, TransactionType } from "./schemas";
 import { Textarea } from "@/components/ui/textarea"

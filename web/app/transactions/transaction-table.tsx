@@ -99,7 +99,7 @@ const columns: Column<TransactionResponse, any>[] = [
         cell: ({ row }) => {
             const lineItems = row.original.line_items
             const totalAmount = lineItems.reduce((sum, item) => {
-                const amount = parseFloat(item.price_per_item_amount)
+                const amount = item.price_per_item_amount
                 return sum + (amount * item.quantity)
             }, 0)
 
