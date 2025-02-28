@@ -31,6 +31,7 @@ def search_products(
 ):
     query_text = search_params.query
     catalog_id = search_params.catalog_id
+    product_type = search_params.product_type
 
     # Split the search query into terms
     search_terms = query_text.split()
@@ -38,7 +39,12 @@ def search_products(
     # Define weighted TS vectors
     product_ts_vector_weighted = func.setweight(func.to_tsvector('english', Product.name), 'A')
     set_ts_vector_weighted = func.setweight(func.to_tsvector('english', Set.name), 'B')
-    rarity_ts_vector_weighted = func.setweight(func.to_tsvector('english', Product.rarity), 'B')
+    # Handle None values for rarity by using COALESCE with an empty string
+    # This way, when rarity is None, it won't affect the search results
+    rarity_ts_vector_weighted = func.setweight(
+        func.to_tsvector('english', func.coalesce(Product.rarity, '')),
+        'B'
+    )
     combined_ts_vector_weighted = product_ts_vector_weighted.op('||')(set_ts_vector_weighted).op('||')(rarity_ts_vector_weighted)
 
     # Create TS query
@@ -52,12 +58,18 @@ def search_products(
         select(Product)
         .join(Set, Product.set_id == Set.id)
         .where(combined_ts_vector_weighted.op('@@')(ts_query))
-        .order_by(combined_rank.desc())
     )
 
-    # Apply catalog_id filter if provided
+    # Add catalog filter if provided
     if catalog_id:
         base_search_query = base_search_query.where(Set.catalog_id == catalog_id)
+    
+    # Add product type filter if provided
+    if product_type:
+        base_search_query = base_search_query.where(Product.product_type == product_type)
+
+    # Add ordering
+    base_search_query = base_search_query.order_by(combined_rank.desc())
 
     # Execute query
     results = session.scalars(

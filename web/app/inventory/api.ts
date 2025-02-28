@@ -13,13 +13,18 @@ export function useInventory() {
   );
 }
 
-export function useSearchProducts(query: string, catalog: string | null = null) {
+export function useSearchProducts(query: string, catalog: string | null = null, productType: string | null = null) {
   // Construct parameters for the API call using ProductSearchRequestParams.
   const params: { [key: string]: string } = { query }
   
   // Include the catalog_id parameter if it's provided.
   if (catalog) {
     params.catalog_id = catalog;
+  }
+
+  // Include the product_type parameter if it's provided.
+  if (productType) {
+    params.product_type = productType;
   }
 
   return useSWR<ProductSearchResponse>(

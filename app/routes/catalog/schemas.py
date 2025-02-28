@@ -96,6 +96,7 @@ class ProductTypesResponseSchema(BaseModel):
 class ProductSearchRequestParams(BaseModel):
     query: str
     catalog_id: Optional[uuid.UUID] = None
+    product_type: Optional[ProductType] = None
 
     class Config:
         extra = "forbid"

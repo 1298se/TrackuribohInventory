@@ -107,7 +107,7 @@ const columns: Column<TransactionResponse, any>[] = [
                 <div className="font-medium">
                     {new Intl.NumberFormat("en-US", {
                         style: "currency",
-                        currency: row.original.currency_code
+                        currency: row.original.currency
                     }).format(totalAmount)}
                 </div>
             )

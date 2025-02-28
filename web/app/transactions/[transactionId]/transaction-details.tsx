@@ -71,11 +71,11 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     }
 
     const totalAmount = transaction.line_items.reduce((sum, item) => {
-        const amount = parseFloat(item.price_per_item_amount)
+        const amount = item.price_per_item_amount
         return sum + amount * item.quantity
     }, 0)
 
-    const currency_code = transaction.currency_code
+    const currency = transaction.currency
 
     return (
         <div className="space-y-4">
@@ -96,7 +96,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 <div className="text-2xl font-bold">
                     {new Intl.NumberFormat("en-US", {
                         style: "currency",
-                        currency: currency_code,
+                        currency: currency,
                     }).format(totalAmount)}
                 </div>
             </div>
@@ -121,13 +121,13 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                             <div className="font-medium">
                                 {new Intl.NumberFormat("en-US", {
                                     style: "currency",
-                                    currency: currency_code,
+                                    currency: currency,
                                 }).format(parseFloat(item.price_per_item_amount) * item.quantity)}
                             </div>
                             <div className="text-sm text-muted-foreground">
                                 {item.quantity}x @ {new Intl.NumberFormat("en-US", {
                                     style: "currency",
-                                    currency: currency_code,
+                                    currency: currency,
                                 }).format(parseFloat(item.price_per_item_amount))}
                             </div>
                         </div>

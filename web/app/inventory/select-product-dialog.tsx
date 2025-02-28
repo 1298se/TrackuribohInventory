@@ -15,8 +15,15 @@ import { ProductWithSetAndSKUsResponse } from "./schemas"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-// Define constant for the "all" catalog option
+// Define constants for the "all" options
 const CATALOG_ALL = "all";
+const PRODUCT_TYPE_ALL = "all";
+
+// Product type values from ProductTypeSchema in schemas.ts
+const PRODUCT_TYPE = {
+    CARDS: "Cards",
+    SEALED: "Sealed Products"
+};
 
 interface SelectProductDialogProps extends DialogProps {
     // Parent passes in a callback to handle the selected product
@@ -25,14 +32,19 @@ interface SelectProductDialogProps extends DialogProps {
 
 export function SelectProductDialog({ onSelect, ...props }: SelectProductDialogProps) {
     const [query, setQuery] = useState("")
-    // Use the constant for the initial state of selectedCatalog
+    // Use the constants for the initial state
     const [selectedCatalog, setSelectedCatalog] = useState(CATALOG_ALL)
+    const [selectedProductType, setSelectedProductType] = useState(PRODUCT_TYPE_ALL)
     const { data: catalogsData } = useCatalogs();
 
     const debouncedQuery = useDebounce(query, 500)
 
-    // Updated hook call to include selectedCatalog and selectedProductType
-    const { data, error, isLoading } = useSearchProducts(debouncedQuery, selectedCatalog === CATALOG_ALL ? undefined : selectedCatalog)
+    // Modified to match the API implementation and include productType
+    const { data, error, isLoading } = useSearchProducts(
+        debouncedQuery, 
+        selectedCatalog === CATALOG_ALL ? null : selectedCatalog,
+        selectedProductType === PRODUCT_TYPE_ALL ? null : selectedProductType
+    )
 
     return (
         <Dialog {...props}>
@@ -55,6 +67,18 @@ export function SelectProductDialog({ onSelect, ...props }: SelectProductDialogP
                             ))}
                         </SelectContent>
                     </Select>
+                    
+                    <Select value={selectedProductType} onValueChange={setSelectedProductType}>
+                        <SelectTrigger className="rounded-md border bg-background p-2 text-sm max-w-[200px]">
+                            <SelectValue placeholder="Product Type" className="truncate" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={PRODUCT_TYPE_ALL}>All Types</SelectItem>
+                            <SelectItem value={PRODUCT_TYPE.CARDS}>Cards</SelectItem>
+                            <SelectItem value={PRODUCT_TYPE.SEALED}>Sealed Products</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    
                     <div className="relative flex-1">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 

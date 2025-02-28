@@ -18,21 +18,7 @@ export const LineItemBaseSchema = z.object({
 
 export type LineItemBase = z.infer<typeof LineItemBaseSchema>
 
-/**
- * LineItemProRataResponseSchema
- */
-export const LineItemProRataResponseSchema = z.object({
-    sku_id: z.string().uuid(),
-    price_per_quantity_amount: MoneyAmountSchema,
-});
-
-export const LineItemCreateRequestSchema = z.object({
-    sku_id: z.string().uuid(),
-    quantity: z.number().min(1),
-    price_per_item_amount: MoneyAmountSchema,
-})
-
-export type LineItemProRataResponse = z.infer<typeof LineItemProRataResponseSchema>
+export const LineItemCreateRequestSchema = LineItemBaseSchema;
 
 /**
  * LineItemResponseSchema
@@ -55,38 +41,12 @@ export const TransactionCreateRequestSchema = z.object({
     counterparty_name: z.string(),
     comment: z.string().nullable().optional(),
     line_items: z.array(LineItemCreateRequestSchema),
-    currency_code: z.string(),
+    currency: z.string(),
     shipping_cost_amount: MoneyAmountSchema,
+    total_amount: MoneyAmountSchema,
 })
 
 export type TransactionCreateRequest = z.infer<typeof TransactionCreateRequestSchema>
-
-/**
- * LineItemProRataRequestSchema
- */
-export const LineItemProRataRequestSchema = z.object({
-    sku_id: z.string(),
-    quantity: z.number(),
-})
-
-/**
- * TransactionProRataRequestSchema
- */
-export const TransactionProRataRequestSchema = z.object({
-    line_items: z.array(LineItemProRataRequestSchema),
-    total_amount: MoneySchema,
-})
-
-export type TransactionProRataRequest = z.infer<typeof TransactionProRataRequestSchema>
-
-/**
- * TransactionProRataResponseSchema
- */
-export const TransactionProRataResponseSchema = z.object({
-    line_items: z.array(LineItemProRataResponseSchema),
-})
-
-export type TransactionProRataResponse = z.infer<typeof TransactionProRataResponseSchema>
 
 /**
  * TransactionResponseSchema
@@ -98,7 +58,8 @@ export const TransactionResponseSchema = z.object({
     counterparty_name: z.string(),
     comment: z.string().nullable(),
     line_items: z.array(LineItemResponseSchema),
-    currency_code: z.string(),
+    currency: z.string(),
+    shipping_cost_amount: MoneyAmountSchema,
 })
 
 export type TransactionResponse = z.infer<typeof TransactionResponseSchema>

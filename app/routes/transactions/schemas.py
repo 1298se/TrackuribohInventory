@@ -15,13 +15,8 @@ class LineItemBaseSchema(ORMModel):
     sku_id: uuid.UUID
     quantity: int
 
-class LineItemProRataResponseSchema(BaseModel):
-    sku_id: uuid.UUID
-    price_per_quantity_amount: MoneyAmountSchema
-
-
 class LineItemCreateRequestSchema(LineItemBaseSchema):
-    price_per_item_amount: MoneyAmountSchema
+    pass
 
 class TransactionCreateRequestSchema(BaseModel):
     date: datetime
@@ -29,8 +24,9 @@ class TransactionCreateRequestSchema(BaseModel):
     counterparty_name: str
     comment: str | None = None
     line_items: list[LineItemCreateRequestSchema]
-    currency_code: str
+    currency: str
     shipping_cost_amount: MoneyAmountSchema
+    total_amount: MoneyAmountSchema
 
 
 class LineItemResponseSchema(LineItemBaseSchema):
@@ -50,7 +46,7 @@ class TransactionResponseSchema(ORMModel):
     counterparty_name: str
     comment: str | None
     line_items: list[LineItemResponseSchema]
-    currency_code: str
+    currency: str
     shipping_cost_amount: MoneyAmountSchema
 
     @classmethod
@@ -62,11 +58,3 @@ class TransactionsResponseSchema(BaseModel):
 
 class BulkTransactionDeleteRequestSchema(BaseModel):
     transaction_ids: list[uuid.UUID]
-
-class TransactionProRataResponseSchema(BaseModel):
-    line_items: list[LineItemProRataResponseSchema]
-
-
-class TransactionProRataRequestSchema(BaseModel):
-    line_items: list[LineItemBaseSchema]
-    total_amount: MoneySchema

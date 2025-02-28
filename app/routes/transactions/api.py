@@ -1,9 +1,8 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
-from uuid_extensions import uuid7
 
 from app.routes.transactions.dao import (
     InsufficientInventoryError,
@@ -12,10 +11,9 @@ from app.routes.transactions.dao import (
 )
 from app.routes.transactions.schemas import (
     TransactionResponseSchema,
-    LineItemProRataResponseSchema,
     TransactionCreateRequestSchema,
     TransactionsResponseSchema,
-    BulkTransactionDeleteRequestSchema, TransactionProRataRequestSchema, TransactionProRataResponseSchema
+    BulkTransactionDeleteRequestSchema
 )
 from core.dao.skus import get_skus_by_id
 from core.database import get_db_session
@@ -46,12 +44,26 @@ async def get_transaction(transaction_id: uuid.UUID, session: Session = Depends(
     return transaction
 
 
-@router.post("/pro-rata/calculate", response_model=TransactionProRataResponseSchema)
-async def calculate_pro_rata(
-    request: TransactionProRataRequestSchema,
-    catalog_service: TCGPlayerCatalogService = Depends(get_tcgplayer_catalog_service),
-    session: Session = Depends(get_db_session),
+@router.post("/", response_model=TransactionResponseSchema)
+async def create_transaction(
+        request: TransactionCreateRequestSchema,
+        background_tasks: BackgroundTasks,
+        catalog_service: TCGPlayerCatalogService = Depends(get_tcgplayer_catalog_service),
+        session: Session = Depends(get_db_session),
 ):
+    transaction = Transaction(
+        date=request.date,
+        type=request.type,
+        counterparty_name=request.counterparty_name,
+        comment=request.comment,
+        currency=request.currency,
+        shipping_cost_amount=request.shipping_cost_amount,
+    )
+
+    session.add(transaction)
+
+    session.flush()
+
     sku_id_to_tcgplayer_id = {
         sku.id: sku.tcgplayer_id
         for sku in get_skus_by_id(session, ids=[line_item.sku_id for line_item in request.line_items])
@@ -62,7 +74,7 @@ async def calculate_pro_rata(
         for line_item in request.line_items
     }
 
-    # TODO: Should cache this in redis
+    # TODO: Should update this
     sku_prices = await catalog_service.get_sku_prices(
         [tcgplayer_id for tcgplayer_id in sku_id_to_tcgplayer_id.values()])
 
@@ -76,43 +88,15 @@ async def calculate_pro_rata(
         for sku_price in sku_prices.results
     }
 
-    ratio = request.total_amount.amount / transaction_total_market_price
+    ratio = request.total_amount / transaction_total_market_price
 
-    return TransactionProRataResponseSchema(
-        line_items=[
-            LineItemProRataResponseSchema(
-                sku_id=line_item.sku_id,
-                price_per_quantity_amount=tcgplayer_id_to_lowest_price[sku_id_to_tcgplayer_id[line_item.sku_id]] * ratio,
-            )
-            for line_item in request.line_items
-        ]
-    )
-
-
-@router.post("/", response_model=TransactionResponseSchema)
-async def create_transaction(
-        request: TransactionCreateRequestSchema,
-        session: Session = Depends(get_db_session),
-):
-    transaction_id = uuid7()
-    transaction = Transaction(
-        id=transaction_id,
-        date=request.date,
-        type=request.type,
-        counterparty_name=request.counterparty_name,
-        comment=request.comment,
-        currency_code=request.currency_code,
-        shipping_cost_amount=request.shipping_cost_amount,
-    )
-
-    session.add(transaction)
 
     line_items = [
         LineItem(
-            transaction_id=transaction_id,
+            transaction_id=transaction.id,
             sku_id=line_item.sku_id,
             quantity=line_item.quantity,
-            price_per_item_amount=line_item.price_per_item_amount,
+            price_per_item_amount=tcgplayer_id_to_lowest_price[sku_id_to_tcgplayer_id[line_item.sku_id]] * ratio,
         )
         for line_item in request.line_items
     ]
@@ -138,7 +122,7 @@ async def create_transaction(
     transaction = session.scalar(
         select(Transaction)
         .options(*TransactionResponseSchema.get_load_options())
-        .where(Transaction.id == transaction_id)
+        .where(Transaction.id == transaction.id)
     )
 
     return transaction
