@@ -87,15 +87,6 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
         )
     }
 
-    const getLineItemPrice = (skuId: string) => {
-        return priceInputs[skuId] ?? 
-            transaction.line_items.find(item => item.sku_id === skuId)?.price_per_item_amount ?? 0
-    }
-
-    const getLineItemQuantity = (skuId: string) => {
-        return transaction.line_items.find(item => item.sku_id === skuId)?.quantity ?? 0
-    }
-
     const handleUnitPriceInputChange = (skuId: string, value: number | undefined) => {
         // Only update the input value state during typing
         setPriceInputs(prev => ({
@@ -105,10 +96,8 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     }
 
     const totalAmount = transaction.line_items.reduce((sum, item) => {
-        const price = isEditing ? getLineItemPrice(item.sku_id) : item.price_per_item_amount
-        const quantity = getLineItemQuantity(item.sku_id)
-        // Use Number constructor to convert the toFixed string back to a number for the sum
-        return sum + Number((price * quantity).toFixed(2))
+        // Always use the original transaction line item values for total amount
+        return sum + Number((item.price_per_item_amount * item.quantity).toFixed(2))
     }, 0)
 
     const currency = transaction.currency
@@ -124,18 +113,18 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     }
 
     const handleSaveChanges = () => {
-        // Here you would implement API call to save the updated line items
-        const updatedLineItems = Object.entries(priceInputs).map(([skuId, price]) => ({
-            sku_id: skuId,
-            price,
-            quantity: getLineItemQuantity(skuId)
-        })).filter(item => item.price !== undefined)
+        // // Here you would implement API call to save the updated line items
+        // const updatedLineItems = Object.entries(priceInputs).map(([skuId, price]) => ({
+        //     sku_id: skuId,
+        //     price,
+        //     quantity: getLineItemQuantity(skuId)
+        // })).filter(item => item.price !== undefined)
         
-        console.log('Saving changes:', updatedLineItems)
-        // After successful save:
-        setIsEditing(false)
-        setPriceInputs({})
-        // You might want to refresh the transaction data here
+        // console.log('Saving changes:', updatedLineItems)
+        // // After successful save:
+        // setIsEditing(false)
+        // setPriceInputs({})
+        // // You might want to refresh the transaction data here
     }
 
     const lineItemColumns: Column<LineItemResponse, any>[] = [
@@ -198,9 +187,9 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             header: "Total Price",
             loading: DefaultLoading,
             cell: ({ row }) => {
-                const skuId = row.original.sku_id
                 const quantity = row.original.quantity
-                const total = Number((row.original.price_per_item_amount * quantity).toFixed(2))
+                const unitPrice = row.original.price_per_item_amount
+                const total = Number((unitPrice * quantity).toFixed(2))
                 const formatted = formatCurrency(total)
                 return <div className="font-medium tabular-nums">{formatted}</div>
             }
