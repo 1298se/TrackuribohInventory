@@ -10,11 +10,9 @@ import { AlertCircle } from "lucide-react"
 import { DataTable } from "../../inventory/data-table"
 import { type Column } from "../../inventory/data-table"
 import { LineItemResponse } from "../schemas"
-import { cn } from "@/lib/utils"
 import { MoneyInput } from "@/components/ui/money-input"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 
 interface TransactionDetailsProps {
     transactionId: string
@@ -183,8 +181,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 if (isEditing) {
                     return (
                         <MoneyInput
-                            key={`price-input-${skuId}`}
-                            initialValue={priceInputs[skuId] ?? row.original.price_per_item_amount}
+                            initialValue={row.original.price_per_item_amount}
                             onChange={(value) => handleUnitPriceInputChange(skuId, value)}
                             className="w-20"
                         />
@@ -203,8 +200,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             cell: ({ row }) => {
                 const skuId = row.original.sku_id
                 const quantity = row.original.quantity
-                const unitPrice = isEditing ? getLineItemPrice(skuId) : row.original.price_per_item_amount
-                const total = Number((unitPrice * quantity).toFixed(2))
+                const total = Number((row.original.price_per_item_amount * quantity).toFixed(2))
                 const formatted = formatCurrency(total)
                 return <div className="font-medium tabular-nums">{formatted}</div>
             }
