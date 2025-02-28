@@ -3,13 +3,17 @@ import { Input } from "./input";
 import { cn } from "@/lib/utils";
 import { MoneyAmountSchema } from "@/app/schemas";
 
-export interface MoneyInputProps extends Omit<React.ComponentPropsWithoutRef<"input">, "onChange"> {
+export interface MoneyInputProps extends Omit<React.ComponentPropsWithoutRef<"input">, "onChange" | "value" | "defaultValue"> {
   onChange?: (value: number | undefined) => void;
+  initialValue?: number;
 }
 
 const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
-  ({ className, onChange, ...props }, ref) => {
-    const [inputValue, setInputValue] = React.useState<string>("");
+  ({ className, onChange, initialValue, ...props }, ref) => {
+    // Use initialValue prop for initial state
+    const [inputValue, setInputValue] = React.useState<string>(
+      initialValue !== undefined ? initialValue.toString() : ""
+    );
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;

@@ -81,10 +81,15 @@ export default function CreateTransactionFormDialog() {
             // Make sure we're passing the correct fields that match the schema
             const request = TransactionCreateRequestSchema.parse(data)
 
-            await createTransaction(request);
+            const transaction = await createTransaction(request);
 
-            // On success, navigate back or show success message
-            router.push('/transactions');
+            // On success, navigate to the transaction details page
+            if (transaction && transaction.id) {
+                router.push(`/transactions/${transaction.id}`);
+            } else {
+                // Fallback to transactions list if response doesn't contain ID
+                router.push('/transactions');
+            }
             
         } catch (error) {
             console.error("Failed to create transaction:", error);

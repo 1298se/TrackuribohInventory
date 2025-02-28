@@ -9,13 +9,19 @@ import {
 } from "./schemas";
 
 async function createTransaction(_url: string, { arg }: { arg: TransactionCreateRequest }) {
-    await fetch(`${API_URL}/transactions`, {
+    const response = await fetch(`${API_URL}/transactions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(arg)
     });
+    
+    if (!response.ok) {
+        throw new Error('Failed to create transaction');
+    }
+    
+    return response.json();
 }
 
 export function useCreateTransaction() {
