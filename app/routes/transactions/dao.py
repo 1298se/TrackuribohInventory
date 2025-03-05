@@ -24,7 +24,12 @@ def process_sale_line_items(session: Session, sale_line_items: list[LineItem]) -
     # 1. Gather all relevant SKUs
     sku_ids = {item.sku_id for item in sale_line_items}
 
-    # 2. Single query for all purchase line items ordered by date because FIFO
+    # 2. Group sale line items by SKU and date for easier processing
+    sku_id_to_sale_line_items = defaultdict(list)
+    for sale_line_item in sale_line_items:
+        sku_id_to_sale_line_items[sale_line_item.sku_id].append(sale_line_item)
+
+    # 3. Single query for all eligible purchase line items 
     all_purchase_line_items = (
         session.query(LineItem)
         .join(Transaction)
@@ -37,15 +42,21 @@ def process_sale_line_items(session: Session, sale_line_items: list[LineItem]) -
         .all()
     )
 
-    # 3. Group purchase line items by SKU
+    # 4. Group purchase line items by SKU
     sku_id_to_purchase_line_items = defaultdict(list)
     for purchase_line_item in all_purchase_line_items:
         sku_id_to_purchase_line_items[purchase_line_item.sku_id].append(purchase_line_item)
 
-    # 4. Consume inventory for each sale line item
+    # 5. Consume inventory for each sale line item
     for sale_line_item in sale_line_items:
         sell_quantity = sale_line_item.quantity
-        fifo_purchase_line_items = sku_id_to_purchase_line_items[sale_line_item.sku_id]
+        sale_date = sale_line_item.transaction.date
+        
+        # Filter purchase line items to only include those with dates before the sale date
+        fifo_purchase_line_items = [
+            purchase_line_item for purchase_line_item in sku_id_to_purchase_line_items[sale_line_item.sku_id]
+            if purchase_line_item.transaction.date < sale_date
+        ]
 
         for purchase_line_item in fifo_purchase_line_items:
             if sell_quantity == 0:
