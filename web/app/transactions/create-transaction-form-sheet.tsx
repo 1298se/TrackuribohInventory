@@ -21,6 +21,7 @@ import { LineItemCreateRequestSchema, TransactionCreateRequestSchema, Transactio
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation";
 import { MoneyInput } from "@/components/ui/money-input";
+import { QuantityInput } from "@/components/ui/quantity-input";
 
 export const TransactionCreateFormLineItemSchema = LineItemCreateRequestSchema.extend({
     product: ProductWithSetAndSKUsResponseSchema,
@@ -31,7 +32,7 @@ export const TransactionCreateFormSchema = TransactionCreateRequestSchema.extend
     line_items: z.array(TransactionCreateFormLineItemSchema).min(1, "At least one item is required"),
     comment: z.string().max(500, "Comment must be less than 500 characters").optional(),
     shipping_cost_amount: z.number().min(0, "Shipping cost must be greater than or equal to 0").default(0),
-    total_amount: z.number().min(0, "Total amount must be greater than or equal to 0").default(0),
+    total_amount: z.number().min(0.01, "Total amount must be greater than 0").default(0),
 })
 
 type TransactionCreateFormLineItem = z.infer<typeof TransactionCreateFormLineItemSchema>
@@ -175,21 +176,12 @@ export default function CreateTransactionFormDialog() {
                         render={({ field }) => (
                             <FormItem>
                                 <FormControl>
-                                    <Input
-                                        type="text"
-                                        inputMode="numeric"
+                                <QuantityInput
                                         value={field.value}
                                         className="w-20"
                                         min={0}
                                         max={999}
-                                        onChange={(e) => {
-                                            // parse input as a number
-                                            const newQuantity = parseInt(e.target.value, 10)
-                                            // ensure value is within bounds
-                                            const boundedQuantity = Math.min(Math.max(isNaN(newQuantity) ? 0 : newQuantity, 0), 999)
-                                            // call field.onChange to update the form state
-                                            field.onChange(boundedQuantity)
-                                        }}
+                                        onChange={(value) => field.onChange(value)}
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -221,8 +213,7 @@ export default function CreateTransactionFormDialog() {
     return (
         <Form {...form}>
             <div ref={setFormContainerRef} className="relative">
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-24">
-
+                <div className="space-y-6 pb-24">
                     {/* ✨ NEW: Back Button */}
                     <div className="flex items-center">
                         <Button type="button" variant="ghost" onClick={() => router.back()}>
@@ -343,7 +334,7 @@ export default function CreateTransactionFormDialog() {
                                             <FormLabel>Total</FormLabel>
                                             <FormControl>
                                                 <MoneyInput
-                                                    value={field.value}
+                                                    initialValue={field.value}
                                                     onChange={(amount) => field.onChange(amount)}
                                                     className="w-full"
                                                 />
@@ -364,7 +355,7 @@ export default function CreateTransactionFormDialog() {
                                             <FormLabel>Shipping Cost (Optional)</FormLabel>
                                             <FormControl>
                                                 <MoneyInput
-                                                    value={field.value}
+                                                    initialValue={field.value}
                                                     onChange={(amount) => field.onChange(amount)}
                                                     className="w-full"
                                                 />
@@ -443,7 +434,7 @@ export default function CreateTransactionFormDialog() {
                         onOpenChange={setIsSelectProductDialogOpen}
                         onSelect={onProductSelected}
                     />
-                </form>
+                </div>
 
                 {/* Persistent footer with submit button */}
                 <div 

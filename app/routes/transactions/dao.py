@@ -6,7 +6,7 @@ from sqlalchemy import and_, asc, desc, select
 from sqlalchemy.orm import Session
 
 from core.models import SKU, TransactionType
-from core.models.inventory import LineItem, LineItemConsumption, Transaction
+from core.models.transaction import LineItem, LineItemConsumption, Transaction
 
 
 
@@ -78,13 +78,91 @@ def process_sale_line_items(session: Session, sale_line_items: list[LineItem]) -
         if sell_quantity > 0:
             raise InsufficientInventoryError("There is not enough inventory to fulfill the sale.")
 
+def delete_sale_line_items(session: Session, line_item_ids: list[uuid.UUID]) -> None:
+    """
+    Deletes sale line items and their associated consumptions.
+    
+    Args:
+        session: The database session
+        line_item_ids: List of line item IDs to delete
+        
+    Returns:
+        None
+    """
+    # Find all consumptions related to these sale line items
+    consumptions = session.query(LineItemConsumption)\
+        .filter(LineItemConsumption.sale_line_item_id.in_(line_item_ids))\
+        .all()
+    
+    # Get associated purchase line items
+    purchase_line_item_ids = {consumption.purchase_line_item_id for consumption in consumptions}
+    purchase_line_items = session.query(LineItem)\
+        .filter(LineItem.id.in_(purchase_line_item_ids))\
+        .all()
+    purchase_line_item_dict = {line_item.id: line_item for line_item in purchase_line_items}
+
+    # Restore purchase line item quantities and delete consumptions
+    for consumption in consumptions:
+        # Restore the purchase line item quantity
+        purchase_line_item_dict[consumption.purchase_line_item_id].remaining_quantity += consumption.quantity
+        # Delete the consumption
+        session.delete(consumption)
+        
+    # Delete the sale line items
+    for line_item_id in line_item_ids:
+        line_item = session.query(LineItem).get(line_item_id)
+        if line_item:
+            session.delete(line_item)
+            
+    session.flush()
+
+
+def delete_purchase_line_items(session: Session, line_item_ids: list[uuid.UUID]) -> None:
+    """
+    Deletes purchase line items and their associated consumptions.
+    This will also reprocess any affected sale line items.
+    
+    Args:
+        session: The database session
+        line_item_ids: List of line item IDs to delete
+        
+    Returns:
+        None
+    """
+    # Find all consumptions related to these purchase line items
+    consumptions = session.query(LineItemConsumption)\
+        .filter(LineItemConsumption.purchase_line_item_id.in_(line_item_ids))\
+        .all()
+    
+    # Get associated sale line items
+    sale_line_item_ids = {consumption.sale_line_item_id for consumption in consumptions}
+    sale_line_items = session.scalars(
+        select(LineItem).where(LineItem.id.in_(sale_line_item_ids))
+    ).all()
+
+    # Delete all associated consumptions
+    for consumption in consumptions:
+        session.delete(consumption)
+    
+    # Delete the purchase line items
+    for line_item_id in line_item_ids:
+        line_item = session.query(LineItem).get(line_item_id)
+        if line_item:
+            session.delete(line_item)
+    
+    # Re-process sale line items
+    process_sale_line_items(session, sale_line_items)
+    
+    session.flush()
+
+
 def delete_transactions(session: Session, transaction_ids: list[uuid.UUID]) -> None:
     """
     Deletes all transactions (and their associated line items and consumptions)
     for the given list of transaction_ids.
 
     Raises:
-        Exception: If one or more transactions are not found.
+        TransactionNotFoundError: If one or more transactions are not found.
     """
     # Fetch all transactions with the provided IDs
     transactions = session.query(Transaction).filter(Transaction.id.in_(transaction_ids)).all()
@@ -114,45 +192,13 @@ def delete_transactions(session: Session, transaction_ids: list[uuid.UUID]) -> N
     for transaction in ordered_transactions:
         line_item_ids = [line_item.id for line_item in transaction_id_to_line_items[transaction.id]]
         
-        # Delete all associated line items
-        for line_item in line_items:
-            session.delete(line_item)
+        match transaction.type:
+            case TransactionType.PURCHASE:
+                delete_purchase_line_items(session, line_item_ids)
+            case TransactionType.SALE:
+                delete_sale_line_items(session, line_item_ids)
         
         # Delete the transaction itself
         session.delete(transaction)
-        
-        match transaction.type:
-            case TransactionType.PURCHASE:
-                consumptions = session.query(LineItemConsumption)\
-                    .filter(LineItemConsumption.purchase_line_item_id.in_(line_item_ids))\
-                    .all()
-                sale_line_item_ids = {consumption.sale_line_item_id for consumption in consumptions}
-                sale_line_items = session.scalars(
-                    select(LineItem).where(LineItem.id.in_(sale_line_item_ids))
-                ).all()
 
-                # Delete all associated consumptions
-                for consumption in consumptions:
-                    session.delete(consumption)
-        
-                # Re-process sale line items
-                process_sale_line_items(session, sale_line_items)
-
-            case TransactionType.SALE:
-                consumptions = session.query(LineItemConsumption)\
-                    .filter(LineItemConsumption.sale_line_item_id.in_(line_item_ids))\
-                    .all()
-                purchase_line_item_ids = {consumption.purchase_line_item_id for consumption in consumptions}
-                purchase_line_items = session.query(LineItem)\
-                    .filter(LineItem.id.in_(purchase_line_item_ids))\
-                    .all()
-                purchase_line_item_dict = {line_item.id: line_item for line_item in purchase_line_items}
-        
-                for consumption in consumptions:
-                    # Restore the purchase line item quantity
-                    purchase_line_item_dict[consumption.purchase_line_item_id].remaining_quantity += consumption.quantity
-        
-                    # Delete the consumption
-                    session.delete(consumption)
-
-        session.flush()
+    session.flush()

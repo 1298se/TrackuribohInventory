@@ -4,35 +4,36 @@ import { cn } from "@/lib/utils";
 import { MoneyAmountSchema } from "@/app/schemas";
 
 export interface MoneyInputProps extends Omit<React.ComponentPropsWithoutRef<"input">, "onChange" | "value" | "defaultValue"> {
-  onChange?: (value: number | undefined) => void;
+  onChange: (value: number | undefined) => void;
   initialValue?: number;
 }
 
 const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
   ({ className, onChange, initialValue, ...props }, ref) => {
+    
     // Use initialValue prop for initial state
     const [inputValue, setInputValue] = React.useState<string>(
       initialValue !== undefined ? initialValue.toString() : ""
     );
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
+      const rawValue = e.target.value;
       
       // Allow empty input or valid positive decimal number format (including in-progress decimal inputs)
-      const isValidInput = value === "" || /^\d*\.?\d{0,2}$/.test(value);
+      const isValidInput = rawValue === "" || /^\d*\.?\d{0,2}$/.test(rawValue);
       
       if (isValidInput) {
-        setInputValue(value);
         
         // Try to parse as a complete number for the onChange callback
-        const parseResponse = MoneyAmountSchema.safeParse(value);
+        const parseResponse = MoneyAmountSchema.safeParse(rawValue);
         
         if (parseResponse.success) {
-          const numericValue = value === "" ? undefined : parseResponse.data;
-          onChange && onChange(numericValue);
-        } else if (value === "") {
+          setInputValue(rawValue);
+          onChange(parseResponse.data);
+        } else if (rawValue === "") {
+          setInputValue("0.00")
           // Handle empty input
-          onChange && onChange(undefined);
+          onChange(0.00);
         }
       }
     };

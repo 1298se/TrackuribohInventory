@@ -5,7 +5,8 @@ import {
     TransactionCreateRequest, 
     TransactionResponse, 
     TransactionsResponse,
-    BulkTransactionDeleteRequestSchema
+    BulkTransactionDeleteRequestSchema,
+    TransactionUpdateRequest
 } from "./schemas";
 
 async function createTransaction(_url: string, { arg }: { arg: TransactionCreateRequest }) {
@@ -72,4 +73,26 @@ export function useDeleteTransactions() {
             return deleteTransactions(arg);
         }
     );
+}
+
+async function updateTransaction(arg: { id: string; data: TransactionUpdateRequest }) {
+    const response = await fetch(`${API_URL}/transactions/${arg.id}`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(arg.data)
+    });
+    
+    if (!response.ok) {
+        throw new Error('Failed to update transaction');
+    }
+    
+    return response.json();
+}
+
+export function useUpdateTransaction() {
+    return useSWRMutation(`${API_URL}/transactions`, async (_url: string, { arg }: { arg: { id: string; data: TransactionUpdateRequest } }) => {
+        return updateTransaction(arg);
+    });
 }

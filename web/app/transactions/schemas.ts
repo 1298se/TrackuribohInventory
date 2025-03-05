@@ -12,19 +12,22 @@ export type TransactionType = z.infer<typeof TransactionTypeSchema>
  * LineItemBaseSchema
  */
 export const LineItemBaseSchema = z.object({
-    sku_id: z.string().uuid(),
+    id: z.string().uuid(),
     quantity: z.number(),
 });
 
 export type LineItemBase = z.infer<typeof LineItemBaseSchema>
 
-export const LineItemCreateRequestSchema = LineItemBaseSchema;
+export const LineItemCreateRequestSchema = z.object({
+    sku_id: z.string().uuid(),
+    quantity: z.number(),
+});
 
 /**
  * LineItemResponseSchema
  */
 export const LineItemResponseSchema = z.object({
-    sku_id: z.string().uuid(),
+    id: z.string().uuid(),
     quantity: z.number(),
     sku: SKUWithProductResponseSchema,
     price_per_item_amount: MoneyAmountSchema,
@@ -36,7 +39,7 @@ export type LineItemResponse = z.infer<typeof LineItemResponseSchema>
  * TransactionCreateRequestSchema
  */
 export const TransactionCreateRequestSchema = z.object({
-    date: z.date(),
+    date: z.string().datetime(),
     type: TransactionTypeSchema,
     counterparty_name: z.string(),
     comment: z.string().nullable().optional(),
@@ -53,7 +56,7 @@ export type TransactionCreateRequest = z.infer<typeof TransactionCreateRequestSc
  */
 export const TransactionResponseSchema = z.object({
     id: z.string().uuid(),
-    date: z.date(),
+    date: z.string().datetime(),
     type: TransactionTypeSchema,
     counterparty_name: z.string(),
     comment: z.string().nullable(),
@@ -79,3 +82,28 @@ export const BulkTransactionDeleteRequestSchema = z.object({
     transaction_ids: z.array(z.string().uuid()),
 });
 export type BulkTransactionDeleteRequest = z.infer<typeof BulkTransactionDeleteRequestSchema>
+
+/**
+ * LineItemUpdateRequestSchema
+ */
+export const LineItemUpdateRequestSchema = z.object({
+    id: z.string().uuid(),
+    price_per_item_amount: MoneyAmountSchema.optional(),
+    quantity: z.number().optional(),
+});
+
+export type LineItemUpdateRequest = z.infer<typeof LineItemUpdateRequestSchema>
+
+/**
+ * TransactionUpdateRequestSchema
+ */
+export const TransactionUpdateRequestSchema = z.object({
+    date: z.string().datetime(),
+    counterparty_name: z.string(),
+    comment: z.string().nullable(),
+    currency: z.string(),
+    shipping_cost_amount: MoneyAmountSchema,
+    line_items: z.array(LineItemUpdateRequestSchema),
+})
+
+export type TransactionUpdateRequest = z.infer<typeof TransactionUpdateRequestSchema>

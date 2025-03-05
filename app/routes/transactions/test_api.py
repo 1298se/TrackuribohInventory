@@ -11,7 +11,7 @@ from app.routes.transactions.schemas import BulkTransactionDeleteRequestSchema, 
 from app.routes.utils import MoneyAmountSchema, MoneySchema
 from core.database import SessionLocal
 from core.models import Product, SKU
-from core.models.inventory import TransactionType
+from core.models.transaction import TransactionType
 
 def test_get_transactions():
     with TestClient(app) as client:

@@ -1,7 +1,7 @@
 from sqlalchemy import func, select, Select, CTE
 
 from core.models import SKU, SKULatestPriceData
-from core.models.inventory import Transaction, LineItem
+from core.models.transaction import Transaction, LineItem
 
 def get_sku_cost_quantity_cte() -> CTE:
     total_quantity = func.sum(

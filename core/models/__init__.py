@@ -1,3 +1,3 @@
 from core.models.catalog import *
-from core.models.inventory import *
+from core.models.transaction import *
 from core.models.price import *
