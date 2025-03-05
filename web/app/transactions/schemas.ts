@@ -98,7 +98,6 @@ export type LineItemUpdateRequest = z.infer<typeof LineItemUpdateRequestSchema>
  * TransactionUpdateRequestSchema
  */
 export const TransactionUpdateRequestSchema = z.object({
-    date: z.string().datetime(),
     counterparty_name: z.string(),
     comment: z.string().nullable(),
     currency: z.string(),

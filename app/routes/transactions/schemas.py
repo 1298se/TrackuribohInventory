@@ -35,7 +35,6 @@ class TransactionCreateRequestSchema(BaseModel):
     total_amount: MoneyAmountSchema
 
 class TransactionUpdateRequestSchema(BaseModel):
-    date: datetime
     counterparty_name: str
     comment: str | None
     currency: str

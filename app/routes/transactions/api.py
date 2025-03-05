@@ -161,7 +161,6 @@ async def update_transaction(
         raise HTTPException(status_code=404, detail="Transaction not found")
     
     # Update transaction fields with the provided values
-    transaction.date = request.date
     transaction.counterparty_name = request.counterparty_name
     
     # comment can still be None

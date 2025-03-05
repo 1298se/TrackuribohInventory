@@ -117,7 +117,6 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
 
             // Use reset to update all form fields
             form.reset({
-                date: transaction.date, 
                 counterparty_name: transaction.counterparty_name,
                 comment: transaction.comment,
                 currency: transaction.currency,
@@ -275,7 +274,6 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
 
             // Create the request data from the TransactionEditFormSchema
             const updateRequestData: TransactionUpdateRequest = {
-                date: transaction!.date,  // Use the existing date
                 counterparty_name: transaction!.counterparty_name,  // Use the existing counterparty name
                 comment: transaction!.comment,  // Use the existing comment
                 currency: transaction!.currency,  // Use the existing currency
