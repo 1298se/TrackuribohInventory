@@ -21,7 +21,7 @@ class LineItemCreateRequestSchema(BaseModel):
 
 class LineItemUpdateRequestSchema(BaseModel):
     id: uuid.UUID
-    price_per_item_amount: MoneyAmountSchema
+    unit_price_amount: MoneyAmountSchema
     quantity: int
 
 class TransactionCreateRequestSchema(BaseModel):
@@ -44,7 +44,7 @@ class TransactionUpdateRequestSchema(BaseModel):
 
 class LineItemResponseSchema(LineItemBaseSchema):
     sku: SKUWithProductResponseSchema
-    price_per_item_amount: MoneyAmountSchema
+    unit_price_amount: MoneyAmountSchema
     quantity: int
 
     @classmethod

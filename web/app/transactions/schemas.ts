@@ -30,7 +30,7 @@ export const LineItemResponseSchema = z.object({
     id: z.string().uuid(),
     quantity: z.number(),
     sku: SKUWithProductResponseSchema,
-    price_per_item_amount: MoneyAmountSchema,
+    unit_price_amount: MoneyAmountSchema,
 });
 
 export type LineItemResponse = z.infer<typeof LineItemResponseSchema>
@@ -88,7 +88,7 @@ export type BulkTransactionDeleteRequest = z.infer<typeof BulkTransactionDeleteR
  */
 export const LineItemUpdateRequestSchema = z.object({
     id: z.string().uuid(),
-    price_per_item_amount: MoneyAmountSchema.optional(),
+    unit_price_amount: MoneyAmountSchema.optional(),
     quantity: z.number().optional(),
 });
 

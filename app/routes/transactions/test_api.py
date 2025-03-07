@@ -31,7 +31,7 @@ def test_create_purchase_transaction():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=3,
-                    price_per_item_amount=MoneyAmountSchema("10.00")
+                    unit_price_amount=MoneyAmountSchema("10.00")
                 )
             ],
             currency="USD",
@@ -57,7 +57,7 @@ def test_create_sale_transaction():
                     LineItemCreateRequestSchema(
                         sku_id=test_sku.id,
                         quantity=5,
-                        price_per_item_amount=MoneyAmountSchema("20.00")
+                        unit_price_amount=MoneyAmountSchema("20.00")
                     )
                 ],
                 currency="USD",
@@ -91,7 +91,7 @@ def test_bulk_delete_transaction():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=3,
-                    price_per_item_amount=MoneyAmountSchema("10.00")
+                    unit_price_amount=MoneyAmountSchema("10.00")
                 )
             ],
             currency="USD",
@@ -129,7 +129,7 @@ def test_bulk_delete_fail_on_insufficient_inventory():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=1,
-                    price_per_item_amount=MoneyAmountSchema("10.00")
+                    unit_price_amount=MoneyAmountSchema("10.00")
                 )
             ],
             currency="USD",
@@ -144,7 +144,7 @@ def test_bulk_delete_fail_on_insufficient_inventory():
             date=datetime.now(),
             type=TransactionType.SALE,
             counterparty_name="Billy Bob",
-            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=1, price_per_item_amount=MoneyAmountSchema("10.00"))],
+            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=1, unit_price_amount=MoneyAmountSchema("10.00"))],
             currency="USD",
         ).model_dump_json()
 
@@ -177,7 +177,7 @@ def test_bulk_delete_sale_and_purchase_simultaneous():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=3,
-                    price_per_item_amount=MoneyAmountSchema("10.00")
+                    unit_price_amount=MoneyAmountSchema("10.00")
                 )
             ],
             currency="USD",
@@ -192,7 +192,7 @@ def test_bulk_delete_sale_and_purchase_simultaneous():
             date=datetime.now(),
             type=TransactionType.SALE,
             counterparty_name="Billy Bob",
-            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=3, price_per_item_amount=MoneyAmountSchema("10.00"))],
+            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=3, unit_price_amount=MoneyAmountSchema("10.00"))],
             currency="USD",
         ).model_dump_json()
 

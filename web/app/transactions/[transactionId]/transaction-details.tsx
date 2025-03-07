@@ -35,7 +35,7 @@ interface TransactionDetailsProps {
 
 // Define a schema for line item edits by extending the API schema with additional validation
 const LineItemEditSchema = LineItemResponseSchema.extend({
-    price_per_item_amount: MoneyAmountSchema.refine(
+    unit_price_amount: MoneyAmountSchema.refine(
         (value) => value > 0,
         { message: "Price cannot be zero" }
     ),
@@ -120,7 +120,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
         if (transaction && !isEditing) {
             const lineItems = transaction.line_items.map(item => ({
                 id: item.id,
-                price_per_item_amount: item.price_per_item_amount,
+                unit_price_amount: item.unit_price_amount,
                 quantity: item.quantity,
                 sku: item.sku
             }));
@@ -187,7 +187,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             }
         },
         {
-            accessorKey: "price_per_item_amount",
+            accessorKey: "unit_price_amount",
             header: "Unit Price",
             loading: DefaultLoading,
             cell: ({ row }) => {
@@ -195,7 +195,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                     return (
                         <FormField
                             control={form.control}
-                            name={`line_items.${row.index}.price_per_item_amount`}
+                            name={`line_items.${row.index}.unit_price_amount`}
                             render={({ field }) => (
                                 <FormItem>
                                     <FormControl>
@@ -211,7 +211,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                         />
                     )
                 }
-                const amount = row.original.price_per_item_amount
+                const amount = row.original.unit_price_amount
                 const formatted = Intl.NumberFormat("en-US", {
                     style: "currency",
                     currency: transaction?.currency || "USD",
@@ -225,7 +225,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             loading: DefaultLoading,
             cell: ({ row }) => {
                 const quantity = row.original.quantity
-                const unitPrice = row.original.price_per_item_amount
+                const unitPrice = row.original.unit_price_amount
                 const total = Number((unitPrice * quantity).toFixed(2))
                 const formatted = Intl.NumberFormat("en-US", {
                     style: "currency",
@@ -253,12 +253,12 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 .filter((item) => {
                     const originalItem = transaction?.line_items.find(li => li.id === item.id);
                     if (!originalItem) return false;
-                    return item.price_per_item_amount !== originalItem.price_per_item_amount ||
+                    return item.unit_price_amount !== originalItem.unit_price_amount ||
                         item.quantity !== originalItem.quantity;
                 })
                 .map(item => ({
                     id: item.id,
-                    price_per_item_amount: item.price_per_item_amount,
+                    unit_price_amount: item.unit_price_amount,
                     quantity: item.quantity
                 }));
 
@@ -333,8 +333,8 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     }
 
     const totalAmount = isEditing && fields.length > 0
-        ? fields.reduce((sum, item) => sum + Number((item.price_per_item_amount * item.quantity).toFixed(2)), 0)
-        : transaction?.line_items.reduce((sum, item) => sum + Number((item.price_per_item_amount * item.quantity).toFixed(2)), 0) || 0
+        ? fields.reduce((sum, item) => sum + Number((item.unit_price_amount * item.quantity).toFixed(2)), 0)
+        : transaction?.line_items.reduce((sum, item) => sum + Number((item.unit_price_amount * item.quantity).toFixed(2)), 0) || 0
 
     const currency = transaction?.currency || "USD"
 

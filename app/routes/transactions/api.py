@@ -130,14 +130,14 @@ async def create_transaction(
         line_items_data.append({
             "sku_id": line_item.sku_id,
             "quantity": line_item.quantity,
-            "price_per_item_amount": tcgplayer_id_to_lowest_price[sku_id_to_tcgplayer_id[line_item.sku_id]] * ratio_for_priced_items,
+            "unit_price_amount": tcgplayer_id_to_lowest_price[sku_id_to_tcgplayer_id[line_item.sku_id]] * ratio_for_priced_items,
         })
     
     for line_item in items_without_prices:
         line_items_data.append({
             "sku_id": line_item.sku_id,
             "quantity": line_item.quantity,
-            "price_per_item_amount": unpriced_unit_price,
+            "unit_price_amount": unpriced_unit_price,
         })
 
     try:
@@ -197,7 +197,7 @@ async def update_transaction(
     line_items_content_changed = False
     for item_id in set(existing_line_items.keys()) & set(request_line_items.keys()):
         if (existing_line_items[item_id].quantity != request_line_items[item_id].quantity or
-            existing_line_items[item_id].price_per_item_amount != request_line_items[item_id].price_per_item_amount):
+            existing_line_items[item_id].unit_price_amount != request_line_items[item_id].unit_price_amount):
             line_items_content_changed = True
             break
     
@@ -228,7 +228,7 @@ async def update_transaction(
                 {
                     "sku_id": line_item.sku_id if hasattr(line_item, 'sku_id') else existing_line_items.get(line_item.id, {}).sku_id,
                     "quantity": line_item.quantity,
-                    "price_per_item_amount": line_item.price_per_item_amount,
+                    "unit_price_amount": line_item.unit_price_amount,
                 }
                 for line_item in request.line_items
             ]

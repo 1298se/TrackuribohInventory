@@ -231,7 +231,7 @@ class TransactionDataDict(TypedDict):
 class LineItemDataDict(TypedDict):
     sku_id: uuid.UUID
     quantity: int
-    price_per_item_amount: MoneyAmount
+    unit_price_amount: MoneyAmount
 
 def create_transaction_with_line_items(
     session: Session,
@@ -245,7 +245,7 @@ def create_transaction_with_line_items(
         session: The database session
         transaction_data: Dictionary containing transaction data (date, type, counterparty_name, etc.)
         line_items_data: List of dictionaries containing line item data 
-                         (sku_id, quantity, price_per_item_amount)
+                         (sku_id, quantity, unit_price_amount)
         
     Returns:
         The created transaction with line items

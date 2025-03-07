@@ -43,7 +43,7 @@ class LineItem(Base):
     # None for Sales, non-None for purchases. Sales will subtract from this number
     remaining_quantity: Mapped[Optional[int]]
 
-    price_per_item_amount: Mapped[MoneyAmount]
+    unit_price_amount: Mapped[MoneyAmount]
 
     transaction_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{transaction_tablename}.id"))
     transaction: Mapped["Transaction"] = relationship(back_populates="line_items")

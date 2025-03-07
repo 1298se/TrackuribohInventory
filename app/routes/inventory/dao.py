@@ -9,7 +9,7 @@ def get_sku_cost_quantity_cte() -> CTE:
     ).label('total_quantity')
 
     total_cost = func.sum(
-        LineItem.price_per_item_amount * LineItem.remaining_quantity,
+        LineItem.unit_price_amount * LineItem.remaining_quantity,
     ).label('total_cost')
 
     return  (

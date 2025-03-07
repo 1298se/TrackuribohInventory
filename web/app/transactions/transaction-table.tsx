@@ -99,7 +99,7 @@ const columns: Column<TransactionResponse, any>[] = [
         cell: ({ row }) => {
             const lineItems = row.original.line_items
             const totalAmount = lineItems.reduce((sum, item) => {
-                const amount = item.price_per_item_amount
+                const amount = item.unit_price_amount
                 return sum + (amount * item.quantity)
             }, 0)
 
@@ -127,7 +127,7 @@ const columns: Column<TransactionResponse, any>[] = [
                 <div className="h-14 flex items-center">
                     <div className="flex -space-x-2">
                         {displayItems.map((item, index) => (
-                            <HoverCard key={item.sku_id + "-" + index}>
+                            <HoverCard key={item.id + "-" + index}>
                                 <HoverCardTrigger>
                                     <div
                                         className="relative"
