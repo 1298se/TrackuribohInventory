@@ -1,9 +1,162 @@
 ---
-description:
-globs:
+description: Project structure and RPC between client and server
+globs: 
 ---
 
-# Your rule content
+# Project MDC (Markdown Configuration) Rules
 
-- You can @ files here
-- You can use markdown but dont have to
+## Project Structure
+
+The project is organized into two main components:
+
+- `web/`: Frontend React/TypeScript application using ShadCN for UI
+- `app/`: Backend FastAPI REST API with SQLAlchemy and Pydantic
+
+Supporting directories:
+- `core/`: Core functionality and shared services
+- `models/`: Database models
+- `alembic/`: Database migrations
+- `cron/`: Scheduled tasks
+
+## Coding Standards and Patterns
+
+### Backend (Python)
+
+#### API Endpoints
+
+1. All API endpoints are defined in `app/routes/{module}/api.py` files
+2. Each module has its own router with a specific prefix
+3. Endpoint functions should include appropriate response_model annotations
+4. Use dependency injection with Depends() for services and database sessions
+5. Include type annotations for all parameters
+
+Example:
+```python
+@router.get("/", response_model=InventoryResponseSchema)
+def get_inventory(
+    background_tasks: BackgroundTasks,
+    catalog_service: TCGPlayerCatalogService = Depends(get_tcgplayer_catalog_service),
+    session: Session = Depends(get_db_session),
+):
+    # Implementation
+    return InventoryResponseSchema(
+        inventory_items=inventory_items
+    )
+```
+
+#### Schemas
+
+1. All schemas are defined in `app/routes/{module}/schemas.py` files
+2. Use Pydantic BaseModel for all request/response schemas
+3. Schema class names should end with `Schema` suffix
+4. Response schemas should end with `ResponseSchema`
+5. Request schemas should end with `RequestSchema`
+6. Include type annotations for all fields
+
+Example:
+```python
+class InventoryItemResponseSchema(BaseModel):
+    sku: SKUWithProductResponseSchema
+    quantity: int
+    average_cost_per_item: MoneySchema
+    lowest_listing_price: MoneySchema | None
+
+class InventoryResponseSchema(BaseModel):
+    inventory_items: list[InventoryItemResponseSchema]
+```
+
+### Frontend (TypeScript)
+
+#### API Hooks
+
+1. All API hooks are defined in `web/app/{module}/api.ts` files
+2. Use SWR for data fetching and caching
+3. Each hook function should have a clear name that matches its purpose
+4. Include proper type annotations for parameters and return values
+5. Use proper TypeScript parameter typing
+
+Example:
+```typescript
+export function useSearchProducts(query: string, catalog: string | null = null, productType: string | null = null) {
+  const params: { [key: string]: string } = { query }
+  
+  if (catalog) {
+    params.catalog_id = catalog;
+  }
+
+  if (productType) {
+    params.product_type = productType;
+  }
+
+  return useSWR<ProductSearchResponse>(
+    {
+      url: `${API_URL}/catalog/search`,
+      params,
+    },
+    fetcher
+  )
+}
+```
+
+#### Schemas
+
+1. All schemas are defined in `web/app/{module}/schemas.ts` files
+2. Use Zod for schema validation and type generation
+3. Group related schemas together with comments
+4. Export type inferences at the end of the file
+5. Schema names should match their backend counterparts
+
+Example:
+```typescript
+export const InventoryItemResponseSchema = z.object({
+  sku: SKUWithProductResponseSchema,
+  quantity: z.number(),
+  average_cost_per_item: MoneySchema,
+  lowest_listing_price: MoneySchema.nullable(),
+});
+
+export const InventoryResponseSchema = z.object({
+  inventory_items: z.array(InventoryItemResponseSchema),
+});
+
+export type InventoryItemResponse = z.infer<typeof InventoryItemResponseSchema>
+export type InventoryResponse = z.infer<typeof InventoryResponseSchema>
+```
+
+## Schema Synchronization
+
+1. TypeScript schemas must match their Python counterparts exactly
+2. Field names must be identical
+3. Field types must be equivalent (e.g., Python `int` = TypeScript `z.number()`)
+4. Optional fields in Python (`field: Type | None`) should be nullable in TypeScript (`field: Schema.nullable()`)
+5. When adding a new field, add it to both schemas simultaneously
+
+## Testing
+
+1. Backend API tests should be placed in `app/routes/{module}/test_api.py`
+2. Test coverage should be maintained for all critical paths
+
+## Naming Conventions
+
+1. Use snake_case for Python variables, functions, and file names
+2. Use camelCase for TypeScript variables and functions
+3. Use PascalCase for classes and types in both languages
+4. Backend endpoint paths should use kebab-case
+
+## Documentation
+
+1. Include docstrings for all Python functions
+2. Document complex TypeScript functions with JSDoc comments
+3. Maintain accurate README files for each major component
+
+## Version Control
+
+1. Commit messages should be clear and descriptive
+2. Include the affected module in commit messages when possible
+3. Group related changes in a single commit
+
+## Dependencies
+
+1. Python dependencies are managed with Poetry (pyproject.toml)
+2. Frontend dependencies are managed with npm (package.json)
+3. Specify exact versions for critical dependencies 

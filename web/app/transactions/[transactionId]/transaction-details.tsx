@@ -18,8 +18,16 @@ import { QuantityInput } from "@/components/ui/quantity-input"
 import { useForm, useFieldArray } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormMessage, FormLabel } from "@/components/ui/form"
 import { MoneyAmountSchema } from "@/app/schemas"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { CalendarIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface TransactionDetailsProps {
     transactionId: string
@@ -28,7 +36,7 @@ interface TransactionDetailsProps {
 // Define a schema for line item edits by extending the API schema with additional validation
 const LineItemEditSchema = LineItemResponseSchema.extend({
     price_per_item_amount: MoneyAmountSchema.refine(
-        (value) => value > 0, 
+        (value) => value > 0,
         { message: "Price cannot be zero" }
     ),
     quantity: z.number().int().min(1, "Quantity must be at least 1")
@@ -43,41 +51,50 @@ const TransactionEditFormSchema = TransactionUpdateRequestSchema.extend({
 type LineItemEdit = z.infer<typeof LineItemEditSchema>
 type TransactionEditForm = z.infer<typeof TransactionEditFormSchema>
 
-function TransactionDetailsSkeleton() {
+// First, let's define separate components for header and content skeletons
+function TransactionDetailsSkeletonHeader() {
     return (
-        <div className="space-y-4">
-            <div className="space-y-1">
-                <Skeleton className="h-6 w-[250px]" />
-                <Skeleton className="h-4 w-[200px]" />
+        <CardHeader className="flex flex-row justify-between">
+            <div>
+                <Skeleton className="h-8 w-[300px]" /> {/* Amount + transaction type */}
             </div>
-            <div className="space-y-1">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-32" />
-            </div>
-            <Separator />
-            <div className="space-y-4">
-                <Skeleton className="h-4 w-16" />
-                {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-start gap-4">
-                        <Skeleton className="h-16 w-16 rounded-md" />
-                        <div className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-[250px]" />
-                            <Skeleton className="h-4 w-[200px]" />
+            <Skeleton className="h-9 w-24" /> {/* Edit button */}
+        </CardHeader>
+    )
+}
+
+function TransactionDetailsSkeletonContent() {
+    return (
+        <CardContent>
+            <div className="space-y-6">
+                {/* Form fields grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className={i === 4 ? "pb-4" : ""}>
+                            <Skeleton className="h-4 w-24 mb-2" /> {/* Label */}
+                            <Skeleton className="h-10 w-full" /> {/* Input */}
                         </div>
-                        <Skeleton className="h-4 w-24" />
-                    </div>
-                ))}
+                    ))}
+                </div>
+                
+                {/* Total amount */}
+                <div>
+                    <Skeleton className="h-4 w-24 mb-2" /> {/* Label */}
+                    <Skeleton className="h-8 w-32" /> {/* Amount */}
+                </div>
+                
+                <Separator />
             </div>
-        </div>
+        </CardContent>
     )
 }
 
 const ImageLoading = () => <Skeleton className="h-16 w-16 rounded-md" />
 const ProductLoading = () => (
-    <div className="space-y-2">
+    <>
         <Skeleton className="h-4 w-[250px]" />
-        <Skeleton className="h-4 w-[200px]" />
-    </div>
+        <Skeleton className="h-4 w-[200px] mt-2" />
+    </>
 )
 const DefaultLoading = () => <Skeleton className="h-4 w-24" />
 
@@ -90,9 +107,6 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     // Initialize form with react-hook-form
     const form = useForm<TransactionEditForm>({
         resolver: zodResolver(TransactionEditFormSchema),
-        defaultValues: {
-            line_items: []
-        },
     })
 
     // Use useFieldArray to manage the array of line items
@@ -101,9 +115,6 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
         name: "line_items",
     })
 
-    console.log(form.getValues())
-    console.log(form.formState.errors)
-
     // Update fields whenever transaction changes
     useEffect(() => {
         if (transaction && !isEditing) {
@@ -111,16 +122,15 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 id: item.id,
                 price_per_item_amount: item.price_per_item_amount,
                 quantity: item.quantity,
-                // Add sku for rendering in DataTable
                 sku: item.sku
             }));
 
-            // Use reset to update all form fields
             form.reset({
                 counterparty_name: transaction.counterparty_name,
                 comment: transaction.comment,
                 currency: transaction.currency,
                 shipping_cost_amount: transaction.shipping_cost_amount,
+                date: transaction.date,
                 line_items: lineItems
             });
         }
@@ -133,26 +143,20 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             loading: ImageLoading,
             cell: ({ row }) => {
                 const imageUrl = row.original.sku?.product.image_url
-                return (
-                    <div className="h-16 w-16">
-                        {imageUrl && (
-                            <img
-                                src={imageUrl}
-                                alt={row.original.sku?.product.name || "Product image"}
-                                className="h-full w-full object-contain rounded-md"
-                            />
-                        )}
-                    </div>
-                )
+                return imageUrl ? (
+                    <img
+                        src={imageUrl}
+                        alt={row.original.sku?.product.name || "Product image"}
+                        className="h-16 w-16 object-contain rounded-md"
+                    />
+                ) : null
             }
         },
         {
             accessorKey: "sku.product.name",
             header: "Product",
             loading: ProductLoading,
-            cell: ({ row }) => {
-                return row.original.sku ? <SKUDisplay sku={row.original.sku} /> : null
-            }
+            cell: ({ row }) => row.original.sku ? <SKUDisplay sku={row.original.sku} /> : null
         },
         {
             accessorKey: "quantity",
@@ -179,7 +183,6 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                         />
                     )
                 }
-
                 return <div className="font-medium tabular-nums">{row.getValue("quantity")}</div>
             }
         },
@@ -208,7 +211,6 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                         />
                     )
                 }
-
                 const amount = row.original.price_per_item_amount
                 const formatted = Intl.NumberFormat("en-US", {
                     style: "currency",
@@ -232,12 +234,10 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 return <div className="font-medium tabular-nums">{formatted}</div>
             }
         },
-    ], [isEditing, fields, form.control, transaction?.currency, form]);
+    ], [isEditing, form.control, transaction?.currency]);
 
     const handleSaveChanges = async () => {
         try {
-            console.log("Saving changes")
-            // Validate form data
             const valid = await form.trigger();
             if (!valid) {
                 toast({
@@ -248,16 +248,11 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 return;
             }
 
-            // Get the form data validated against TransactionEditFormSchema
             const formData = form.getValues();
-
-            // Find changed items by comparing with original data
             const updatedLineItems: LineItemUpdateRequest[] = formData.line_items
                 .filter((item) => {
                     const originalItem = transaction?.line_items.find(li => li.id === item.id);
                     if (!originalItem) return false;
-
-                    // Include item if price or quantity has changed
                     return item.price_per_item_amount !== originalItem.price_per_item_amount ||
                         item.quantity !== originalItem.quantity;
                 })
@@ -267,147 +262,302 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                     quantity: item.quantity
                 }));
 
-            if (updatedLineItems.length === 0) {
+            const hasDetailsChanged =
+                formData.counterparty_name !== transaction!.counterparty_name ||
+                formData.comment !== transaction!.comment ||
+                formData.currency !== transaction!.currency ||
+                formData.shipping_cost_amount !== transaction!.shipping_cost_amount ||
+                formData.date !== transaction!.date;
+
+            if (updatedLineItems.length === 0 && !hasDetailsChanged) {
                 setIsEditing(false);
                 return;
             }
 
-            // Create the request data from the TransactionEditFormSchema
             const updateRequestData: TransactionUpdateRequest = {
-                counterparty_name: transaction!.counterparty_name,  // Use the existing counterparty name
-                comment: transaction!.comment,  // Use the existing comment
-                currency: transaction!.currency,  // Use the existing currency
-                shipping_cost_amount: transaction!.shipping_cost_amount,  // Use the existing shipping cost
+                counterparty_name: formData.counterparty_name,
+                comment: formData.comment,
+                currency: formData.currency,
+                shipping_cost_amount: formData.shipping_cost_amount,
+                date: formData.date,
                 line_items: updatedLineItems
             };
 
-            // Call the update API
             await updateTransaction({
                 id: transactionId,
                 data: updateRequestData
             });
 
-            // Clear editing state
             setIsEditing(false);
-
-            // Refresh transaction data
             await mutate();
 
             toast({
                 title: "Changes saved",
-                description: "Transaction prices and quantities have been updated successfully."
+                description: "Transaction has been updated successfully."
             });
         } catch (error) {
             console.error("Failed to update transaction:", error);
             toast({
                 title: "Error saving changes",
-                description: "Failed to update transaction prices and quantities. Please try again.",
+                description: "Failed to update transaction. Please try again.",
                 variant: "destructive"
             });
         }
     }
 
-    // Calculate the total amount based on the active data source (fields or transaction)
-    const totalAmount = isEditing && fields.length > 0
-        ? fields.reduce((sum, item) => {
-            return sum + Number((item.price_per_item_amount * item.quantity).toFixed(2))
-        }, 0)
-        : transaction?.line_items.reduce((sum, item) => {
-            return sum + Number((item.price_per_item_amount * item.quantity).toFixed(2))
-        }, 0) || 0
-
-    const currency = transaction?.currency || "USD"
-
-    return (
-        <div className="space-y-4">
-            {isLoading && <TransactionDetailsSkeleton />}
-
-            {error && (
+    // Early return for error states
+    if (error) {
+        return (
+            <div className="space-y-4">
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
                         Failed to load transaction details. Please try again later.
                     </AlertDescription>
                 </Alert>
-            )}
+            </div>
+        );
+    }
 
-            {!isLoading && !error && !transaction && (
+    if (!isLoading && !transaction) {
+        return (
+            <div className="space-y-4">
                 <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
                         Transaction not found.
                     </AlertDescription>
                 </Alert>
-            )}
+            </div>
+        );
+    }
 
-            {!isLoading && !error && transaction && (
-                <Form {...form}>
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                            <h2 className="text-lg font-semibold">
-                                {transaction.type === "PURCHASE"
-                                    ? `Purchase from ${transaction.counterparty_name}`
-                                    : `Sale to ${transaction.counterparty_name}`
-                                }
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                {format(new Date(transaction.date), "MMMM d, yyyy")}
-                            </p>
-                        </div>
-                        <div>
-                            {isEditing ? (
-                                <div className="space-x-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                            setIsEditing(false);
-                                        }}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        onClick={form.handleSubmit(handleSaveChanges)}
-                                        type="submit"
-                                    >
-                                        Save Changes
-                                    </Button>
-                                </div>
-                            ) : (
+    const totalAmount = isEditing && fields.length > 0
+        ? fields.reduce((sum, item) => sum + Number((item.price_per_item_amount * item.quantity).toFixed(2)), 0)
+        : transaction?.line_items.reduce((sum, item) => sum + Number((item.price_per_item_amount * item.quantity).toFixed(2)), 0) || 0
+
+    const currency = transaction?.currency || "USD"
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                {/* Header - either skeleton or actual content */}
+                {!transaction ? (
+                    <TransactionDetailsSkeletonHeader />
+                ) : (
+                    <CardHeader className="flex flex-row justify-between">
+                        <CardTitle>
+                            {transaction.type === "PURCHASE"
+                                ? `${Intl.NumberFormat("en-US", {
+                                    style: "currency",
+                                    currency: currency,
+                                }).format(totalAmount)} purchase from ${transaction.counterparty_name}`
+                                : `${Intl.NumberFormat("en-US", {
+                                    style: "currency",
+                                    currency: currency,
+                                }).format(totalAmount)} sale to ${transaction.counterparty_name}`
+                            }
+                        </CardTitle>
+                        {isEditing ? (
+                            <div className="space-x-2">
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setIsEditing(true)}
+                                    onClick={() => {
+                                        setIsEditing(false);
+                                        form.reset();
+                                    }}
                                 >
-                                    Edit Items
+                                    Cancel
                                 </Button>
-                            )}
-                        </div>
-                    </div>
+                                <Button
+                                    size="sm"
+                                    onClick={form.handleSubmit(handleSaveChanges)}
+                                    type="submit"
+                                >
+                                    Save Changes
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsEditing(true)}
+                            >
+                                Edit Details
+                            </Button>
+                        )}
+                    </CardHeader>
+                )}
 
-                    <div className="space-y-1">
-                        <div className="text-sm font-medium">Total Amount</div>
-                        <div className="text-2xl font-bold">
-                            {Intl.NumberFormat("en-US", {
-                                style: "currency",
-                                currency: currency,
-                            }).format(totalAmount)}
-                        </div>
-                    </div>
+                {/* Main content - either skeleton with loading DataTable or full form with DataTable */}
+                {!transaction ? (
+                    <>
+                        <TransactionDetailsSkeletonContent />
+                        <CardContent className="pt-0">
+                            <DataTable
+                                columns={lineItemColumns}
+                                data={[]}
+                                loading={true}
+                            />
+                        </CardContent>
+                    </>
+                ) : (
+                    <CardContent>
+                        <Form {...form}>
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <FormField
+                                        control={form.control}
+                                        name="date"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Date</FormLabel>
+                                                {isEditing ? (
+                                                    <>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <FormControl>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        className={cn(
+                                                                            "w-full pl-3 text-left font-normal",
+                                                                            !field.value && "text-muted-foreground"
+                                                                        )}
+                                                                    >
+                                                                        {field.value ? (
+                                                                            format(new Date(field.value), "MMMM d, yyyy")
+                                                                        ) : (
+                                                                            <span>Select a date</span>
+                                                                        )}
+                                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                    </Button>
+                                                                </FormControl>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-auto p-0" align="start">
+                                                                <Calendar
+                                                                    mode="single"
+                                                                    selected={field.value ? new Date(field.value) : undefined}
+                                                                    onSelect={(date) => field.onChange(date ? date.toISOString() : "")}
+                                                                    disabled={(date) =>
+                                                                        date > new Date() || date < new Date("1900-01-01")
+                                                                    }
+                                                                    initialFocus
+                                                                />
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                        <FormMessage />
+                                                    </>
+                                                ) : (
+                                                    <div className="mt-2">
+                                                        {format(new Date(transaction.date), "MMMM d, yyyy")}
+                                                    </div>
+                                                )}
+                                            </FormItem>
+                                        )}
+                                    />
 
-                    <Separator />
+                                    <FormField
+                                        control={form.control}
+                                        name="counterparty_name"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Counterparty Name</FormLabel>
+                                                {isEditing ? (
+                                                    <>
+                                                        <FormControl>
+                                                            <Input {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </>
+                                                ) : (
+                                                    <div className="mt-2">
+                                                        {transaction.counterparty_name}
+                                                    </div>
+                                                )}
+                                            </FormItem>
+                                        )}
+                                    />
 
-                    <div className="space-y-4">
-                        <h3 className="text-sm font-medium">Items</h3>
-                        <DataTable
-                            columns={lineItemColumns}
-                            data={fields}
-                            loading={false}
-                        />
-                    </div>
-                </Form>
-            )}
+                                    <FormField
+                                        control={form.control}
+                                        name="shipping_cost_amount"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Shipping Cost</FormLabel>
+                                                {isEditing ? (
+                                                    <>
+                                                        <FormControl>
+                                                            <MoneyInput
+                                                                initialValue={field.value}
+                                                                onChange={(amount) => field.onChange(amount)}
+                                                                className="w-full"
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </>
+                                                ) : (
+                                                    <div className="mt-2">
+                                                        {Intl.NumberFormat("en-US", {
+                                                            style: "currency",
+                                                            currency: transaction.currency,
+                                                        }).format(transaction.shipping_cost_amount)}
+                                                    </div>
+                                                )}
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="comment"
+                                        render={({ field }) => (
+                                            <FormItem className={isEditing ? "pb-4" : ""}>
+                                                <FormLabel>Comment</FormLabel>
+                                                {isEditing ? (
+                                                    <>
+                                                        <FormControl>
+                                                            <Textarea 
+                                                                {...field} 
+                                                                value={field.value || ""}
+                                                                placeholder="Add a comment about this transaction"
+                                                                className="resize-none h-20"
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </>
+                                                ) : (
+                                                    <div className="mt-2">
+                                                        {transaction.comment ? (
+                                                            <span className="whitespace-pre-wrap">{transaction.comment}</span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground italic">No comment</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+
+                                <Separator />
+                                
+                                {/* DataTable section now inside Form */}
+                                <div className="space-y-4">
+                                    <FormLabel>Items</FormLabel>
+                                    <div className="mt-2">
+                                        <DataTable
+                                            columns={lineItemColumns}
+                                            data={fields}
+                                            loading={false}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </Form>
+                    </CardContent>
+                )}
+            </Card>
         </div>
-    )
+    );
 } 

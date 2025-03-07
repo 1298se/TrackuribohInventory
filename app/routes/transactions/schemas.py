@@ -39,6 +39,7 @@ class TransactionUpdateRequestSchema(BaseModel):
     comment: str | None
     currency: str
     shipping_cost_amount: MoneyAmountSchema
+    date: datetime
     line_items: list[LineItemUpdateRequestSchema]
 
 class LineItemResponseSchema(LineItemBaseSchema):

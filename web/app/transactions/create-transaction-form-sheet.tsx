@@ -231,7 +231,7 @@ export default function CreateTransactionFormDialog() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {/* Transaction Details Section - First Row */}
+                            {/* Transaction Details Section - Single Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <FormField
                                     control={form.control}
@@ -321,10 +321,7 @@ export default function CreateTransactionFormDialog() {
                                         </FormItem>
                                     )}
                                 />
-                            </div>
 
-                            {/* Transaction Details Section - Second Row */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 {/* Total Field */}
                                 <FormField
                                     control={form.control}

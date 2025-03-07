@@ -1,12 +1,14 @@
 import uuid
-from typing import Sequence, assert_never
+from typing import Sequence, assert_never, TypedDict, Optional
 from collections import defaultdict
+from datetime import datetime
 
 from sqlalchemy import and_, asc, desc, select
 from sqlalchemy.orm import Session
 
 from core.models import SKU, TransactionType
 from core.models.transaction import LineItem, LineItemConsumption, Transaction
+from core.models.types import MoneyAmount
 
 
 
@@ -16,6 +18,7 @@ class InsufficientInventoryError(Exception):
 
 class TransactionNotFoundError(Exception):
     pass
+
 
 def process_sale_line_items(session: Session, sale_line_items: list[LineItem]) -> None:
     if not sale_line_items:
@@ -88,6 +91,8 @@ def process_sale_line_items(session: Session, sale_line_items: list[LineItem]) -
         # If we still have unfilled sale quantity --> insufficient inventory
         if sell_quantity > 0:
             raise InsufficientInventoryError("There is not enough inventory to fulfill the sale.")
+    
+    session.flush()
 
 def delete_sale_line_items(session: Session, line_item_ids: list[uuid.UUID]) -> None:
     """
@@ -201,15 +206,79 @@ def delete_transactions(session: Session, transaction_ids: list[uuid.UUID]) -> N
     ordered_transactions = sorted(transactions, key=transaction_priority)
 
     for transaction in ordered_transactions:
-        line_item_ids = [line_item.id for line_item in transaction_id_to_line_items[transaction.id]]
-        
-        match transaction.type:
+        delete_transaction_line_items(session, transaction.type, [line_item.id for line_item in transaction_id_to_line_items[transaction.id]])
+
+        session.delete(transaction)
+
+    session.flush()
+
+def delete_transaction_line_items(session: Session, transaction_type: TransactionType, line_item_ids: list[uuid.UUID]) -> None:
+        match transaction_type:
             case TransactionType.PURCHASE:
                 delete_purchase_line_items(session, line_item_ids)
             case TransactionType.SALE:
                 delete_sale_line_items(session, line_item_ids)
-        
-        # Delete the transaction itself
-        session.delete(transaction)
 
-    session.flush()
+class TransactionDataDict(TypedDict):
+    date: datetime
+    type: TransactionType
+    counterparty_name: str
+    comment: Optional[str]
+    currency: str
+    shipping_cost_amount: MoneyAmount
+
+
+class LineItemDataDict(TypedDict):
+    sku_id: uuid.UUID
+    quantity: int
+    price_per_item_amount: MoneyAmount
+
+def create_transaction_with_line_items(
+    session: Session,
+    transaction_data: TransactionDataDict,
+    line_items_data: list[LineItemDataDict],
+) -> Transaction:
+    """
+    Creates a transaction and its associated line items.
+    
+    Args:
+        session: The database session
+        transaction_data: Dictionary containing transaction data (date, type, counterparty_name, etc.)
+        line_items_data: List of dictionaries containing line item data 
+                         (sku_id, quantity, price_per_item_amount)
+        
+    Returns:
+        The created transaction with line items
+    """
+    # Create the transaction
+    transaction = Transaction(**transaction_data)
+    session.add(transaction)
+    session.flush()  # Flush to get transaction ID
+
+    create_transaction_line_items(session, transaction.id, transaction.type, line_items_data)
+    
+    return transaction
+
+def create_transaction_line_items(
+    session: Session,
+    transaction_id: uuid.UUID,
+    transaction_type: TransactionType,
+    line_items_data: list[LineItemDataDict],
+) -> list[LineItem]:
+    # Create the line items with the transaction ID using list comprehension
+    line_items = [
+        LineItem(**{**dict(item_data), "transaction_id": transaction_id})
+        for item_data in line_items_data
+    ]
+    
+    session.add_all(line_items)
+    session.flush()  # Flush to get LineItem IDs
+    
+    # Handle transaction type-specific logic
+    match transaction_type:
+        case TransactionType.PURCHASE:
+            for line_item in line_items:
+                line_item.remaining_quantity = line_item.quantity
+                
+        case TransactionType.SALE:
+            process_sale_line_items(session, line_items)
