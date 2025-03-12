@@ -1,0 +1,14 @@
+fastapi[standard]>=0.115.6
+uvicorn>=0.30.6
+sqlalchemy>=2.0.32
+pydantic-settings>=2.4.0
+psycopg2-binary>=2.9.9
+mypy>=1.11.2
+aiohttp>=3.10.5
+uuid7>=0.1.0
+sentry-sdk>=2.14.0
+apscheduler>=3.10.4
+httpx>=0.27.2
+pytest>=8.3.3
+alembic>=1.14.0
+pytz>=2025.1 

@@ -72,9 +72,6 @@ export default function CreateTransactionFormDialog() {
 
     const [formContainerRef, setFormContainerRef] = useState<HTMLDivElement | null>(null);
 
-    console.log("Form values:", form.getValues());
-    console.log("Form errors:", form.formState.errors);
-
 
     const onSubmit = async (data: TransactionCreateForm) => {
         try {

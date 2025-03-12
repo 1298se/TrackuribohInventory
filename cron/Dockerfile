@@ -1,16 +1,16 @@
-FROM python:3.12
+FROM python:3.12-slim
 
-RUN pip install poetry==1.8.3
+RUN pip install --no-cache-dir uv
 
 WORKDIR /code
 
-COPY pyproject.toml poetry.lock ./
+COPY requirements.txt requirements-lock.txt ./
 
 COPY ./cron /code/cron
 COPY ./core /code/core
 
-RUN poetry install
+RUN uv pip install --system -r requirements.txt
 
 # Use -m cron.scheduler instead of cron/scheduler.py because
 # it will auto include current working directly on import path
-CMD ["poetry", "run", "python", "-m", "cron.scheduler"]
+CMD ["python", "-m", "cron.scheduler"]

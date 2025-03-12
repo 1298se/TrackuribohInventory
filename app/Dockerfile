@@ -1,17 +1,16 @@
 FROM python:3.12-slim AS builder
 
-# Install poetry and configure it for faster installation
-RUN pip install --no-cache-dir poetry==1.8.3 \
-    && poetry config virtualenvs.create false
+# Install uv for fast dependency installation
+RUN pip install --no-cache-dir uv
 
 WORKDIR /code
 
 # Copy only dependency files first to leverage Docker layer caching
-COPY pyproject.toml poetry.lock ./
+COPY requirements.txt requirements-lock.txt ./
 
 # Install dependencies only (without copying the application code)
 # This layer will be cached as long as the dependencies don't change
-RUN poetry install
+RUN uv pip install --system -r requirements.txt
 
 # Final stage - uses a slim image for the runtime
 FROM python:3.12-slim
@@ -27,4 +26,4 @@ COPY ./app /code/app
 COPY ./core /code/core
 
 # Run the application
-CMD ["fastapi", "run", "app/main.py"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

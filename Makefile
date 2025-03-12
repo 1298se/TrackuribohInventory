@@ -28,6 +28,14 @@ deploy-api: login build-api tag-api push-api
 login:
 	aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(ECR_URL)
 
+# Generate requirements-lock.txt if it doesn't exist
+.PHONY: ensure-lock-file
+ensure-lock-file:
+	@if [ ! -f requirements-lock.txt ]; then \
+		echo "Generating requirements-lock.txt..."; \
+		uv pip freeze > requirements-lock.txt; \
+	fi
+
 # Generic build function
 # We use --provenance false so that it only pushes one image - otherwise it pushes an image index (3 total images)
 define build_image
@@ -53,11 +61,11 @@ endef
 
 # Build targets
 .PHONY: build-cron
-build-cron:
+build-cron: ensure-lock-file
 	$(call build_image,cron,$(CRON_REPO))
 
 .PHONY: build-api
-build-api:
+build-api: ensure-lock-file
 	$(call build_image,app,$(API_REPO))
 
 
@@ -87,3 +95,17 @@ push-cron:
 .PHONY: push-api
 push-api:
 	$(call push_image,$(API_REPO))
+
+# Local development targets (uv)
+.PHONY: setup
+setup:
+	uv venv
+	uv pip install -r requirements.txt
+
+.PHONY: update-deps
+update-deps:
+	uv pip freeze > requirements-lock.txt
+
+.PHONY: run-local
+run-local:
+	uvicorn app.main:app --reload
