@@ -3,17 +3,19 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogTrigger
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { DialogProps } from "@radix-ui/react-dialog"
-import { Search, Loader2 } from "lucide-react"
+import { Search, Loader2, Plus } from "lucide-react"
 import { useSearchProducts, useCatalogs } from "./api"
 import { useState } from "react"
 import { ProductWithSetAndSKUsResponse } from "./schemas"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
 
 // Define constants for the "all" options
 const CATALOG_ALL = "all";
@@ -27,7 +29,7 @@ const PRODUCT_TYPE = {
 
 interface SelectProductDialogProps extends DialogProps {
     // Parent passes in a callback to handle the selected product
-    onSelect: (product: ProductWithSetAndSKUsResponse) => void
+    onSelect: (product: ProductWithSetAndSKUsResponse) => void;
 }
 
 export function SelectProductDialog({ onSelect, ...props }: SelectProductDialogProps) {
@@ -36,18 +38,35 @@ export function SelectProductDialog({ onSelect, ...props }: SelectProductDialogP
     const [selectedCatalog, setSelectedCatalog] = useState(CATALOG_ALL)
     const [selectedProductType, setSelectedProductType] = useState(PRODUCT_TYPE_ALL)
     const { data: catalogsData } = useCatalogs();
+    const [open, setOpen] = useState(false)
 
     const debouncedQuery = useDebounce(query, 500)
 
     // Modified to match the API implementation and include productType
     const { data, error, isLoading } = useSearchProducts(
-        debouncedQuery, 
+        debouncedQuery,
         selectedCatalog === CATALOG_ALL ? null : selectedCatalog,
         selectedProductType === PRODUCT_TYPE_ALL ? null : selectedProductType
     )
 
+    const handleProductSelect = (product: ProductWithSetAndSKUsResponse) => {
+        onSelect(product);
+        setOpen(false);
+    };
+
     return (
-        <Dialog {...props}>
+        <Dialog open={open} onOpenChange={setOpen} {...props}>
+
+            <DialogTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                    >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Item
+                </Button>
+            </DialogTrigger>
+
             <DialogContent className="min-w-[800px]">
                 <DialogHeader>
                     <DialogTitle>Select Product</DialogTitle>
@@ -67,7 +86,7 @@ export function SelectProductDialog({ onSelect, ...props }: SelectProductDialogP
                             ))}
                         </SelectContent>
                     </Select>
-                    
+
                     <Select value={selectedProductType} onValueChange={setSelectedProductType}>
                         <SelectTrigger className="rounded-md border bg-background p-2 text-sm max-w-[200px]">
                             <SelectValue placeholder="Product Type" className="truncate" />
@@ -78,14 +97,14 @@ export function SelectProductDialog({ onSelect, ...props }: SelectProductDialogP
                             <SelectItem value={PRODUCT_TYPE.SEALED}>Sealed Products</SelectItem>
                         </SelectContent>
                     </Select>
-                    
+
                     <div className="relative flex-1">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Search for products" 
-                            className="pl-8" 
-                            value={query} 
-                            onChange={(e) => setQuery(e.target.value)} 
+                        <Input
+                            placeholder="Search for products"
+                            className="pl-8"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
                             aria-label="Search for products"
                         />
                     </div>
@@ -109,7 +128,7 @@ export function SelectProductDialog({ onSelect, ...props }: SelectProductDialogP
                         data?.results.map((product: ProductWithSetAndSKUsResponse) => (
                             <div
                                 key={product.id}
-                                onClick={() => onSelect(product)}
+                                onClick={() => handleProductSelect(product)}
                                 className="flex items-center justify-between p-2 border rounded gap-4 hover:bg-muted transition cursor-pointer"
                             >
                                 {/* Product Image */}

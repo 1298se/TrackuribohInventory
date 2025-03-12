@@ -119,7 +119,6 @@ const columns: Column<TransactionResponse, any>[] = [
         loading: ProductLoading,
         cell: ({ row }) => {
             const lineItems = row.original.line_items
-            const totalQuantity = lineItems.reduce((sum, item) => sum + item.quantity, 0)
             const displayItems = lineItems.slice(0, 3)
             const remainingCount = lineItems.length - 3
 
@@ -159,17 +158,17 @@ const columns: Column<TransactionResponse, any>[] = [
                     )}
                 </div>
             )
-        }
+        },
     },
     {
         id: "transaction_comment",
         header: "Comment",
         loading: DefaultLoading,
         cell: ({ row }) => (
-            <div className="font-medium">
+            <div className="font-medium max-w-[400px] truncate">
                 {row.original.comment ? row.original.comment : <span className="text-gray-500 italic">None</span>}
             </div>
-        )
+        ),
     },
 ]
 

@@ -20,7 +20,8 @@ class LineItemCreateRequestSchema(BaseModel):
     quantity: int
 
 class LineItemUpdateRequestSchema(BaseModel):
-    id: uuid.UUID
+    id: uuid.UUID | None = None
+    sku_id: uuid.UUID | None
     unit_price_amount: MoneyAmountSchema
     quantity: int
 

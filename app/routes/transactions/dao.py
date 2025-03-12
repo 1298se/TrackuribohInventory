@@ -1,5 +1,5 @@
 import uuid
-from typing import Sequence, assert_never, TypedDict, Optional
+from typing import Sequence, assert_never, TypedDict, Optional, NotRequired
 from collections import defaultdict
 from datetime import datetime
 
@@ -228,7 +228,8 @@ class TransactionDataDict(TypedDict):
     shipping_cost_amount: MoneyAmount
 
 
-class LineItemDataDict(TypedDict):
+class LineItemDataDict(TypedDict, total=False):
+    id: NotRequired[uuid.UUID]
     sku_id: uuid.UUID
     quantity: int
     unit_price_amount: MoneyAmount

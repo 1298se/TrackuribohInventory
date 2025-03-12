@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import and_, join, select, func, literal_column
+from sqlalchemy import and_, join, select, func, literal_column, String
 from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import UUID
@@ -39,13 +39,22 @@ def search_products(
     # Define weighted TS vectors
     product_ts_vector_weighted = func.setweight(func.to_tsvector('english', Product.name), 'A')
     set_ts_vector_weighted = func.setweight(func.to_tsvector('english', Set.name), 'B')
+    # Extract product number from data JSON and handle missing values
+    product_number = func.jsonb_path_query_first(
+        Product.data,
+        '$ ? (@.name == "Number").value'
+    ).cast(String)
+    product_number_ts_vector_weighted = func.setweight(
+        func.to_tsvector('english', func.coalesce(product_number, '')),
+        'B'
+    )
     # Handle None values for rarity by using COALESCE with an empty string
     # This way, when rarity is None, it won't affect the search results
     rarity_ts_vector_weighted = func.setweight(
         func.to_tsvector('english', func.coalesce(Product.rarity, '')),
         'B'
     )
-    combined_ts_vector_weighted = product_ts_vector_weighted.op('||')(set_ts_vector_weighted).op('||')(rarity_ts_vector_weighted)
+    combined_ts_vector_weighted = product_ts_vector_weighted.op('||')(set_ts_vector_weighted).op('||')(rarity_ts_vector_weighted).op('||')(product_number_ts_vector_weighted)
 
     # Create TS query
     ts_query = func.plainto_tsquery('english', ' & '.join(search_terms))

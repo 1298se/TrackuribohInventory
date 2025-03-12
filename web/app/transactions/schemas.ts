@@ -87,9 +87,10 @@ export type BulkTransactionDeleteRequest = z.infer<typeof BulkTransactionDeleteR
  * LineItemUpdateRequestSchema
  */
 export const LineItemUpdateRequestSchema = z.object({
-    id: z.string().uuid(),
-    unit_price_amount: MoneyAmountSchema.optional(),
-    quantity: z.number().optional(),
+    id: z.string().uuid().optional(),
+    sku_id: z.string().uuid().optional(),
+    unit_price_amount: MoneyAmountSchema,
+    quantity: z.number(),
 });
 
 export type LineItemUpdateRequest = z.infer<typeof LineItemUpdateRequestSchema>

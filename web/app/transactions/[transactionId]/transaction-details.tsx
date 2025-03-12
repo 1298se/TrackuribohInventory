@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { DataTable } from "../../inventory/data-table"
 import { type Column } from "../../inventory/data-table"
-import { LineItemResponse, LineItemResponseSchema, LineItemUpdateRequest, LineItemUpdateRequestSchema, TransactionUpdateRequest, TransactionUpdateRequestSchema } from "../schemas"
+import { LineItemUpdateRequest, LineItemUpdateRequestSchema, TransactionUpdateRequest, TransactionUpdateRequestSchema } from "../schemas"
 import { MoneyInput } from "@/components/ui/money-input"
 import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -28,13 +28,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ProductWithSetAndSKUsResponse, SKUWithProductResponseSchema } from "../../inventory/schemas"
+import { SelectProductDialog } from "../../inventory/select-product-dialog"
+import { Trash } from "lucide-react"
 
 interface TransactionDetailsProps {
     transactionId: string
 }
 
 // Define a schema for line item edits by extending the API schema with additional validation
-const LineItemEditSchema = LineItemResponseSchema.extend({
+const LineItemEditSchema = LineItemUpdateRequestSchema.extend({
+    sku: SKUWithProductResponseSchema,
     unit_price_amount: MoneyAmountSchema.refine(
         (value) => value > 0,
         { message: "Price cannot be zero" }
@@ -76,13 +80,13 @@ function TransactionDetailsSkeletonContent() {
                         </div>
                     ))}
                 </div>
-                
+
                 {/* Total amount */}
                 <div>
                     <Skeleton className="h-4 w-24 mb-2" /> {/* Label */}
                     <Skeleton className="h-8 w-32" /> {/* Amount */}
                 </div>
-                
+
                 <Separator />
             </div>
         </CardContent>
@@ -103,6 +107,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     const { trigger: updateTransaction, isMutating } = useUpdateTransaction()
     const { toast } = useToast()
     const [isEditing, setIsEditing] = useState(false)
+    const [isSelectProductDialogOpen, setIsSelectProductDialogOpen] = useState(false)
 
     // Initialize form with react-hook-form
     const form = useForm<TransactionEditForm>({
@@ -110,7 +115,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     })
 
     // Use useFieldArray to manage the array of line items
-    const { fields, replace } = useFieldArray({
+    const { fields, append, remove } = useFieldArray({
         control: form.control,
         name: "line_items",
     })
@@ -234,7 +239,26 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 return <div className="font-medium tabular-nums">{formatted}</div>
             }
         },
-    ], [isEditing, form.control, transaction?.currency]);
+        {
+            id: "delete",
+            header: "",
+            cell: ({ row }) => {
+                if (!isEditing) return null;
+                
+                return (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            remove(row.index)
+                        }}
+                        className="text-foreground"
+                    >
+                        <Trash className="w-4 h-4" />
+                    </button>
+                )
+            },
+        },
+    ], [isEditing, form.control]);
 
     const handleSaveChanges = async () => {
         try {
@@ -249,30 +273,16 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             }
 
             const formData = form.getValues();
+
+            // Include all line items in the update request, whether they've changed or not
             const updatedLineItems: LineItemUpdateRequest[] = formData.line_items
-                .filter((item) => {
-                    const originalItem = transaction?.line_items.find(li => li.id === item.id);
-                    if (!originalItem) return false;
-                    return item.unit_price_amount !== originalItem.unit_price_amount ||
-                        item.quantity !== originalItem.quantity;
-                })
                 .map(item => ({
+                    // For new items, use empty string; for existing items, use their ID
                     id: item.id,
+                    sku_id: item.sku?.id,
                     unit_price_amount: item.unit_price_amount,
                     quantity: item.quantity
                 }));
-
-            const hasDetailsChanged =
-                formData.counterparty_name !== transaction!.counterparty_name ||
-                formData.comment !== transaction!.comment ||
-                formData.currency !== transaction!.currency ||
-                formData.shipping_cost_amount !== transaction!.shipping_cost_amount ||
-                formData.date !== transaction!.date;
-
-            if (updatedLineItems.length === 0 && !hasDetailsChanged) {
-                setIsEditing(false);
-                return;
-            }
 
             const updateRequestData: TransactionUpdateRequest = {
                 counterparty_name: formData.counterparty_name,
@@ -517,8 +527,8 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                                 {isEditing ? (
                                                     <>
                                                         <FormControl>
-                                                            <Textarea 
-                                                                {...field} 
+                                                            <Textarea
+                                                                {...field}
                                                                 value={field.value || ""}
                                                                 placeholder="Add a comment about this transaction"
                                                                 className="resize-none h-20"
@@ -529,7 +539,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                                 ) : (
                                                     <div className="mt-2">
                                                         {transaction.comment ? (
-                                                            <span className="whitespace-pre-wrap">{transaction.comment}</span>
+                                                            <span className="whitespace-pre-wrap max-w-[300px] block truncate">{transaction.comment}</span>
                                                         ) : (
                                                             <span className="text-muted-foreground italic">No comment</span>
                                                         )}
@@ -541,10 +551,15 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                 </div>
 
                                 <Separator />
-                                
+
                                 {/* DataTable section now inside Form */}
                                 <div className="space-y-4">
-                                    <FormLabel>Items</FormLabel>
+                                    <div className="flex items-center gap-2">
+                                        <FormLabel>Line Items</FormLabel>
+                                        {isEditing && (
+                                            <SelectProductDialog onSelect={onProductSelected} />
+                                        )}
+                                    </div>
                                     <div className="mt-2">
                                         <DataTable
                                             columns={lineItemColumns}
@@ -560,4 +575,28 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             </Card>
         </div>
     );
+
+    // Function to handle product selection
+    function onProductSelected(product: ProductWithSetAndSKUsResponse) {
+        // Default to the first SKU in the product
+        if (product.skus && product.skus.length > 0) {
+            const selectedSku = product.skus[0];
+            // Create a new line item with the selected product
+            append({
+                // This will be treated as a new line item when saving
+                id: undefined,
+                sku: {
+                    id: selectedSku.id,
+                    condition: selectedSku.condition,
+                    printing: selectedSku.printing,
+                    language: selectedSku.language,
+                    product: product
+                },
+                quantity: 1,
+                unit_price_amount: 0 // Default to 0, user will need to set the price
+            });
+        }
+
+        setIsSelectProductDialogOpen(false);
+    }
 } 

@@ -188,16 +188,21 @@ async def update_transaction(
     
     # Check for line item changes (different quantities, prices, or set of line items)
     existing_line_items = {line_item.id: line_item for line_item in transaction.line_items}
-    request_line_items = {line_item.id: line_item for line_item in request.line_items}
     
-    # Check if line items have been added or removed
-    line_items_ids_changed = set(existing_line_items.keys()) != set(request_line_items.keys())
+    # Separate request line items with IDs from new ones (with id=None)
+    request_line_items_with_ids = {item.id: item for item in request.line_items if item.id is not None}
+    new_line_items = [item for item in request.line_items if item.id is None]
+    
+    # Check if line items have been added, removed, or if there are new ones
+    line_items_ids_changed = (set(existing_line_items.keys()) != 
+                             set(request_line_items_with_ids.keys()) or 
+                             len(new_line_items) > 0)
     
     # Check if quantities or prices have changed for existing line items
     line_items_content_changed = False
-    for item_id in set(existing_line_items.keys()) & set(request_line_items.keys()):
-        if (existing_line_items[item_id].quantity != request_line_items[item_id].quantity or
-            existing_line_items[item_id].unit_price_amount != request_line_items[item_id].unit_price_amount):
+    for item_id in set(existing_line_items.keys()) & set(request_line_items_with_ids.keys()):
+        if (existing_line_items[item_id].quantity != request_line_items_with_ids[item_id].quantity or
+            existing_line_items[item_id].unit_price_amount != request_line_items_with_ids[item_id].unit_price_amount):
             line_items_content_changed = True
             break
     
@@ -224,14 +229,26 @@ async def update_transaction(
                 delete_transaction_line_items(session, transaction.type, existing_line_item_ids)
             
             # Create new line items from the request
-            line_items_data: list[LineItemDataDict] = [
-                {
-                    "sku_id": line_item.sku_id if hasattr(line_item, 'sku_id') else existing_line_items.get(line_item.id, {}).sku_id,
-                    "quantity": line_item.quantity,
-                    "unit_price_amount": line_item.unit_price_amount,
-                }
-                for line_item in request.line_items
-            ]
+            line_items_data: list[LineItemDataDict] = []
+            
+            # Process existing line items with IDs
+            for line_item in request.line_items:
+                if line_item.id is not None:
+                    # This is an existing line item being updated
+                    line_items_data.append({
+                        "sku_id": line_item.sku_id,
+                        "quantity": line_item.quantity,
+                        "unit_price_amount": line_item.unit_price_amount,
+                        "id": line_item.id  # Pass the existing ID to reuse it
+                    })
+                else:
+                    # This is a new line item
+                    line_items_data.append({
+                        "sku_id": line_item.sku_id,
+                        "quantity": line_item.quantity,
+                        "unit_price_amount": line_item.unit_price_amount
+                        # No id provided for new items
+                    })
             
             # Create the new line items associated with this transaction
             create_transaction_line_items(

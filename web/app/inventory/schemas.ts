@@ -62,10 +62,7 @@ export const ProductWithSetAndSKUsResponseSchema = z.object({
 });
 
 // SKUWithProductResponseSchema
-export const SKUWithProductResponseSchema = z.object({
-  condition: ConditionResponseSchema,
-  printing: PrintingResponseSchema,
-  language: LanguageResponseSchema,
+export const SKUWithProductResponseSchema = SKUBaseResponseSchema.extend({
   product: ProductWithSetAndSKUsResponseSchema,
 });
 

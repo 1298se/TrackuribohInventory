@@ -65,3 +65,4 @@ class Transaction(Base):
     line_items: Mapped[list[LineItem]] = relationship(back_populates="transaction")
     currency: Mapped[str] = mapped_column(server_default="USD")
     shipping_cost_amount: Mapped[MoneyAmount] = mapped_column(server_default="0")
+    tax_amount: Mapped[MoneyAmount] = mapped_column(server_default="0")
