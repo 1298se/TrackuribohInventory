@@ -58,7 +58,7 @@ def process_sale_line_items(session: Session, sale_line_items: list[LineItem]) -
         # Filter purchase line items to only include those with dates before the sale date
         fifo_purchase_line_items = [
             purchase_line_item for purchase_line_item in sku_id_to_purchase_line_items[sale_line_item.sku_id]
-            if purchase_line_item.transaction.date < sale_date
+            if purchase_line_item.transaction.date <= sale_date
         ]
 
         for purchase_line_item in fifo_purchase_line_items:
@@ -226,6 +226,7 @@ class TransactionDataDict(TypedDict):
     comment: Optional[str]
     currency: str
     shipping_cost_amount: MoneyAmount
+    tax_amount: MoneyAmount
 
 
 class LineItemDataDict(TypedDict, total=False):

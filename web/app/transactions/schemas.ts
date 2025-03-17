@@ -46,7 +46,8 @@ export const TransactionCreateRequestSchema = z.object({
     line_items: z.array(LineItemCreateRequestSchema),
     currency: z.string(),
     shipping_cost_amount: MoneyAmountSchema,
-    total_amount: MoneyAmountSchema,
+    subtotal_amount: MoneyAmountSchema,
+    tax_amount: MoneyAmountSchema,
 })
 
 export type TransactionCreateRequest = z.infer<typeof TransactionCreateRequestSchema>

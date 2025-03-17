@@ -29,9 +29,14 @@ export function useCreateTransaction() {
     return useSWRMutation(`${API_URL}/transactions`, createTransaction)
 }
 
-export function useTransactions() {
+export function useTransactions(query?: string) {
+    // Construct the URL with query parameter if provided
+    const url = query 
+        ? `${API_URL}/transactions?query=${encodeURIComponent(query)}` 
+        : `${API_URL}/transactions`;
+    
     const { data, error, isLoading, mutate } = useSWR<TransactionsResponse>(
-        `${API_URL}/transactions`,
+        url,
         (url: string) => fetcher({
             url
         })

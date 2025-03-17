@@ -2,7 +2,7 @@ import uuid
 from typing import List, Tuple, Dict, Any, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from sqlalchemy import desc, select, func
+from sqlalchemy import desc, select, func, or_, exists, select as subquery_select, and_
 from sqlalchemy.orm import Session
 from decimal import Decimal
 
@@ -26,6 +26,7 @@ from core.dao.skus import get_skus_by_id
 from core.database import get_db_session
 from core.models import TransactionType
 from core.models.transaction import Transaction, LineItem, LineItemConsumption
+from core.models.catalog import SKU, Product
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService, get_tcgplayer_catalog_service
 
 router = APIRouter(
@@ -33,10 +34,78 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=TransactionsResponseSchema)
-async def get_transactions(session: Session = Depends(get_db_session)):
-    transactions = session.scalars(select(Transaction).order_by(desc(Transaction.date)).options(
-        *TransactionResponseSchema.get_load_options()
-    )).all()
+async def get_transactions(
+    query: str = None,
+    session: Session = Depends(get_db_session)
+):
+    # Step 1: Apply filters and sorting to get a list of matching transaction IDs
+    base_id_query = (
+        select(Transaction.id)  # Include date in the SELECT list
+        .outerjoin(Transaction.line_items)
+        .outerjoin(LineItem.sku)
+        .outerjoin(SKU.product)
+    )
+    
+    # Only apply the filter if query is provided
+    if query:
+        # Split the search query into terms
+        search_terms = query.split()
+        
+        if search_terms:
+            # Define text search vectors with weights for different columns
+            counterparty_ts_vector = func.setweight(
+                func.to_tsvector('english', func.coalesce(Transaction.counterparty_name, '')), 
+                'A'
+            )
+            product_ts_vector = func.setweight(
+                func.to_tsvector('english', func.coalesce(Product.name, '')),
+                'B'
+            )
+            
+            # Combine the vectors
+            combined_ts_vector = counterparty_ts_vector.op('||')(product_ts_vector)
+            
+            # Create TS query with prefix matching support
+            prefix_terms = [term + ":*" for term in search_terms]
+            ts_query = func.to_tsquery('english', ' & '.join(prefix_terms))
+            
+            # Add text search condition to the query
+            base_id_query = base_id_query.where(combined_ts_vector.op('@@')(ts_query))
+            
+            # Calculate rank for sorting
+            combined_rank = func.ts_rank(combined_ts_vector, ts_query)
+            
+            # Add ranking as first ordering criterion, followed by date
+            base_id_query = base_id_query.order_by(combined_rank.desc(), desc(Transaction.date))
+        else:
+            # If query is provided but empty, just order by date
+            base_id_query = base_id_query.order_by(desc(Transaction.date))
+    else:
+        # If no query is provided, just order by date
+        base_id_query = base_id_query.order_by(desc(Transaction.date))
+    
+    # Execute the first query to get just the IDs
+    result = session.execute(base_id_query).all()
+    transaction_ids = [row[0] for row in result]  # Extract just the IDs from the result tuples
+    
+    # Step 2: If we have matching IDs, query for full transaction data with load options
+    if not transaction_ids:
+        # Return empty result if no matches
+        return TransactionsResponseSchema(transactions=[])
+    
+    # Query for full transaction data with the matched IDs
+    transactions_query = (
+        select(Transaction)
+        .where(Transaction.id.in_(transaction_ids))
+        .options(*TransactionResponseSchema.get_load_options())
+    )
+    
+    # Execute the second query to get the full data
+    transactions = session.scalars(transactions_query).all()
+
+    # Sort transactions by the position of their id in transaction_ids
+    transactions.sort(key=lambda transaction: transaction_ids.index(transaction.id))
+    
     return TransactionsResponseSchema(transactions=transactions)
 
 
@@ -65,6 +134,7 @@ async def create_transaction(
         "comment": request.comment,
         "currency": request.currency,
         "shipping_cost_amount": request.shipping_cost_amount,
+        "tax_amount": request.tax_amount,
     }
 
     # Get SKU information for price calculation
@@ -118,8 +188,8 @@ async def create_transaction(
     priced_allocation = total_priced_items_units / total_units
     
     # Calculate amounts for priced and unpriced items
-    amount_for_priced_items = request.total_amount * Decimal(priced_allocation)
-    amount_for_unpriced_items = request.total_amount - amount_for_priced_items
+    amount_for_priced_items = request.subtotal_amount * Decimal(priced_allocation)
+    amount_for_unpriced_items = request.subtotal_amount - amount_for_priced_items
     
     # Calculate pricing parameters
     ratio_for_priced_items = amount_for_priced_items / priced_items_total if priced_items_total > 0 else 0
@@ -214,6 +284,7 @@ async def update_transaction(
     transaction.comment = request.comment
     transaction.currency = request.currency
     transaction.shipping_cost_amount = request.shipping_cost_amount
+    transaction.tax_amount = request.tax_amount
 
     session.flush()
 

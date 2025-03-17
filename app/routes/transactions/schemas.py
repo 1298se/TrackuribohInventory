@@ -33,13 +33,15 @@ class TransactionCreateRequestSchema(BaseModel):
     line_items: list[LineItemCreateRequestSchema]
     currency: str
     shipping_cost_amount: MoneyAmountSchema
-    total_amount: MoneyAmountSchema
+    tax_amount: MoneyAmountSchema
+    subtotal_amount: MoneyAmountSchema
 
 class TransactionUpdateRequestSchema(BaseModel):
     counterparty_name: str
     comment: str | None
     currency: str
     shipping_cost_amount: MoneyAmountSchema
+    tax_amount: MoneyAmountSchema
     date: datetime
     line_items: list[LineItemUpdateRequestSchema]
 
@@ -62,6 +64,7 @@ class TransactionResponseSchema(ORMModel):
     line_items: list[LineItemResponseSchema]
     currency: str
     shipping_cost_amount: MoneyAmountSchema
+    tax_amount: MoneyAmountSchema
 
     @classmethod
     def get_load_options(cls) -> list[_AbstractLoad]:

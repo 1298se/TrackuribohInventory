@@ -93,7 +93,7 @@ const columns: Column<TransactionResponse, any>[] = [
         }
     },
     {
-        accessorKey: "total_amount",
+        accessorKey: "subtotal_amount",
         header: "Total",
         loading: DefaultLoading,
         cell: ({ row }) => {
@@ -175,11 +175,10 @@ const columns: Column<TransactionResponse, any>[] = [
 export function TransactionTable() {
     // state to keep track of selected transaction IDs
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({}) //manage your own row selection state
+    const [searchQuery, setSearchQuery] = useState<string>("")
 
-
-    const { data, isLoading, mutate } = useTransactions()
+    const { data, isLoading, mutate } = useTransactions(searchQuery)
     const router = useRouter()
-
 
     // SWR mutation hook for bulk deletion
     const deleteMutation = useDeleteTransactions()
@@ -201,6 +200,11 @@ export function TransactionTable() {
 
     // Compute the count of selected rows from rowSelection
     const selectedCount = Object.keys(rowSelection).length
+
+    // Handler for search query changes
+    const handleSearchChange = (query: string) => {
+        setSearchQuery(query);
+    };
 
     return (
         <div className="space-y-4">
@@ -225,6 +229,10 @@ export function TransactionTable() {
                 }}
                 getRowId={(row) => row.id}
                 onRowClick={(row) => router.push(`/transactions/${row.original.id}`)}
+                filterProps={{
+                    placeholder: "Search by counterparty or product name...",
+                    onFilterChange: handleSearchChange
+                }}
             />
         </div>
     )
