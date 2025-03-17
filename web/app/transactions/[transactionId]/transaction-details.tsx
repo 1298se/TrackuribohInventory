@@ -31,6 +31,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ProductWithSetAndSKUsResponse, SKUWithProductResponseSchema } from "../../inventory/schemas"
 import { SelectProductDialog } from "../../inventory/select-product-dialog"
 import { Trash } from "lucide-react"
+import { ProductImage } from "@/components/ui/product-image"
 
 interface TransactionDetailsProps {
     transactionId: string
@@ -148,11 +149,12 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             loading: ImageLoading,
             cell: ({ row }) => {
                 const imageUrl = row.original.sku?.product.image_url
+                const productName = row.original.sku?.product.name || "Product image"
+                
                 return imageUrl ? (
-                    <img
+                    <ProductImage
                         src={imageUrl}
-                        alt={row.original.sku?.product.name || "Product image"}
-                        className="h-16 w-16 object-contain rounded-md"
+                        alt={productName}
                     />
                 ) : null
             }

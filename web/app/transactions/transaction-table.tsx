@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { SKUDisplay } from "@/components/ui/sku-display"
+import { ProductImage } from "@/components/ui/product-image"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { RowSelectionState } from "@tanstack/react-table"
@@ -132,14 +133,14 @@ const columns: Column<TransactionResponse, any>[] = [
                                         className="relative"
                                         style={{ zIndex: displayItems.length - index }}
                                     >
-                                        <img
+                                        <ProductImage
                                             src={item.sku.product.image_url}
                                             alt={item.sku.product.name}
-                                            className="h-16 object-contain rounded-md"
+                                            containerClassName="h-16"
                                         />
                                         <Badge
                                             variant="default"
-                                            className="absolute -top-2 -right-2 h-4 min-w-4 p-1 flex items-center justify-center"
+                                            className="absolute top-0 right-0 h-4 min-w-4 p-1 flex items-center justify-center translate-x-1 -translate-y-1/2"
                                         >
                                             {item.quantity}
                                         </Badge>

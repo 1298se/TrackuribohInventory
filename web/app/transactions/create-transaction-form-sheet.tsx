@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { MoneyInput } from "@/components/ui/money-input";
 import { QuantityInput } from "@/components/ui/quantity-input";
 import { Separator } from "@/components/ui/separator";
+import { ProductImage } from "@/components/ui/product-image"
 
 export const TransactionCreateFormLineItemSchema = LineItemCreateRequestSchema.extend({
     product: ProductWithSetAndSKUsResponseSchema,
@@ -296,10 +297,9 @@ export default function CreateTransactionFormDialog() {
                 const imageUrl = row.original.product.image_url;
                 return (
                     <div className="h-16 w-16">
-                        <img
+                        <ProductImage
                             src={imageUrl}
                             alt="Product"
-                            className="h-full w-full object-contain"
                         />
                     </div>
                 );

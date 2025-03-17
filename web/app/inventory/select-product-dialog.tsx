@@ -16,6 +16,7 @@ import { ProductWithSetAndSKUsResponse } from "./schemas"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { ProductImage } from "@/components/ui/product-image"
 
 // Define constants for the "all" options
 const CATALOG_ALL = "all";
@@ -132,10 +133,10 @@ export function SelectProductDialog({ onSelect, ...props }: SelectProductDialogP
                                 className="flex items-center justify-between p-2 border rounded gap-4 hover:bg-muted transition cursor-pointer"
                             >
                                 {/* Product Image */}
-                                <img
+                                <ProductImage
                                     src={product.image_url}
                                     alt={product.name}
-                                    className="w-auto h-16 object-cover rounded"
+                                    containerClassName="w-auto h-16"
                                 />
 
                                 {/* Product Details */}
