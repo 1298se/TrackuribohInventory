@@ -1,15 +1,23 @@
 import asyncio
 import logging
 import uuid
+import sys
+import argparse
+from dataclasses import dataclass
 
 from sqlalchemy import select
 
 from core.database import upsert, SessionLocal
 from core.models import Set, Product, SKU, Catalog, Printing, Condition, Language
-from core.services.schemas.schema import CatalogSetSchema, ProductType
+from core.services.schemas.schema import CatalogSetSchema, ProductType, TCGPlayerProductType, map_tcgplayer_product_type_to_product_type
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
 from core.utils.workers import process_task_queue
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 PAGINATION_SIZE = 100
@@ -19,14 +27,20 @@ SUPPORTED_CATALOGS = frozenset(
     [2, 3]
 )
 
+@dataclass
+class CatalogMappings:
+    """Container for TCGPlayer ID to database ID mappings for a catalog."""
+    printing: dict[int, uuid.UUID]  # TCGPlayer printing ID to database ID mapping
+    condition: dict[int, uuid.UUID]  # TCGPlayer condition ID to database ID mapping
+    language: dict[int, uuid.UUID]   # TCGPlayer language ID to database ID mapping
 
 async def update_set(
     service: TCGPlayerCatalogService,
     tcgplayer_set: CatalogSetSchema,
     catalog_id: uuid.UUID,
-    printing_tcgplayer_id_to_id_mapping: dict[int, int],
-    condition_tcgplayer_id_to_id_mapping: dict[int, int],
-    language_tcgplayer_id_to_id_mapping: dict[int, int],
+    printing_tcgplayer_id_to_id_mapping: dict[int, uuid.UUID],
+    condition_tcgplayer_id_to_id_mapping: dict[int, uuid.UUID],
+    language_tcgplayer_id_to_id_mapping: dict[int, uuid.UUID],
 ):
     with SessionLocal() as session, session.begin():
         current_set_id = session.scalars(
@@ -46,78 +60,109 @@ async def update_set(
             ).returning(Set.id)
         ).one()
 
-        print(f"updating set id: {current_set_id}")
+        logger.info(f"Updating set id: {current_set_id} - {tcgplayer_set.name}")
 
-        for product_type in ProductType:
+        for tcgplayer_product_type in TCGPlayerProductType:
+            product_type = map_tcgplayer_product_type_to_product_type(tcgplayer_product_type)
+            logger.debug(f"Processing product type: {product_type}")
+            
             current_offset = 0
             total = None
 
             while total is None or current_offset < total:
-                sets_response = await service.get_products(
-                    tcgplayer_set_id=tcgplayer_set.tcgplayer_id,
-                    offset=current_offset,
-                    limit=PAGINATION_SIZE,
-                    product_type=product_type,
-                )
-
-                if "No products were found." in sets_response.errors:
-                    print(f"no products were found for product type: {product_type}")
-                    return
-
-                current_offset += len(sets_response.results)
-                total = sets_response.total_items if sets_response.total_items is not None else 0
-
-                product_values = [
-                    {
-                        "tcgplayer_id": product.tcgplayer_id,
-                        "name": product.name,
-                        "clean_name": product.clean_name,
-                        "image_url": product.image_url,
-                        "set_id": current_set_id,
-                        "product_type": product_type,
-                        "data": product.extended_data,
-                    }
-                    for product in sets_response.results
-                ]
-
-                result = session.execute(
-                    upsert(
-                        model=Product,
-                        values=product_values,
-                        index_elements=[Product.tcgplayer_id],
-                    ).returning(Product.tcgplayer_id, Product.id)
-                )
-
-                product_tcgplayer_id_to_id_mapping = {
-                    row.tcgplayer_id: row.id
-                    for row in result.all()
-                }
-
-                sku_values = [
-                    {
-                        "tcgplayer_id": sku.tcgplayer_id,
-                        "product_id": product_tcgplayer_id_to_id_mapping[sku.tcgplayer_product_id],
-                        "printing_id": printing_tcgplayer_id_to_id_mapping[sku.tcgplayer_printing_id],
-                        "condition_id": condition_tcgplayer_id_to_id_mapping[sku.tcgplayer_condition_id],
-                        "language_id": language_tcgplayer_id_to_id_mapping[sku.tcgplayer_language_id],
-                    }
-                    for product in sets_response.results for sku in product.skus
-                ]
-
-                session.execute(
-                    upsert(
-                        model=SKU,
-                        values=sku_values,
-                        index_elements=[SKU.tcgplayer_id],
+                try:
+                    sets_response = await service.get_products(
+                        tcgplayer_set_id=tcgplayer_set.tcgplayer_id,
+                        offset=current_offset,
+                        limit=PAGINATION_SIZE,
+                        product_type=tcgplayer_product_type,
                     )
-                )
 
-async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
-    # Each coroutine should have its own connection to db
+                    if "No products were found." in sets_response.errors:
+                        logger.info(f"No products were found for product type: {product_type}")
+                        break
+
+                    current_offset += len(sets_response.results)
+                    total = sets_response.total_items if sets_response.total_items is not None else 0
+                    logger.debug(f"Retrieved {len(sets_response.results)} products, total: {total}")
+
+                    product_values = [
+                        {
+                            "tcgplayer_id": product.tcgplayer_id,
+                            "name": product.name,
+                            "clean_name": product.clean_name,
+                            "image_url": product.image_url,
+                            "set_id": current_set_id,
+                            "product_type": product_type,
+                            "data": product.extended_data,
+                        }
+                        for product in sets_response.results
+                    ]
+
+                    if not product_values:
+                        continue
+
+                    result = session.execute(
+                        upsert(
+                            model=Product,
+                            values=product_values,
+                            index_elements=[Product.tcgplayer_id],
+                        ).returning(Product.tcgplayer_id, Product.id)
+                    )
+
+                    product_tcgplayer_id_to_id_mapping = {
+                        row.tcgplayer_id: row.id
+                        for row in result.all()
+                    }
+
+                    sku_values = [
+                        {
+                            "tcgplayer_id": sku.tcgplayer_id,
+                            "product_id": product_tcgplayer_id_to_id_mapping[sku.tcgplayer_product_id],
+                            "printing_id": printing_tcgplayer_id_to_id_mapping[sku.tcgplayer_printing_id],
+                            "condition_id": condition_tcgplayer_id_to_id_mapping[sku.tcgplayer_condition_id],
+                            "language_id": language_tcgplayer_id_to_id_mapping[sku.tcgplayer_language_id],
+                        }
+                        for product in sets_response.results for sku in product.skus
+                    ]
+
+                    if sku_values:
+                        session.execute(
+                            upsert(
+                                model=SKU,
+                                values=sku_values,
+                                index_elements=[SKU.tcgplayer_id],
+                            )
+                        )
+                        logger.debug(f"Upserted {len(sku_values)} SKUs")
+                except Exception as e:
+                    logger.error(f"Error processing product type {product_type}: {str(e)}")
+                    # Continue with next product type
+                    break
+
+async def fetch_catalog_mappings(service: TCGPlayerCatalogService, catalog: Catalog) -> CatalogMappings:
+    """
+    Fetches and upserts printings, conditions, and languages for a catalog.
+    
+    Args:
+        service: The TCGPlayerCatalogService to use for API calls
+        catalog: The catalog to fetch mappings for
+        
+    Returns:
+        A CatalogMappings object containing the mappings between TCGPlayer IDs and database UUIDs:
+        - printing: Maps TCGPlayer printing IDs to database UUIDs
+        - condition: Maps TCGPlayer condition IDs to database UUIDs
+        - language: Maps TCGPlayer language IDs to database UUIDs
+    """
     with SessionLocal() as session, session.begin():
         printings_request = service.get_printings(catalog_id=catalog.tcgplayer_id)
         conditions_request = service.get_conditions(catalog_id=catalog.tcgplayer_id)
         languages_request = service.get_languages(catalog_id=catalog.tcgplayer_id)
+
+        # Need to await all requests
+        printings_response = await printings_request
+        conditions_response = await conditions_request
+        languages_response = await languages_request
 
         printing_values = [
             {
@@ -125,9 +170,10 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
                 "name": printing_detail_response.name,
                 "catalog_id": catalog.id,
             }
-            for printing_detail_response in (await printings_request).results
+            for printing_detail_response in printings_response.results
         ]
 
+        # Use tcgplayer_id alone as the constraint for the printing table
         result = session.execute(
             upsert(model=Printing, values=printing_values, index_elements=[Printing.tcgplayer_id])
             .returning(Printing.tcgplayer_id, Printing.id)
@@ -145,9 +191,10 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
                 "name": condition_detail_response.name,
                 "abbreviation": condition_detail_response.abbreviation
             }
-            for condition_detail_response in (await conditions_request).results
+            for condition_detail_response in conditions_response.results
         ]
 
+        # Use tcgplayer_id alone as the constraint for the condition table
         result = session.execute(
             upsert(model=Condition, values=condition_values, index_elements=[Condition.tcgplayer_id])
             .returning(Condition.tcgplayer_id, Condition.id)
@@ -165,9 +212,10 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
                 "name": language_detail_response.name,
                 "abbreviation": language_detail_response.abbr
             }
-            for language_detail_response in (await languages_request).results
+            for language_detail_response in languages_response.results
         ]
 
+        # Use tcgplayer_id alone as the constraint for the language table
         result = session.execute(
             upsert(model=Language, values=languages_values, index_elements=[Language.tcgplayer_id])
             .returning(Language.tcgplayer_id, Language.id)
@@ -177,6 +225,17 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
             row.tcgplayer_id: row.id
             for row in result
         }
+        
+        return CatalogMappings(
+            printing=printing_tcgplayer_id_to_id_mapping,
+            condition=condition_tcgplayer_id_to_id_mapping,
+            language=language_tcgplayer_id_to_id_mapping
+        )
+
+async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
+    # Each coroutine should have its own connection to db
+    # Fetch and upsert catalog-specific data (printings, conditions, languages)
+    mappings = await fetch_catalog_mappings(service, catalog)
 
     task_queue = asyncio.Queue()
 
@@ -190,14 +249,14 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
             limit=PAGINATION_SIZE
         )
 
-        sets_response_ids = [response.tcgplayer_id for response in sets_response.results]
+        with SessionLocal() as session:
+            sets_response_ids = [response.tcgplayer_id for response in sets_response.results]
+            sets = session.scalars(select(Set).where(Set.tcgplayer_id.in_(sets_response_ids))).all()
 
-        sets = session.scalars(select(Set).where(Set.tcgplayer_id.in_(sets_response_ids))).all()
-
-        set_tcgplayer_id_to_set = {
-            set.tcgplayer_id: set
-            for set in sets
-        }
+            set_tcgplayer_id_to_set = {
+                set.tcgplayer_id: set
+                for set in sets
+            }
 
         total = sets_response.total_items if sets_response.total_items is not None else 0
         current_offset += len(sets_response.results)
@@ -209,36 +268,45 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
                 service=service,
                 tcgplayer_set=response_set,
                 catalog_id=catalog.id,
-                printing_tcgplayer_id_to_id_mapping=printing_tcgplayer_id_to_id_mapping,
-                condition_tcgplayer_id_to_id_mapping=condition_tcgplayer_id_to_id_mapping,
-                language_tcgplayer_id_to_id_mapping=language_tcgplayer_id_to_id_mapping,
+                printing_tcgplayer_id_to_id_mapping=mappings.printing,
+                condition_tcgplayer_id_to_id_mapping=mappings.condition,
+                language_tcgplayer_id_to_id_mapping=mappings.language,
             ))
 
         # We do this because we have a maximum number of simultaneous connections we can make to the database.
         # The number 20 was picked arbitrarily, but works quite well.
         await process_task_queue(task_queue, num_workers=20)
 
-
 async def update_card_database():
-    async with TCGPlayerCatalogService() as service:
-        with SessionLocal() as session, session.begin():
-            catalog_response = await service.get_catalogs(list(SUPPORTED_CATALOGS))
+    """Update the entire card database by fetching all catalogs and their sets from TCGPlayer."""
+    logger.info("Starting update of card database")
+    try:
+        async with TCGPlayerCatalogService() as service:
+            with SessionLocal() as session, session.begin():
+                catalog_response = await service.get_catalogs(list(SUPPORTED_CATALOGS))
+                logger.info(f"Retrieved {len(catalog_response.results)} catalogs")
 
-            catalog_values = [
-                {
-                    "tcgplayer_id": catalog_detail_response.tcgplayer_id,
-                    "modified_date": catalog_detail_response.modified_on,
-                    "display_name": catalog_detail_response.display_name,
-                }
-                for catalog_detail_response in catalog_response.results
-            ]
+                catalog_values = [
+                    {
+                        "tcgplayer_id": catalog_detail_response.tcgplayer_id,
+                        "modified_date": catalog_detail_response.modified_on,
+                        "display_name": catalog_detail_response.display_name,
+                    }
+                    for catalog_detail_response in catalog_response.results
+                ]
 
-            session.execute(upsert(model=Catalog, values=catalog_values, index_elements=[Catalog.tcgplayer_id]))
+                session.execute(upsert(model=Catalog, values=catalog_values, index_elements=[Catalog.tcgplayer_id]))
 
-        for catalog in session.scalars(select(Catalog)).all():
-            await update_catalog(service=service, catalog=catalog)
+            for catalog in session.scalars(select(Catalog)).all():
+                logger.info(f"Processing catalog: {catalog.display_name}")
+                await update_catalog(service=service, catalog=catalog)
+        
+        logger.info("Database update completed successfully")
+    except Exception as e:
+        logger.error(f"Error updating card database: {str(e)}")
+        raise
 
 if __name__ == '__main__':
-    asyncio.run(
-        update_card_database(),
-    )
+    logger.info("Starting TCGPlayer catalog database update")
+    asyncio.run(update_card_database())
+    logger.info("Completed TCGPlayer catalog database update")

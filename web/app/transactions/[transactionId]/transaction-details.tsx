@@ -136,6 +136,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 comment: transaction.comment,
                 currency: transaction.currency,
                 shipping_cost_amount: transaction.shipping_cost_amount,
+                tax_amount: transaction.tax_amount,
                 date: transaction.date,
                 line_items: lineItems
             });
@@ -291,6 +292,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 comment: formData.comment,
                 currency: formData.currency,
                 shipping_cost_amount: formData.shipping_cost_amount,
+                tax_amount: formData.tax_amount,
                 date: formData.date,
                 line_items: updatedLineItems
             };
@@ -514,6 +516,35 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                                             style: "currency",
                                                             currency: transaction.currency,
                                                         }).format(transaction.shipping_cost_amount)}
+                                                    </div>
+                                                )}
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="tax_amount"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Tax Amount</FormLabel>
+                                                {isEditing ? (
+                                                    <>
+                                                        <FormControl>
+                                                            <MoneyInput
+                                                                initialValue={field.value}
+                                                                onChange={(amount) => field.onChange(amount)}
+                                                                className="w-full"
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </>
+                                                ) : (
+                                                    <div className="mt-2">
+                                                        {Intl.NumberFormat("en-US", {
+                                                            style: "currency",
+                                                            currency: transaction.currency,
+                                                        }).format(transaction.tax_amount)}
                                                     </div>
                                                 )}
                                             </FormItem>

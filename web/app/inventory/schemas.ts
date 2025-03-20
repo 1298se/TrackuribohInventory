@@ -4,7 +4,14 @@ import { MoneySchema } from "../schemas";
 /* -----------------------------------------------------
  * 1) Primitive Enums
  * ----------------------------------------------------- */
-export const ProductTypeSchema = z.enum(["Cards", "Sealed Products"]);
+// Define product type constants
+export const PRODUCT_TYPES = {
+  CARDS: "Cards",
+  SEALED: "Sealed Products"
+} as const;
+
+// Define the schema using the values from PRODUCT_TYPES
+export const ProductTypeSchema = z.nativeEnum(PRODUCT_TYPES);
 
 /* -----------------------------------------------------
  * 2) Basic Schemas (used by others)

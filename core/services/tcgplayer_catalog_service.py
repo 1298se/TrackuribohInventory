@@ -8,7 +8,7 @@ import aiohttp
 from core.environment import get_environment
 from core.services.schemas.schema import CatalogDetailResponseSchema, CatalogPrintingResponseSchema, \
     CatalogConditionResponseSchema, CatalogRarityResponseSchema, CatalogLanguageResponseSchema, \
-    CatalogSetResponseSchema, ProductType, ProductResponseSchema, SKUPricingResponseSchema, RefreshTokenRequestSchema
+    CatalogSetResponseSchema, ProductType, ProductResponseSchema, SKUPricingResponseSchema, RefreshTokenRequestSchema, TCGPlayerProductType
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ class TCGPlayerCatalogService:
 
         return CatalogSetResponseSchema.model_validate(await response.json())
 
-    async def get_products(self, tcgplayer_set_id: int, offset, limit, product_type: ProductType) -> ProductResponseSchema:
+    async def get_products(self, tcgplayer_set_id: int, offset, limit, product_type: TCGPlayerProductType) -> ProductResponseSchema:
         query_params = {
             "getExtendedFields": "true",
             "includeSkus": "true",

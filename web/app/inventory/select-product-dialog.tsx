@@ -12,7 +12,7 @@ import { DialogProps } from "@radix-ui/react-dialog"
 import { Search, Loader2, Plus } from "lucide-react"
 import { useSearchProducts, useCatalogs } from "./api"
 import { useState } from "react"
-import { ProductWithSetAndSKUsResponse } from "./schemas"
+import { ProductWithSetAndSKUsResponse, PRODUCT_TYPES } from "./schemas"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
@@ -22,11 +22,8 @@ import { ProductImage } from "@/components/ui/product-image"
 const CATALOG_ALL = "all";
 const PRODUCT_TYPE_ALL = "all";
 
-// Product type values from ProductTypeSchema in schemas.ts
-const PRODUCT_TYPE = {
-    CARDS: "Cards",
-    SEALED: "Sealed Products"
-};
+// Use the imported PRODUCT_TYPES constant
+const PRODUCT_TYPE = PRODUCT_TYPES;
 
 interface SelectProductDialogProps extends DialogProps {
     // Parent passes in a callback to handle the selected product

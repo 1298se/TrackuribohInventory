@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import List, Any
 
-from sqlalchemy import ForeignKey, func, select
+from sqlalchemy import ForeignKey, func, select, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing_extensions import Optional
@@ -110,6 +110,11 @@ class Condition(Base):
     catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
     abbreviation: Mapped[str]
+    
+    # Add unique constraint for catalog_id and tcgplayer_id combination
+    __table_args__ = (
+        UniqueConstraint('catalog_id', 'tcgplayer_id', name='uq_condition_catalog_id_tcgplayer_id'),
+    )
 
 
 class Printing(Base):
@@ -119,6 +124,11 @@ class Printing(Base):
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
     catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
+    
+    # Add unique constraint for catalog_id and tcgplayer_id combination
+    __table_args__ = (
+        UniqueConstraint('catalog_id', 'tcgplayer_id', name='uq_printing_catalog_id_tcgplayer_id'),
+    )
 
 
 class Language(Base):
@@ -129,5 +139,10 @@ class Language(Base):
     catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
     abbreviation: Mapped[str]
+    
+    # Add unique constraint for catalog_id and tcgplayer_id combination
+    __table_args__ = (
+        UniqueConstraint('catalog_id', 'tcgplayer_id', name='uq_language_catalog_id_tcgplayer_id'),
+    )
 
 

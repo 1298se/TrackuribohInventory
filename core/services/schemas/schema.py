@@ -111,6 +111,11 @@ class ExtendedDataSchema(TCGPlayerCatalogResponseModel):
     displayName: str
     value: str
 
+class TCGPlayerProductType(StrEnum):
+    CARDS = "Cards"
+    SEALED_PRODUCTS = "Sealed Products"
+    BOX_SETS = "Box Sets"
+
 class ProductSchema(TCGPlayerCatalogResponseModel):
     tcgplayer_id: int = Field(alias="productId")
     name: str
@@ -151,7 +156,14 @@ class ProductType(StrEnum):
     CARDS = "Cards"
     SEALED = "Sealed Products"
 
-
-
-
+def map_tcgplayer_product_type_to_product_type(tcgplayer_type: TCGPlayerProductType) -> ProductType:
+    match tcgplayer_type:
+        case TCGPlayerProductType.CARDS:
+            return ProductType.CARDS
+        case TCGPlayerProductType.SEALED_PRODUCTS:
+            return ProductType.SEALED
+        case TCGPlayerProductType.BOX_SETS:
+            return ProductType.SEALED
+        case _:
+            raise ValueError(f"Unknown TCGPlayerProductType: {tcgplayer_type}")
 

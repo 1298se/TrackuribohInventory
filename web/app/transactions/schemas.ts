@@ -64,6 +64,7 @@ export const TransactionResponseSchema = z.object({
     line_items: z.array(LineItemResponseSchema),
     currency: z.string(),
     shipping_cost_amount: MoneyAmountSchema,
+    tax_amount: MoneyAmountSchema,
 })
 
 export type TransactionResponse = z.infer<typeof TransactionResponseSchema>
@@ -104,6 +105,7 @@ export const TransactionUpdateRequestSchema = z.object({
     comment: z.string().nullable(),
     currency: z.string(),
     shipping_cost_amount: MoneyAmountSchema,
+    tax_amount: MoneyAmountSchema,
     date: z.string().datetime(),
     line_items: z.array(LineItemUpdateRequestSchema),
 })
