@@ -23,15 +23,13 @@ import { MoneyAmountSchema } from "@/app/schemas"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ProductWithSetAndSKUsResponse, SKUWithProductResponseSchema } from "../../inventory/schemas"
 import { SelectProductDialog } from "../../inventory/select-product-dialog"
 import { Trash } from "lucide-react"
 import { ProductImage } from "@/components/ui/product-image"
+import { DatePickerInput } from "@/components/ui/date-picker-input"
 
 interface TransactionDetailsProps {
     transactionId: string
@@ -429,37 +427,16 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                                 <FormLabel>Date</FormLabel>
                                                 {isEditing ? (
                                                     <>
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <FormControl>
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        className={cn(
-                                                                            "w-full pl-3 text-left font-normal",
-                                                                            !field.value && "text-muted-foreground"
-                                                                        )}
-                                                                    >
-                                                                        {field.value ? (
-                                                                            format(new Date(field.value), "MMMM d, yyyy")
-                                                                        ) : (
-                                                                            <span>Select a date</span>
-                                                                        )}
-                                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                    </Button>
-                                                                </FormControl>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-auto p-0" align="start">
-                                                                <Calendar
-                                                                    mode="single"
-                                                                    selected={field.value ? new Date(field.value) : undefined}
-                                                                    onSelect={(date) => field.onChange(date ? date.toISOString() : "")}
-                                                                    disabled={(date) =>
-                                                                        date > new Date() || date < new Date("1900-01-01")
-                                                                    }
-                                                                    initialFocus
-                                                                />
-                                                            </PopoverContent>
-                                                        </Popover>
+                                                        <FormControl>
+                                                            <DatePickerInput 
+                                                                value={field.value ? new Date(field.value) : undefined}
+                                                                onChange={(date) => field.onChange(date ? date.toISOString() : "")}
+                                                                dateFormat="MMMM d, yyyy"
+                                                                className="w-full"
+                                                                disabled={false}
+                                                                clearable={true}
+                                                            />
+                                                        </FormControl>
                                                         <FormMessage />
                                                     </>
                                                 ) : (

@@ -24,6 +24,7 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { QuantityInput } from "@/components/ui/quantity-input";
 import { Separator } from "@/components/ui/separator";
 import { ProductImage } from "@/components/ui/product-image"
+import { DatePickerInput } from "@/components/ui/date-picker-input";
 
 export const TransactionCreateFormLineItemSchema = LineItemCreateRequestSchema.extend({
     product: ProductWithSetAndSKUsResponseSchema,
@@ -91,37 +92,15 @@ const DateField = ({ control }: { control: any }) => (
         render={({ field }) => (
             <FormItem className="flex flex-col">
                 <FormLabel>Transaction Date *</FormLabel>
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <FormControl>
-                            <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                )}
-                            >
-                                {field.value ? (
-                                    format(field.value, "PPP")
-                                ) : (
-                                    <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                        </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                            mode="single"
-                            selected={field.value ? new Date(field.value) : undefined}
-                            onSelect={(date) => field.onChange(date?.toISOString() ?? '')}
-                            disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                            }
-                            initialFocus
-                        />
-                    </PopoverContent>
-                </Popover>
+                <FormControl>
+                    <DatePickerInput 
+                        value={field.value ? new Date(field.value) : undefined}
+                        onChange={(date) => field.onChange(date?.toISOString() ?? '')}
+                        placeholder="Pick a date"
+                        dateFormat="PPP"
+                        className="w-full"
+                    />
+                </FormControl>
                 <FormMessage />
             </FormItem>
         )}
@@ -466,37 +445,15 @@ export default function CreateTransactionFormDialog() {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Transaction Date *</FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <FormControl>
-                                                        <Button
-                                                            variant={"outline"}
-                                                            className={cn(
-                                                                "w-full text-left font-normal",
-                                                                !field.value && "text-muted-foreground"
-                                                            )}
-                                                        >
-                                                            {field.value ? (
-                                                                format(field.value, "PPP")
-                                                            ) : (
-                                                                <span>Pick a date</span>
-                                                            )}
-                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar
-                                                        mode="single"
-                                                        selected={field.value ? new Date(field.value) : undefined}
-                                                        onSelect={(date) => field.onChange(date?.toISOString() ?? '')}
-                                                        disabled={(date) =>
-                                                            date > new Date() || date < new Date("1900-01-01")
-                                                        }
-                                                        initialFocus
-                                                    />
-                                                </PopoverContent>
-                                            </Popover>
+                                            <FormControl>
+                                                <DatePickerInput 
+                                                    value={field.value ? new Date(field.value) : undefined}
+                                                    onChange={(date) => field.onChange(date?.toISOString() ?? '')}
+                                                    placeholder="Pick a date"
+                                                    dateFormat="PPP"
+                                                    className="w-full"
+                                                />
+                                            </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}

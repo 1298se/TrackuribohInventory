@@ -115,6 +115,7 @@ class TCGPlayerProductType(StrEnum):
     CARDS = "Cards"
     SEALED_PRODUCTS = "Sealed Products"
     BOX_SETS = "Box Sets"
+    FAT_PACK = "Fat Pack"
 
 class ProductSchema(TCGPlayerCatalogResponseModel):
     tcgplayer_id: int = Field(alias="productId")
@@ -163,6 +164,8 @@ def map_tcgplayer_product_type_to_product_type(tcgplayer_type: TCGPlayerProductT
         case TCGPlayerProductType.SEALED_PRODUCTS:
             return ProductType.SEALED
         case TCGPlayerProductType.BOX_SETS:
+            return ProductType.SEALED
+        case TCGPlayerProductType.FAT_PACK:
             return ProductType.SEALED
         case _:
             raise ValueError(f"Unknown TCGPlayerProductType: {tcgplayer_type}")
