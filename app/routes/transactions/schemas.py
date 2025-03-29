@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, computed_field
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
@@ -32,16 +33,30 @@ class TransactionCreateRequestSchema(BaseModel):
     comment: str | None = None
     line_items: list[LineItemCreateRequestSchema]
     currency: str
-    shipping_cost_amount: MoneyAmountSchema
-    tax_amount: MoneyAmountSchema
-    subtotal_amount: MoneyAmountSchema
+    shipping_cost_amount: MoneyAmountSchema  # The shipping cost YOU incurred (what you paid for shipping)
+    tax_amount: MoneyAmountSchema  # The tax amount applied to the transaction
+    subtotal_amount: MoneyAmountSchema  # The sum of line items before tax and shipping
+
+    @computed_field
+    def total_amount(self) -> MoneyAmountSchema:
+        """
+        The final transaction amount (what you received for sales or paid for purchases).
+        For sales: subtotal + tax - your shipping costs (since you paid that)
+        For purchases: subtotal + tax + shipping cost (since that's part of what you paid)
+        """
+        if self.type == TransactionType.SALE:
+            # For sales, subtract your shipping costs from the total
+            return self.subtotal_amount + self.tax_amount - self.shipping_cost_amount
+        else:
+            # For purchases, add shipping to the total (it's part of what you paid)
+            return self.subtotal_amount + self.tax_amount + self.shipping_cost_amount
 
 class TransactionUpdateRequestSchema(BaseModel):
     counterparty_name: str
     comment: str | None
     currency: str
-    shipping_cost_amount: MoneyAmountSchema
-    tax_amount: MoneyAmountSchema
+    shipping_cost_amount: MoneyAmountSchema  # The shipping cost YOU incurred (what you paid for shipping)
+    tax_amount: MoneyAmountSchema  # The tax amount applied to the transaction
     date: datetime
     line_items: list[LineItemUpdateRequestSchema]
 
@@ -63,8 +78,8 @@ class TransactionResponseSchema(ORMModel):
     comment: str | None
     line_items: list[LineItemResponseSchema]
     currency: str
-    shipping_cost_amount: MoneyAmountSchema
-    tax_amount: MoneyAmountSchema
+    shipping_cost_amount: MoneyAmountSchema  # The shipping cost YOU incurred (what you paid for shipping)
+    tax_amount: MoneyAmountSchema  # The tax amount applied to the transaction
 
     @classmethod
     def get_load_options(cls) -> list[_AbstractLoad]:

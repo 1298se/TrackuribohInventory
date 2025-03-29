@@ -227,6 +227,7 @@ class TransactionDataDict(TypedDict):
     currency: str
     shipping_cost_amount: MoneyAmount
     tax_amount: MoneyAmount
+    subtotal_amount: MoneyAmount
 
 
 class LineItemDataDict(TypedDict, total=False):
