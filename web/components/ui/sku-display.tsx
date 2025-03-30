@@ -12,7 +12,7 @@ export function SKUDisplay({ sku }: SKUDisplayProps) {
             <div className="text-sm text-muted-foreground">
                 <div>{sku.product.set.name}</div>
                 <div>
-                    {sku.condition.name} • {sku.printing.name} • {sku.language.name}
+                    {sku.product.rarity} • {sku.condition.name} • {sku.printing.name} • {sku.language.name}
                 </div>
             </div>
         </div>
