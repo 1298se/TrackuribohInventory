@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 PAGINATION_SIZE = 100
 
 SUPPORTED_CATALOGS = frozenset(
-    # YuGiOh, Pokemon
-    [2, 3]
+    # YuGiOh, Pokemon, Pokemon Japan
+    [2, 3, 85]
 )
 
 @dataclass
