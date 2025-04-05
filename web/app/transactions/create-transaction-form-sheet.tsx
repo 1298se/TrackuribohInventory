@@ -35,7 +35,7 @@ export const TransactionCreateFormSchema = TransactionCreateRequestSchema.extend
     line_items: z.array(TransactionCreateFormLineItemSchema).min(1, "At least one item is required"),
     comment: z.string().max(500, "Comment must be less than 500 characters").optional(),
     shipping_cost_amount: z.number().min(0, "Shipping cost must be greater than or equal to 0").default(0),
-    subtotal_amount: z.number().min(0.01, "Subtotal must be greater than 0").default(0),
+    subtotal_amount: z.number().min(0.00, "Subtotal must be greater than 0").default(0),
     tax_amount: z.number().min(0, "Tax amount must be greater than or equal to 0").default(0),
 })
 
