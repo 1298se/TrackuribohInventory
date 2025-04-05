@@ -3,7 +3,7 @@
 import { format } from "date-fns"
 import { SKUDisplay } from "@/components/ui/sku-display"
 import { Separator } from "@/components/ui/separator"
-import { useTransaction, useUpdateTransaction } from "../api"
+import { useTransaction, useUpdateTransaction, usePlatforms } from "../api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
@@ -30,6 +30,7 @@ import { SelectProductDialog } from "../../inventory/select-product-dialog"
 import { Trash } from "lucide-react"
 import { ProductImage } from "@/components/ui/product-image"
 import { DatePickerInput } from "@/components/ui/date-picker-input"
+import { FormFieldPlatformSelect } from "@/components/ui/platform-select"
 
 interface TransactionDetailsProps {
     transactionId: string
@@ -72,8 +73,8 @@ function TransactionDetailsSkeletonContent() {
             <div className="space-y-6">
                 {/* Form fields grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className={i === 4 ? "pb-4" : ""}>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} className={i === 5 ? "pb-4" : ""}>
                             <Skeleton className="h-4 w-24 mb-2" /> {/* Label */}
                             <Skeleton className="h-10 w-full" /> {/* Input */}
                         </div>
@@ -104,6 +105,7 @@ const DefaultLoading = () => <Skeleton className="h-4 w-24" />
 export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     const { data: transaction, isLoading, error, mutate } = useTransaction(transactionId)
     const { trigger: updateTransaction, isMutating } = useUpdateTransaction()
+    const { data: platforms, isLoading: isPlatformsLoading } = usePlatforms()
     const { toast } = useToast()
     const [isEditing, setIsEditing] = useState(false)
     const [isSelectProductDialogOpen, setIsSelectProductDialogOpen] = useState(false)
@@ -133,6 +135,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 counterparty_name: transaction.counterparty_name,
                 comment: transaction.comment,
                 currency: transaction.currency,
+                platform_id: transaction.platform?.id || null,
                 shipping_cost_amount: transaction.shipping_cost_amount,
                 tax_amount: transaction.tax_amount,
                 date: transaction.date,
@@ -274,7 +277,6 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             }
 
             const formData = form.getValues();
-
             // Include all line items in the update request, whether they've changed or not
             const updatedLineItems: LineItemUpdateRequest[] = formData.line_items
                 .map(item => ({
@@ -289,6 +291,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                 counterparty_name: formData.counterparty_name,
                 comment: formData.comment,
                 currency: formData.currency,
+                platform_id: formData.platform_id,
                 shipping_cost_amount: formData.shipping_cost_amount,
                 tax_amount: formData.tax_amount,
                 date: formData.date,
@@ -468,6 +471,14 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                                 )}
                                             </FormItem>
                                         )}
+                                    />
+
+                                    <FormFieldPlatformSelect
+                                        control={form.control}
+                                        name="platform_id"
+                                        label="Platform"
+                                        isEditing={isEditing}
+                                        displayValue={transaction.platform?.name}
                                     />
 
                                     <FormField

@@ -25,6 +25,7 @@ import { QuantityInput } from "@/components/ui/quantity-input";
 import { Separator } from "@/components/ui/separator";
 import { ProductImage } from "@/components/ui/product-image"
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { FormFieldPlatformSelect } from "@/components/ui/platform-select";
 
 export const TransactionCreateFormLineItemSchema = LineItemCreateRequestSchema.extend({
     product: ProductWithSetAndSKUsResponseSchema,
@@ -460,7 +461,7 @@ export default function CreateTransactionFormDialog() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-1">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField
                                     control={form.control}
                                     name="counterparty_name"
@@ -476,6 +477,12 @@ export default function CreateTransactionFormDialog() {
                                             <FormMessage />
                                         </FormItem>
                                     )}
+                                />
+
+                                <FormFieldPlatformSelect
+                                    control={form.control}
+                                    name="platform_id"
+                                    label="Platform"
                                 />
                             </div>
                             

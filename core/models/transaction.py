@@ -13,6 +13,16 @@ from core.models.types import Money, MoneyAmount
 transaction_tablename = "transaction"
 line_item_tablename = "line_item"
 line_item_consumption_tablename = "line_item_consumption"
+platform_tablename = "platform"
+
+
+class Platform(Base):
+    __tablename__ = platform_tablename
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    name: Mapped[str]
+    
+    transactions: Mapped[list["Transaction"]] = relationship(back_populates="platform")
 
 
 class LineItemConsumption(Base):
@@ -49,7 +59,6 @@ class LineItem(Base):
     transaction: Mapped["Transaction"] = relationship(back_populates="line_items")
 
 
-
 class TransactionType(StrEnum):
     PURCHASE = "PURCHASE"
     SALE = "SALE"
@@ -63,6 +72,8 @@ class Transaction(Base):
     counterparty_name: Mapped[str | None]
     comment: Mapped[str | None]  # Add comment column for transactions
     line_items: Mapped[list[LineItem]] = relationship(back_populates="transaction")
+    platform_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey(f"{platform_tablename}.id"), nullable=True)
+    platform: Mapped[Optional[Platform]] = relationship(back_populates="transactions")
     currency: Mapped[str] = mapped_column(server_default="USD")
     shipping_cost_amount: Mapped[MoneyAmount] = mapped_column(server_default="0")
     tax_amount: Mapped[MoneyAmount] = mapped_column(server_default="0")

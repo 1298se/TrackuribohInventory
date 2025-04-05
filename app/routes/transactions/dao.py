@@ -228,7 +228,7 @@ class TransactionDataDict(TypedDict):
     currency: str
     shipping_cost_amount: MoneyAmount
     tax_amount: MoneyAmount
-    subtotal_amount: MoneyAmount
+    platform_id: NotRequired[Optional[uuid.UUID]]
 
 
 class LineItemDataDict(TypedDict, total=False):

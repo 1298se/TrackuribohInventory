@@ -6,7 +6,8 @@ import {
     TransactionResponse, 
     TransactionsResponse,
     BulkTransactionDeleteRequestSchema,
-    TransactionUpdateRequest
+    TransactionUpdateRequest,
+    PlatformResponse
 } from "./schemas";
 
 async function createTransaction(_url: string, { arg }: { arg: TransactionCreateRequest }) {
@@ -53,6 +54,15 @@ export function useTransactions(query?: string) {
 export function useTransaction(id: string) {
     return useSWR<TransactionResponse>(
         `${API_URL}/transactions/${id}`,
+        (url: string) => fetcher({
+            url
+        })
+    )
+}
+
+export function usePlatforms() {
+    return useSWR<PlatformResponse[]>(
+        `${API_URL}/transactions/platforms`,
         (url: string) => fetcher({
             url
         })

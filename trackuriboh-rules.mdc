@@ -1,9 +1,3 @@
----
-description: Project structure and RPC between client and server
-globs: 
-alwaysApply: false
----
-
 # Project MDC (Markdown Configuration) Rules
 
 ## Project Structure
@@ -23,6 +17,44 @@ Supporting directories:
 ## Coding Standards and Patterns
 
 ### Backend (Python)
+
+#### Database Sessions
+
+1. Always use `SessionLocal` from `core.database` to create database sessions
+2. Prefer using the context manager pattern with `with SessionLocal() as session:` for automatic cleanup
+3. For API endpoints, use dependency injection with `session: Session = Depends(get_db_session)`
+4. For scripts and backfills, directly use the context manager pattern
+5. Always commit or rollback transactions explicitly before closing the session
+
+Example for scripts:
+```python
+from core.database import SessionLocal
+
+def my_function():
+    with SessionLocal() as session:
+        # Database operations
+        items = session.query(MyModel).all()
+        
+        # Make changes
+        for item in items:
+            item.some_field = new_value
+            
+        # Commit changes
+        session.commit()
+```
+
+Example for API endpoints:
+```python
+@router.post("/items/")
+def create_item(
+    item: ItemCreateSchema, 
+    session: Session = Depends(get_db_session)
+):
+    db_item = MyModel(**item.dict())
+    session.add(db_item)
+    session.commit()
+    return db_item
+```
 
 #### API Endpoints
 
@@ -68,6 +100,12 @@ class InventoryResponseSchema(BaseModel):
 ```
 
 ### Frontend (TypeScript)
+
+#### UI Components
+
+1. All ShadCN UI components are stored in the `/web/components/ui` directory
+2. Custom components based on ShadCN should follow the same styling patterns
+3. Reuse UI components whenever possible to maintain consistency
 
 #### API Hooks
 

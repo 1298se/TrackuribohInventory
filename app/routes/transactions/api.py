@@ -20,19 +20,27 @@ from app.routes.transactions.schemas import (
     TransactionCreateRequestSchema,
     TransactionsResponseSchema,
     BulkTransactionDeleteRequestSchema,
-    TransactionUpdateRequestSchema
+    TransactionUpdateRequestSchema,
+    PlatformResponseSchema
 )
 from app.routes.transactions.service import create_transaction_service
 from core.dao.skus import get_skus_by_id
 from core.database import get_db_session
 from core.models import TransactionType
-from core.models.transaction import Transaction, LineItem, LineItemConsumption
+from core.models.transaction import Transaction, LineItem, LineItemConsumption, Platform
 from core.models.catalog import SKU, Product
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService, get_tcgplayer_catalog_service
 
 router = APIRouter(
     prefix="/transactions",
 )
+
+@router.get("/platforms", response_model=list[PlatformResponseSchema])
+async def get_platforms(session: Session = Depends(get_db_session)):
+    """Get all available platforms."""
+    platforms = session.query(Platform).all()
+    return platforms
+
 
 @router.get("/", response_model=TransactionsResponseSchema)
 async def get_transactions(
@@ -200,6 +208,7 @@ async def update_transaction(
     transaction.counterparty_name = request.counterparty_name
     transaction.comment = request.comment
     transaction.currency = request.currency
+    transaction.platform_id = request.platform_id
     transaction.shipping_cost_amount = request.shipping_cost_amount
     transaction.tax_amount = request.tax_amount
 
@@ -260,3 +269,4 @@ async def update_transaction(
     )
         
     return transaction
+

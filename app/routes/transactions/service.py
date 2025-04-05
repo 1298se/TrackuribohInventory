@@ -47,6 +47,7 @@ async def create_transaction_service(
         "currency": request.currency,
         "shipping_cost_amount": request.shipping_cost_amount,
         "tax_amount": request.tax_amount,
+        "platform_id": request.platform_id,
     }
 
     # Get SKU information for price calculation

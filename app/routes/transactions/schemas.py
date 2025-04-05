@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator, computed_field
 from sqlalchemy.orm import joinedload, selectinload
@@ -10,7 +10,15 @@ from sqlalchemy.orm.strategy_options import _AbstractLoad
 from app.routes.catalog.schemas import SKUWithProductResponseSchema
 from app.routes.utils import MoneyAmountSchema, ORMModel, MoneySchema
 from core.models import LineItem, Transaction
-from core.models.transaction import TransactionType
+from core.models.transaction import TransactionType, Platform
+
+class PlatformResponseSchema(ORMModel):
+    id: uuid.UUID
+    name: str
+
+    @classmethod
+    def get_load_options(cls) -> list[_AbstractLoad]:
+        return []
 
 class LineItemBaseSchema(ORMModel):
     id: uuid.UUID
@@ -33,6 +41,7 @@ class TransactionCreateRequestSchema(BaseModel):
     comment: str | None = None
     line_items: list[LineItemCreateRequestSchema]
     currency: str
+    platform_id: uuid.UUID | None = None
     shipping_cost_amount: MoneyAmountSchema  # The shipping cost YOU incurred (what you paid for shipping)
     tax_amount: MoneyAmountSchema  # The tax amount applied to the transaction
     subtotal_amount: MoneyAmountSchema  # The sum of line items before tax and shipping
@@ -55,6 +64,7 @@ class TransactionUpdateRequestSchema(BaseModel):
     counterparty_name: str
     comment: str | None
     currency: str
+    platform_id: uuid.UUID | None = None
     shipping_cost_amount: MoneyAmountSchema  # The shipping cost YOU incurred (what you paid for shipping)
     tax_amount: MoneyAmountSchema  # The tax amount applied to the transaction
     date: datetime
@@ -77,13 +87,17 @@ class TransactionResponseSchema(ORMModel):
     counterparty_name: str
     comment: str | None
     line_items: list[LineItemResponseSchema]
+    platform: Optional[PlatformResponseSchema] = None
     currency: str
     shipping_cost_amount: MoneyAmountSchema  # The shipping cost YOU incurred (what you paid for shipping)
     tax_amount: MoneyAmountSchema  # The tax amount applied to the transaction
 
     @classmethod
     def get_load_options(cls) -> list[_AbstractLoad]:
-        return [selectinload(Transaction.line_items).options(*LineItemResponseSchema.get_load_options())]
+        return [
+            selectinload(Transaction.line_items).options(*LineItemResponseSchema.get_load_options()),
+            joinedload(Transaction.platform)
+        ]
 
     @field_validator("line_items", mode="before")
     def sort_line_items(cls, line_items: list[LineItemResponseSchema]) -> list[LineItemResponseSchema]:

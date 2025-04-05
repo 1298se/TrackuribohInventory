@@ -9,6 +9,16 @@ export const TransactionTypeSchema = z.enum(["PURCHASE", "SALE"])
 export type TransactionType = z.infer<typeof TransactionTypeSchema>
 
 /**
+ * PlatformResponseSchema
+ */
+export const PlatformResponseSchema = z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+});
+
+export type PlatformResponse = z.infer<typeof PlatformResponseSchema>
+
+/**
  * LineItemBaseSchema
  */
 export const LineItemBaseSchema = z.object({
@@ -45,6 +55,7 @@ export const TransactionCreateRequestSchema = z.object({
     comment: z.string().nullable().optional(),
     line_items: z.array(LineItemCreateRequestSchema),
     currency: z.string(),
+    platform_id: z.string().uuid().nullable().optional(),
     shipping_cost_amount: MoneyAmountSchema,
     subtotal_amount: MoneyAmountSchema,
     tax_amount: MoneyAmountSchema,
@@ -62,6 +73,7 @@ export const TransactionResponseSchema = z.object({
     counterparty_name: z.string(),
     comment: z.string().nullable(),
     line_items: z.array(LineItemResponseSchema),
+    platform: PlatformResponseSchema.nullable(),
     currency: z.string(),
     shipping_cost_amount: MoneyAmountSchema,
     tax_amount: MoneyAmountSchema,
@@ -104,6 +116,7 @@ export const TransactionUpdateRequestSchema = z.object({
     counterparty_name: z.string(),
     comment: z.string().nullable(),
     currency: z.string(),
+    platform_id: z.string().uuid().nullable(),
     shipping_cost_amount: MoneyAmountSchema,
     tax_amount: MoneyAmountSchema,
     date: z.string().datetime(),
