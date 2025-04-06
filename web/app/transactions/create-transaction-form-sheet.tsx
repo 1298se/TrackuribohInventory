@@ -290,11 +290,19 @@ export default function CreateTransactionFormDialog() {
             header: "Name",
             cell: ({ row }) => {
                 const product = row.original.product;
+                // Create an array of parts to join
+                const details = [];
+                details.push(product.set.name); // Add set name first
+                if (product.rarity) {
+                    details.push(product.rarity); // Add rarity second, if it exists
+                }
+
                 return (
                     <div>
                         {product.name}
                         <div className="text-sm text-muted-foreground">
-                            <div>{product.set.name}</div>
+                            {/* Join details with a delimiter */}
+                            <div>{details.join(' · ')}</div>
                         </div>
                     </div>
                 );
