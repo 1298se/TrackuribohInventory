@@ -21,7 +21,8 @@ from app.routes.transactions.schemas import (
     TransactionsResponseSchema,
     BulkTransactionDeleteRequestSchema,
     TransactionUpdateRequestSchema,
-    PlatformResponseSchema
+    PlatformResponseSchema,
+    PlatformCreateRequestSchema
 )
 from app.routes.transactions.service import create_transaction_service
 from core.dao.skus import get_skus_by_id
@@ -41,6 +42,17 @@ async def get_platforms(session: Session = Depends(get_db_session)):
     platforms = session.query(Platform).all()
     return platforms
 
+@router.post("/platforms", response_model=PlatformResponseSchema, status_code=201)
+async def create_platform(
+    request: PlatformCreateRequestSchema,
+    session: Session = Depends(get_db_session)
+):
+    """Create a new platform."""
+    platform = Platform(name=request.name)
+    session.add(platform)
+    session.commit()
+    session.refresh(platform)
+    return platform
 
 @router.get("/", response_model=TransactionsResponseSchema)
 async def get_transactions(

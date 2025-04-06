@@ -19,6 +19,15 @@ export const PlatformResponseSchema = z.object({
 export type PlatformResponse = z.infer<typeof PlatformResponseSchema>
 
 /**
+ * PlatformCreateRequestSchema
+ */
+export const PlatformCreateRequestSchema = z.object({
+    name: z.string().min(1, "Platform name is required"),
+});
+
+export type PlatformCreateRequest = z.infer<typeof PlatformCreateRequestSchema>
+
+/**
  * LineItemBaseSchema
  */
 export const LineItemBaseSchema = z.object({

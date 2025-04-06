@@ -7,7 +7,8 @@ import {
     TransactionsResponse,
     BulkTransactionDeleteRequestSchema,
     TransactionUpdateRequest,
-    PlatformResponse
+    PlatformResponse,
+    PlatformCreateRequest
 } from "./schemas";
 
 async function createTransaction(_url: string, { arg }: { arg: TransactionCreateRequest }) {
@@ -67,6 +68,26 @@ export function usePlatforms() {
             url
         })
     )
+}
+
+async function createPlatform(_url: string, { arg }: { arg: PlatformCreateRequest }) {
+    const response = await fetch(`${API_URL}/transactions/platforms`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(arg)
+    });
+    
+    if (!response.ok) {
+        throw new Error('Failed to create platform');
+    }
+    
+    return response.json();
+}
+
+export function useCreatePlatform() {
+    return useSWRMutation(`${API_URL}/transactions/platforms`, createPlatform);
 }
 
 async function deleteTransactions(transactionIds: string[]) {

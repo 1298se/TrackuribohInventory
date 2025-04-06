@@ -20,6 +20,9 @@ class PlatformResponseSchema(ORMModel):
     def get_load_options(cls) -> list[_AbstractLoad]:
         return []
 
+class PlatformCreateRequestSchema(BaseModel):
+    name: str
+
 class LineItemBaseSchema(ORMModel):
     id: uuid.UUID
     quantity: int
