@@ -192,8 +192,9 @@ export type InventoryResponse = z.infer<typeof InventoryResponseSchema>
 ## Version Control
 
 1. Commit messages should be clear and descriptive
-2. Include the affected module in commit messages when possible
-3. Group related changes in a single commit
+2. Do not use prefixes like `feat:`, `fix:`, etc. (Conventional Commits style).
+3. Include the affected module in commit messages when possible
+4. Group related changes in a single commit
 
 ## Dependencies
 

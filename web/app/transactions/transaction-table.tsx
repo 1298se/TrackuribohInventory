@@ -11,8 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { SKUDisplay } from "@/components/ui/sku-display"
 import { ProductImage } from "@/components/ui/product-image"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
+import { useState, useEffect, useCallback } from "react"
 import { RowSelectionState } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
 
@@ -174,15 +174,49 @@ const columns: Column<TransactionResponse, any>[] = [
 ]
 
 export function TransactionTable() {
-    // state to keep track of selected transaction IDs
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    // Get initial query from URL or default to empty string
+    const initialQuery = searchParams.get('q') || "";
+
+    // State to manage the *input field value* separately
+    const [searchInput, setSearchInput] = useState(initialQuery);
+    
+    // State for row selection remains the same
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({}) //manage your own row selection state
-    const [searchQuery, setSearchQuery] = useState<string>("")
-
-    const { data, isLoading, mutate } = useTransactions(searchQuery)
-    const router = useRouter()
-
-    // SWR mutation hook for bulk deletion
+    
+    // Fetch data based on the query *from the URL*
+    const { data, isLoading, mutate } = useTransactions(initialQuery)
     const deleteMutation = useDeleteTransactions()
+
+    // Effect to update the input field if the URL changes (e.g., back/forward)
+    useEffect(() => {
+        setSearchInput(initialQuery);
+    }, [initialQuery]);
+
+    // Handler to update URL when search is submitted
+    const handleSearchSubmit = useCallback((query: string) => {
+        const current = new URLSearchParams(Array.from(searchParams.entries())); // Create mutable copy
+
+        if (!query) {
+            current.delete('q');
+        } else {
+            current.set('q', query);
+        }
+
+        const search = current.toString();
+        const queryStr = search ? `?${search}` : "";
+
+        // Use replace to avoid adding multiple search entries to browser history
+        router.replace(`${pathname}${queryStr}`);
+        
+        // We don't need to manually call mutate() here, 
+        // because useTransactions depends on initialQuery, which will change
+        // when searchParams changes after router.replace, triggering a refetch.
+
+    }, [router, searchParams, pathname]);
 
     // handler to bulk delete the selected transactions using rowSelection state
     const handleBulkDelete = async () => {
@@ -190,7 +224,7 @@ export function TransactionTable() {
         if (selectedIds.length === 0) return
         try {
             await deleteMutation.trigger(selectedIds)
-            // refetch transactions after deletion
+            // refetch transactions after deletion - keep this mutate call
             mutate()
             // clear the current selection
             setRowSelection({})
@@ -201,11 +235,6 @@ export function TransactionTable() {
 
     // Compute the count of selected rows from rowSelection
     const selectedCount = Object.keys(rowSelection).length
-
-    // Handler for search query changes
-    const handleSearchChange = (query: string) => {
-        setSearchQuery(query);
-    };
 
     return (
         <div className="space-y-4">
@@ -232,7 +261,11 @@ export function TransactionTable() {
                 onRowClick={(row) => router.push(`/transactions/${row.original.id}`)}
                 filterProps={{
                     placeholder: "Search by counterparty or product name...",
-                    onFilterChange: handleSearchChange
+                    // Pass the controlled input value and change handler
+                    inputValue: searchInput,
+                    onInputChange: setSearchInput,
+                    // Pass the handler that updates the URL
+                    onFilterSubmit: handleSearchSubmit
                 }}
             />
         </div>

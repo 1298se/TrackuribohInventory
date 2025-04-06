@@ -21,8 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
-import { useEffect, useState } from "react"
-import { useDebounce } from "@/lib/hooks"
+import { KeyboardEvent, useState } from "react"
 
 export type Column<TData, TValue> = ColumnDef<TData, TValue> & {
   loading?: React.ComponentType;
@@ -55,11 +54,22 @@ interface FilterProps {
   placeholder?: string;
   
   /** 
-   * Callback function triggered when filter value changes (after debounce).
+   * The current value of the filter input, controlled by the parent component. 
+   */
+  inputValue?: string;
+
+  /**
+   * Callback function triggered when the filter input value changes.
+   * @param value The new value of the input.
+   */
+  onInputChange?: (value: string) => void;
+  
+  /** 
+   * Callback function triggered when the filter is submitted (e.g., Enter key press).
    * This is where you should implement your server-side filtering logic.
    * @param query The current filter query string
    */
-  onFilterChange?: (query: string) => void;
+  onFilterSubmit?: (query: string) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -74,11 +84,12 @@ export function DataTable<TData, TValue>({
   // Only apply defaults if filterProps is provided
   const {
     placeholder = "Filter...",
-    onFilterChange,
+    inputValue,
+    onInputChange,
+    onFilterSubmit,
   } = filterProps || {};
   
-  const [globalFilter, setGlobalFilter] = useState<string>("")
-  const debouncedFilter = useDebounce(globalFilter, 300)
+  // Local state for input is removed, now controlled by parent via props.
   
   // Set up table with manual filtering
   const table = useReactTable({
@@ -86,10 +97,8 @@ export function DataTable<TData, TValue>({
     columns,
     state: {
       rowSelection: rowSelectionProps?.rowSelectionState,
-      globalFilter: filterProps ? globalFilter : "",
     },
     getCoreRowModel: getCoreRowModel(),
-    onGlobalFilterChange: setGlobalFilter,
     enableRowSelection: rowSelectionProps?.enableRowSelection,
     onRowSelectionChange: rowSelectionProps?.onRowSelectionStateChange,
     getRowId: getRowId,
@@ -97,12 +106,13 @@ export function DataTable<TData, TValue>({
     manualFiltering: true,
   })
 
-  // Effect to handle filter change notification
-  useEffect(() => {
-    if (filterProps && onFilterChange) {
-      onFilterChange(debouncedFilter);
+  // Handler for key down event on filter input
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && filterProps && onFilterSubmit) {
+      // Use the controlled inputValue from props
+      onFilterSubmit(inputValue ?? "");
     }
-  }, [debouncedFilter, onFilterChange, filterProps]);
+  };
 
   return (
     <div className="w-full h-full">
@@ -112,8 +122,10 @@ export function DataTable<TData, TValue>({
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={placeholder}
-              value={globalFilter ?? ""}
-              onChange={(e) => setGlobalFilter(e.target.value)}
+              // Use controlled input value and onChange handler from props
+              value={inputValue ?? ""}
+              onChange={(e) => filterProps?.onInputChange?.(e.target.value)}
+              onKeyDown={handleKeyDown}
               className="pl-8 w-full"
             />
           </div>
