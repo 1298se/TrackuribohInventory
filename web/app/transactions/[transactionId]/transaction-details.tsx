@@ -39,10 +39,6 @@ interface TransactionDetailsProps {
 // Define a schema for line item edits by extending the API schema with additional validation
 const LineItemEditSchema = LineItemUpdateRequestSchema.extend({
     sku: SKUWithProductResponseSchema,
-    unit_price_amount: MoneyAmountSchema.refine(
-        (value) => value > 0,
-        { message: "Price cannot be zero" }
-    ),
     quantity: z.number().int().min(1, "Quantity must be at least 1")
 })
 
