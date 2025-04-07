@@ -1,9 +1,9 @@
-from fastapi import APIRouter, BackgroundTasks, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.orm import Session
+from typing import List, Optional
 
 from app.routes.catalog.schemas import SKUWithProductResponseSchema
-from app.routes.inventory.dao import query_inventory_items
+from app.routes.inventory.dao import query_inventory_items, InventoryQueryResultRow
 from app.routes.inventory.schemas import InventoryResponseSchema, InventoryItemResponseSchema
 from app.routes.utils import MoneySchema
 from core.dao.prices import update_latest_sku_prices
@@ -18,8 +18,10 @@ def get_inventory(
     background_tasks: BackgroundTasks,
     catalog_service: TCGPlayerCatalogService = Depends(get_tcgplayer_catalog_service),
     session: Session = Depends(get_db_session),
+    query: str | None = None,
 ):
-    skus_with_quantity = session.execute(query_inventory_items().options(*SKUWithProductResponseSchema.get_load_options())).all()
+    query = query_inventory_items(query=query).options(*SKUWithProductResponseSchema.get_load_options())
+    skus_with_quantity: List[InventoryQueryResultRow] = session.execute(query).all()
 
     inventory_items = [
         InventoryItemResponseSchema(

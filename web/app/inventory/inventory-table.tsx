@@ -9,6 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { type Column } from "./data-table"
 import { SKUDisplay } from "@/components/ui/sku-display"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
+import { useState, useEffect, useCallback } from "react"
 
 const ImageLoading = () => <Skeleton className="h-16 w-16 rounded-md" />
 const ProductLoading = () => (
@@ -59,7 +61,7 @@ export const columns: Column<InventoryItemResponse, any>[] = [
         header: "Average Cost",
         loading: DefaultLoading,
         cell: ({ row }) => {
-            const amount = parseFloat(row.original.average_cost_per_item.amount)
+            const amount = row.original.average_cost_per_item.amount
             const formatted = new Intl.NumberFormat("en-US", {
                 style: "currency",
                 currency: row.original.average_cost_per_item.currency,
@@ -80,7 +82,7 @@ export const columns: Column<InventoryItemResponse, any>[] = [
                 return <div className="text-muted-foreground">N/A</div>
             }
 
-            const amount = parseFloat(lowestListingPrice.amount)
+            const amount = lowestListingPrice.amount
             const formatted = new Intl.NumberFormat("en-US", {
                 style: "currency",
                 currency: lowestListingPrice.currency,
@@ -101,8 +103,8 @@ export const columns: Column<InventoryItemResponse, any>[] = [
                 return <div className="text-muted-foreground">N/A</div>
             }
 
-            const listingAmount = parseFloat(lowestListingPrice.amount)
-            const costAmount = parseFloat(row.original.average_cost_per_item.amount)
+            const listingAmount = lowestListingPrice.amount
+            const costAmount = row.original.average_cost_per_item.amount
             const quantity = row.original.quantity
             
             const profit = (listingAmount - costAmount) * quantity
@@ -146,30 +148,67 @@ function ErrorState({ message }: { message: string }) {
     )
 }
 
-function EmptyState() {
-    return (
-        <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg">
-            <div className="text-center space-y-2">
-                <Package2 className="mx-auto h-8 w-8 text-muted-foreground" />
-                <h3 className="font-medium">No inventory items</h3>
-                <p className="text-sm text-muted-foreground">
-                    Your inventory is currently empty.
-                </p>
-            </div>
-        </div>
-    )
-}
-
 export function InventoryTable() {
-    const { data, isLoading } = useInventory()
-  
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    // Get initial query from URL or default to empty string
+    const initialQuery = searchParams.get('q') || "";
+
+    // State to manage the input field value (controlled by DataTable)
+    const [searchInput, setSearchInput] = useState(initialQuery);
+
+    // Fetch data based on the query from the URL params
+    const { data, isLoading, error } = useInventory(initialQuery)
+
+    // Effect to update the input field if the URL changes (e.g., back/forward)
+    useEffect(() => {
+        if (initialQuery !== searchInput) {
+            setSearchInput(initialQuery);
+        }
+    }, [initialQuery]);
+
+    // Handler to update URL when filter is submitted via DataTable
+    const handleFilterSubmit = useCallback((query: string) => {
+        const current = new URLSearchParams(Array.from(searchParams.entries()));
+        if (!query) {
+            current.delete('q');
+        } else {
+            current.set('q', query);
+        }
+        const search = current.toString();
+        const queryStr = search ? `?${search}` : "";
+        router.replace(`${pathname}${queryStr}`);
+    }, [router, searchParams, pathname]);
+
+    // Handle potential error state from useInventory
+    if (error) {
+        return <ErrorState message={error.message || "Failed to load inventory."} />
+    }
+
+    const filterProps = {
+        placeholder: "Search by name, set, rarity...",
+        inputValue: searchInput,
+        onInputChange: setSearchInput,
+        onFilterSubmit: handleFilterSubmit,
+    };
+
     return (
         <div className="space-y-4">
-            <DataTable 
+             {/* Add Header */}
+             <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold">Inventory</h2>
+                {/* Placeholder for potential future action buttons */}
+            </div>
+
+             {/* DataTable is now rendered unconditionally */}
+             <DataTable 
                 columns={columns} 
                 data={data?.inventory_items ?? []}
                 loading={isLoading}
-            />
+                filterProps={filterProps} // Pass filter props
+             />
         </div>
     )
 }

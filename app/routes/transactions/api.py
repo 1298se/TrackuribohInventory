@@ -56,7 +56,7 @@ async def create_platform(
 
 @router.get("/", response_model=TransactionsResponseSchema)
 async def get_transactions(
-    query: str = None,
+    query: str | None = None,
     session: Session = Depends(get_db_session)
 ):
     # Step 1: Apply filters and sorting to get a list of matching transaction IDs

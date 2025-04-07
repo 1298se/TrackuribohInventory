@@ -4,12 +4,25 @@ import useSWRMutation from "swr/mutation";
 import { InventoryResponse, ProductSearchResponse, CatalogsResponse } from "./schemas";
 import { API_URL, fetcher } from "../api/fetcher";
 
-export function useInventory() {
+export function useInventory(query: string | null = null) {
+  // Construct the base URL
+  const url = `${API_URL}/inventory`;
+  
+  // Prepare parameters object
+  const params: { [key: string]: string } = {};
+  if (query) {
+    params.query = query;
+  }
+
   return useSWR<InventoryResponse>(
-    `${API_URL}/inventory`,
-    (url: string) => fetcher({
-      url
-    })
+    // Pass the URL and params object to SWR key
+    // SWR will automatically handle query string formatting
+    {
+      url,
+      params,
+    },
+    // The fetcher remains the same, it expects an object with url and optional params
+    fetcher
   );
 }
 
