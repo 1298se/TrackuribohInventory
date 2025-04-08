@@ -11,5 +11,6 @@ COPY ./core /code/core
 
 RUN uv pip install --system -r requirements.txt
 
-# Use -m cron.tasks.update_catalog_db to target the specific task script
-CMD ["python", "-m", "cron.tasks.update_catalog_db"]
+# Default CMD changed to bash for easier interactive debugging.
+# ECS task definitions explicitly override the command to run specific tasks.
+CMD ["bash"]

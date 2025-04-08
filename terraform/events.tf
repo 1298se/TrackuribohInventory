@@ -1,9 +1,10 @@
 # terraform/events.tf
 
+# --- Update Catalog Schedule ---
 resource "aws_cloudwatch_event_rule" "update_catalog_schedule" {
   name                = "${var.project_name}-update-catalog-rule"
   description         = "Triggers the update catalog task periodically"
-  schedule_expression = var.task_schedule_expression # Use the variable for the cron expression
+  schedule_expression = var.task_schedule_expression # Expecting this variable holds the daily schedule (e.g., "cron(0 8 * * ? *)")
 
   tags = {
     Name      = "${var.project_name}-update-catalog-rule"
@@ -11,23 +12,52 @@ resource "aws_cloudwatch_event_rule" "update_catalog_schedule" {
   }
 }
 
-resource "aws_cloudwatch_event_target" "ecs_task_target" {
+resource "aws_cloudwatch_event_target" "ecs_catalog_task_target" { # Renamed target for clarity
   rule      = aws_cloudwatch_event_rule.update_catalog_schedule.name
-  arn       = aws_ecs_cluster.cron_cluster.arn # Target the ECS cluster
-  role_arn  = aws_iam_role.event_bridge_role.arn # Role needed by EventBridge to start ECS tasks
+  arn       = aws_ecs_cluster.cron_cluster.arn
+  role_arn  = aws_iam_role.event_bridge_role.arn
 
-  # Define the ECS task target details
   ecs_target {
     task_count          = 1
-    task_definition_arn = aws_ecs_task_definition.update_catalog_task.arn # The task def we created
+    task_definition_arn = aws_ecs_task_definition.update_catalog_task.arn
     launch_type         = "FARGATE"
-    platform_version    = "LATEST" # Use the latest Fargate platform version
+    platform_version    = "LATEST"
 
-    # Network configuration for the task when launched by EventBridge
     network_configuration {
-      subnets          = var.private_subnet_ids      # Subnets for the task
-      security_groups  = var.task_security_group_ids # SG for the task
-      assign_public_ip = true # Required for Fargate tasks in public subnets to pull images/reach internet directly. Set to false if using private subnets with NAT Gateway.
+      subnets          = var.private_subnet_ids
+      security_groups  = var.task_security_group_ids
+      assign_public_ip = true
+    }
+  }
+}
+
+# --- Update Inventory Schedule (Hourly) ---
+resource "aws_cloudwatch_event_rule" "update_inventory_schedule" {
+  name                = "${var.project_name}-update-inventory-rule"
+  description         = "Triggers the update inventory prices task hourly"
+  schedule_expression = "cron(0 * * * ? *)" # Runs at the start of every hour
+
+  tags = {
+    Name      = "${var.project_name}-update-inventory-rule"
+    ManagedBy = "Terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "ecs_inventory_task_target" {
+  rule      = aws_cloudwatch_event_rule.update_inventory_schedule.name
+  arn       = aws_ecs_cluster.cron_cluster.arn
+  role_arn  = aws_iam_role.event_bridge_role.arn
+
+  ecs_target {
+    task_count          = 1
+    task_definition_arn = aws_ecs_task_definition.update_inventory_task.arn # Point to the new task definition
+    launch_type         = "FARGATE"
+    platform_version    = "LATEST"
+
+    network_configuration {
+      subnets          = var.private_subnet_ids
+      security_groups  = var.task_security_group_ids
+      assign_public_ip = true
     }
   }
 }
@@ -66,22 +96,25 @@ resource "aws_iam_policy" "event_bridge_policy" {
       {
         Effect   = "Allow",
         Action   = "ecs:RunTask",
-        Resource = aws_ecs_task_definition.update_catalog_task.arn, # Allow running this specific task def
-        # Condition to ensure it uses the correct roles (optional but good practice)
-        # Condition = {
-        #   ArnEquals = {
-        #     "ecs:cluster" = aws_ecs_cluster.cron_cluster.arn
-        #   }
-        # }
+        # Updated Resource to include BOTH task definition ARNs
+        Resource = [
+            aws_ecs_task_definition.update_catalog_task.arn,
+            aws_ecs_task_definition.update_inventory_task.arn
+        ],
+        Condition = {
+          ArnEquals = {
+            "ecs:cluster" = aws_ecs_cluster.cron_cluster.arn
+          }
+        }
       },
       {
         Effect    = "Allow",
-        Action    = "iam:PassRole", # Allow EventBridge to pass the task roles to ECS
+        Action    = "iam:PassRole",
         Resource  = [
           aws_iam_role.cron_task_role.arn,
           aws_iam_role.ecs_task_execution_role.arn
         ],
-        Condition = { # Only allow passing roles if the request comes from ECS
+        Condition = {
           StringLike = {
             "iam:PassedToService" = "ecs-tasks.amazonaws.com"
           }

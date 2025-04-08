@@ -61,7 +61,7 @@ endef
 # Build targets
 .PHONY: build-cron
 build-cron: ensure-lock-file
-	docker build --platform linux/amd64 --no-cache --provenance false -f cron/Dockerfile.update_catalog -t $(CRON_REPO) .
+	docker build --platform linux/amd64 --no-cache --provenance false -t $(CRON_REPO) .
 
 .PHONY: build-api
 build-api: ensure-lock-file
