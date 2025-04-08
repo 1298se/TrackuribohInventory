@@ -50,3 +50,15 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Terraform variable files (contains secrets)
+terraform.tfvars
+*.tfvars
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Terraform working directory (contains downloaded providers, modules, etc.)
+terraform/.terraform/

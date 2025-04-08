@@ -11,6 +11,5 @@ COPY ./core /code/core
 
 RUN uv pip install --system -r requirements.txt
 
-# Use -m cron.scheduler instead of cron/scheduler.py because
-# it will auto include current working directly on import path
-CMD ["python", "-m", "cron.scheduler"]
+# Use -m cron.tasks.update_catalog_db to target the specific task script
+CMD ["python", "-m", "cron.tasks.update_catalog_db"]

@@ -17,7 +17,6 @@ update-service:
 
 .PHONY: deploy-cron
 deploy-cron: login build-cron tag-cron push-cron
-	$(MAKE) update-service CLUSTER=$(CRON_CLUSTER_NAME) SERVICE=$(CRON_SERVICE_NAME)
 
 .PHONY: deploy-api
 deploy-api: login build-api tag-api push-api
@@ -62,7 +61,7 @@ endef
 # Build targets
 .PHONY: build-cron
 build-cron: ensure-lock-file
-	$(call build_image,cron,$(CRON_REPO))
+	docker build --platform linux/amd64 --no-cache --provenance false -f cron/Dockerfile.update_catalog -t $(CRON_REPO) .
 
 .PHONY: build-api
 build-api: ensure-lock-file
