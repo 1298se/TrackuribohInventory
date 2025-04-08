@@ -49,4 +49,33 @@ resource "aws_security_group_rule" "allow_task_to_rds" {
 output "cron_task_security_group_id" {
   description = "ID of the Security Group for the Cron Task"
   value       = aws_security_group.cron_task_sg.id
+}
+
+# --- Security Group for Local Dev RDS Access ---
+
+resource "aws_security_group" "rds_local_dev_access" {
+  name        = "rds-local-dev-access"
+  description = "TEMPORARY - Allow local dev access from ANY IP. RESTRICT LATER to specific IPs."
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description = "Allow local dev PG access from ANY IP"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # WARNING: Allows access from any IP. Restrict if possible.
+  }
+
+  # Allow all outbound traffic (optional, but common for security groups)
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name      = "rds-local-dev-access"
+    ManagedBy = "Terraform"
+  }
 } 

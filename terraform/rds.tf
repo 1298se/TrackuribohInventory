@@ -17,12 +17,13 @@ resource "aws_db_instance" "trackuriboh_db" {
   parameter_group_name   = "default.postgres16"
   vpc_security_group_ids = [
     "sg-0fe62ff722e6ba481",                     # Keep the original specific SG
-    aws_security_group.cron_task_sg.id         # Add the ID of the task SG we created
+    aws_security_group.cron_task_sg.id,        # Add the ID of the task SG we created
+    aws_security_group.rds_local_dev_access.id # Add the local dev access SG
   ]
 
   multi_az               = false
   storage_encrypted      = true
-  publicly_accessible    = false  # Explicitly set to match state
+  publicly_accessible    = true  # Updated to true for local dev access
   max_allocated_storage  = 1000   # Match existing autoscaling setting
   monitoring_interval    = 60     # Match existing enhanced monitoring interval
   # monitoring_role_arn  = var.rds_monitoring_role_arn # Potentially needed if interval > 0
