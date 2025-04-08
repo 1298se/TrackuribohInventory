@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import List, Any
 
-from sqlalchemy import ForeignKey, func, select, UniqueConstraint
+from sqlalchemy import ForeignKey, func, select, UniqueConstraint, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing_extensions import Optional
@@ -31,7 +31,7 @@ class Catalog(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     # Maps to a TCGPlayer "Category"
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
-    modified_date: Mapped[datetime]
+    modified_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     display_name: Mapped[str]
 
 
@@ -43,8 +43,8 @@ class Set(Base):
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
     name: Mapped[str]
     code: Mapped[str]
-    release_date: Mapped[datetime]
-    modified_date: Mapped[datetime]
+    release_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    modified_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     catalog_id: Mapped[int] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     catalog: Mapped["Catalog"] = relationship()
     products: Mapped[list["Product"]] = relationship(back_populates="set")

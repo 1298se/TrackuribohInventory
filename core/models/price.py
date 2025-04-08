@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, UTC
 from typing import Optional, Tuple
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, composite, mapped_column, relationship
 
 from core.models import Base, sku_tablename
@@ -19,13 +19,13 @@ class SKULatestPriceData(Base):
 
     lowest_listing_price_amount: Mapped[Optional[MoneyAmount]]
     market_price_amount: Mapped[Optional[MoneyAmount]]
-    updated_at: Mapped[datetime]
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 class SKUPriceSnapshotJob(Base):
     __tablename__ = sku_price_snapshot_job_tablename
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    timestamp: Mapped[datetime] = mapped_column(default=lambda : datetime.now(UTC))
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda : datetime.now(UTC))
     snapshots: Mapped[list["SKUPriceSnapshot"]] = relationship(back_populates="job")
 
 class SKUListingSnapshot(Base):

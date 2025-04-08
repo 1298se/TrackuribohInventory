@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Optional
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship, composite
 from uuid_extensions import uuid7
 
@@ -67,7 +67,7 @@ class Transaction(Base):
     __tablename__ = transaction_tablename
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
-    date: Mapped[datetime]
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     type: Mapped[TransactionType]
     counterparty_name: Mapped[str | None]
     comment: Mapped[str | None]  # Add comment column for transactions
