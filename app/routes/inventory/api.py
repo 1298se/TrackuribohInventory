@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.routes.catalog.schemas import SKUWithProductResponseSchema
-from app.routes.inventory.dao import query_inventory_items, InventoryQueryResultRow
+from core.dao.inventory import query_inventory_items, InventoryQueryResultRow
 from app.routes.inventory.schemas import InventoryResponseSchema, InventoryItemResponseSchema
 from app.routes.utils import MoneySchema
 from core.dao.prices import update_latest_sku_prices

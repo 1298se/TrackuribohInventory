@@ -2,7 +2,7 @@ import argparse
 from decimal import Decimal
 
 from core.database import SessionLocal
-from app.routes.transactions.dao import get_total_sales_profit
+from core.dao.transaction import get_total_sales_profit
 
 
 def calculate_profit(show_only_totals=False):

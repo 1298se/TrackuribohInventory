@@ -13,7 +13,7 @@ from core.models import (
     Product, Condition, Printing, Language, SKU, 
     Transaction, LineItem, TransactionType
 )
-from app.routes.transactions.dao import (
+from core.dao.transaction import (
     create_transaction_with_line_items,
     TransactionDataDict,
     LineItemDataDict

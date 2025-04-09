@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.routes.transactions.dao import (
+from core.dao.transaction import (
     create_transaction_with_line_items,
     TransactionDataDict,
     LineItemDataDict,

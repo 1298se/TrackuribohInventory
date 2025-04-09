@@ -4,7 +4,7 @@ from typing import List
 
 from sqlalchemy import select, func
 
-from app.routes.inventory.dao import query_inventory_items, InventoryQueryResultRow
+from core.dao.inventory import query_inventory_items, InventoryQueryResultRow
 from core.dao.prices import update_latest_sku_prices
 from core.database import SessionLocal
 from core.models import SKU, LineItem

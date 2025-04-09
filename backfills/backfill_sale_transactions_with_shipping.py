@@ -23,7 +23,7 @@ from decimal import Decimal
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload, joinedload
 
-from app.routes.transactions.dao import delete_transactions
+from core.dao.transaction import delete_transactions
 from app.routes.transactions.schemas import (
     TransactionCreateRequestSchema, 
     TransactionResponseSchema,

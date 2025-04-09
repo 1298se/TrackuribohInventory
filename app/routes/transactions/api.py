@@ -6,7 +6,7 @@ from sqlalchemy import desc, select, func, or_, exists, select as subquery_selec
 from sqlalchemy.orm import Session
 from decimal import Decimal
 
-from app.routes.transactions.dao import (
+from core.dao.transaction import (
     InsufficientInventoryError,
     create_transaction_line_items,
     delete_transaction_line_items,
