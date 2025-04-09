@@ -16,9 +16,8 @@ resource "aws_db_instance" "trackuriboh_db" {
   db_subnet_group_name   = "default-vpc-060ba3276b2147be2"
   parameter_group_name   = "default.postgres16"
   vpc_security_group_ids = [
-    "sg-0fe62ff722e6ba481",                     # Keep the original specific SG
-    aws_security_group.cron_task_sg.id,        # Add the ID of the task SG we created
-    aws_security_group.rds_local_dev_access.id # Add the local dev access SG
+    aws_security_group.cron_task_sg.id,        # Allow access from the cron tasks
+    aws_security_group.rds_local_dev_access.id, # Allow local dev access
   ]
 
   multi_az               = false

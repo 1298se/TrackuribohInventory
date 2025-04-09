@@ -1,6 +1,9 @@
 include .env
 export
 
+# Use Git SHA as the default image tag unless overridden in .env or environment
+IMAGE_TAG = $(shell git rev-parse --short HEAD)
+
 # Derived variables
 ECR_URL = $(ACCOUNT_ID).dkr.ecr.$(REGION).amazonaws.com
 
@@ -16,7 +19,7 @@ update-service:
 		--force-new-deployment
 
 .PHONY: deploy-cron
-deploy-cron: login build-cron tag-cron push-cron
+deploy-cron: login build-cron tag-cron push-cron apply-infra-cron
 
 .PHONY: deploy-api
 deploy-api: login build-api tag-api push-api
@@ -25,6 +28,7 @@ deploy-api: login build-api tag-api push-api
 # Login to ECR
 .PHONY: login
 login:
+	@echo "Logging into ECR $(ECR_URL)..."
 	aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(ECR_URL)
 
 # Generate requirements-lock.txt if it doesn't exist
@@ -38,16 +42,19 @@ ensure-lock-file:
 # Generic build function
 # We use --provenance false so that it only pushes one image - otherwise it pushes an image index (3 total images)
 define build_image
-	docker build --platform linux/amd64 --no-cache --provenance false -f $(1)/Dockerfile -t $(2) .
+	@echo "Building $(2) image tagged $(IMAGE_TAG) from $(1)/Dockerfile..."
+	docker build --platform linux/amd64 --no-cache --provenance false -f $(1)/Dockerfile -t $(2):$(IMAGE_TAG) .
 endef
 
 # Generic tag function
 define tag_image
+	@echo "Tagging $(1):$(IMAGE_TAG) for ECR..."
 	docker tag $(1):$(IMAGE_TAG) $(ECR_URL)/$(1):$(IMAGE_TAG)
 endef
 
 # Generic push function
 define push_image
+	@echo "Pushing $(ECR_URL)/$(1):$(IMAGE_TAG) to ECR..."
 	docker push $(ECR_URL)/$(1):$(IMAGE_TAG)
 endef
 
@@ -61,7 +68,7 @@ endef
 # Build targets
 .PHONY: build-cron
 build-cron: ensure-lock-file
-	docker build --platform linux/amd64 --no-cache --provenance false -t $(CRON_REPO) .
+	$(call build_image,cron,$(CRON_REPO))
 
 .PHONY: build-api
 build-api: ensure-lock-file
@@ -108,3 +115,9 @@ update-deps:
 .PHONY: run-local
 run-local:
 	uvicorn app.main:app --reload
+
+# New target to apply Terraform changes for cron
+.PHONY: apply-infra-cron
+apply-infra-cron:
+	@echo "Applying Terraform changes for image tag $(IMAGE_TAG)..."
+	cd terraform && terraform apply -auto-approve -var="image_tag=$(IMAGE_TAG)"

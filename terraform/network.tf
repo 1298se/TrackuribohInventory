@@ -27,7 +27,8 @@ resource "aws_security_group" "cron_task_sg" {
 # the RDS security groups with Terraform. Since we imported RDS which
 # had existing SGs, we refer to them by ID here.
 locals {
-  rds_security_group_ids = ["sg-0fe62ff722e6ba481"] # Only target the specific SG
+  # Reference the RDS local dev SG ID for the rule target
+  rds_security_group_ids = [aws_security_group.rds_local_dev_access.id]
 }
 
 # Allow ingress from the cron task SG to the RDS SGs on the PostgreSQL port

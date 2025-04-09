@@ -25,7 +25,7 @@ resource "aws_cloudwatch_log_group" "cron_log_group" {
   }
 }
 
-# Construct the ECR Image URI
+# Construct the ECR Image URI using the variable
 locals {
   image_uri = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/${var.ecr_repo_name}:${var.image_tag}"
 }
@@ -128,8 +128,8 @@ resource "aws_ecs_task_definition" "update_catalog_task" {
 }
 
 # --- Define ECS Task Definition for Inventory Update ---
-resource "aws_ecs_task_definition" "update_inventory_task" {
-  family                   = "${var.project_name}-update-inventory"
+resource "aws_ecs_task_definition" "update_inventory_prices_task" {
+  family                   = "${var.project_name}-update-inventory-prices"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.task_cpu # Reusing variables, adjust if needed
@@ -143,8 +143,8 @@ resource "aws_ecs_task_definition" "update_inventory_task" {
       image     = local.image_uri
       essential = true
 
-      # Specify the command to run the inventory update script
-      command = ["python", "cron/tasks/update_inventory_prices.py"]
+      # Specify the command to run the inventory update script AS A MODULE
+      command = ["python", "-m", "cron.tasks.update_inventory_prices"]
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -198,7 +198,7 @@ resource "aws_ecs_task_definition" "update_inventory_task" {
   ])
 
   tags = {
-    Name      = "${var.project_name}-update-inventory-task-def"
+    Name      = "${var.project_name}-update-inventory-prices-task-def"
     ManagedBy = "Terraform"
   }
 }
@@ -214,9 +214,9 @@ output "ecs_task_definition_arn" {
   value       = aws_ecs_task_definition.update_catalog_task.arn
 }
 
-output "ecs_task_definition_inventory_arn" {
+output "ecs_task_definition_inventory_prices_arn" {
   description = "ARN of the Inventory Update ECS Task Definition"
-  value       = aws_ecs_task_definition.update_inventory_task.arn
+  value       = aws_ecs_task_definition.update_inventory_prices_task.arn
 }
 
 output "cloudwatch_log_group_name" {

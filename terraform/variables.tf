@@ -34,61 +34,67 @@ variable "tcgplayer_client_secret" {
 }
 
 variable "project_name" {
-  description = "Base name for project resources"
+  description = "The base name for resources (e.g., trackuriboh)"
   type        = string
   default     = "trackuriboh"
 }
 
 variable "vpc_id" {
-  description = "ID of the VPC where the ECS task will run"
+  description = "VPC ID for security groups"
   type        = string
-  # No default - must be provided (e.g., in terraform.tfvars)
+  # Add your VPC ID here
+  default = "vpc-02274d401b22e3095" # Example VPC ID, replace with yours
 }
 
 variable "private_subnet_ids" {
-  description = "List of subnet IDs for the ECS task (use default VPC public subnets in this case)"
+  description = "List of private subnet IDs for the ECS tasks"
   type        = list(string)
-  # No default - must be provided (e.g., in terraform.tfvars)
+  # Add your actual private subnet IDs here
+  default = ["subnet-095f4b7e5c8eef77d", "subnet-002b23ebe0247ec0c", "subnet-04d6c95985fe61856"]
 }
 
 variable "task_security_group_ids" {
-  description = "List of security group IDs to attach to the ECS task"
+  description = "List of security group IDs for the ECS tasks"
   type        = list(string)
-  # No default - must be provided (e.g., in terraform.tfvars)
+  # Add the ID of the task security group created in network.tf
+  # default = [aws_security_group.cron_task_sg.id] # Cannot use resource refs in defaults
+  # Provide this via tfvars or command line if not using a default created SG ID
+  # For now, using the known SG ID based on previous commands
+  default = ["sg-07591221a4fcad611"]
 }
 
 variable "task_schedule_expression" {
-  description = "Cron expression for the scheduled task (e.g., 'cron(0 5 * * ? *)' for 5 AM UTC daily)"
+  description = "Cron expression for the update catalog task schedule"
   type        = string
-  default     = "cron(0 5 * * ? *)" # Default to 5 AM UTC daily
+  default     = "cron(0 8 * * ? *)" # Default: 8 AM UTC daily
 }
 
 variable "task_cpu" {
   description = "CPU units for the ECS task"
   type        = number
-  default     = 256 # 0.25 vCPU
+  default     = 256 # Fargate minimum for 0.5GB memory
 }
 
 variable "task_memory" {
-  description = "Memory (in MiB) for the ECS task"
+  description = "Memory (MiB) for the ECS task"
   type        = number
-  default     = 512 # 0.5 GB
+  default     = 512 # Fargate minimum
 }
 
 variable "ecs_cluster_name" {
-  description = "Name of the ECS cluster"
+  description = "Name of the ECS Cluster for cron tasks"
   type        = string
-  default     = "trackuriboh-cron-cluster" # From .env
+  default     = "trackuriboh-cron-cluster"
 }
 
 variable "ecr_repo_name" {
-  description = "Name of the ECR repository (e.g., trackuriboh/cron)"
+  description = "Name of the ECR repository for the cron image"
   type        = string
-  default     = "trackuriboh/cron" # From .env
+  default     = "trackuriboh/cron"
 }
 
 variable "image_tag" {
-  description = "Image tag to use for the task"
+  description = "The Docker image tag to deploy (e.g., Git SHA or version number)"
   type        = string
-  default     = "latest" # From .env
+  # No default value here, it must be provided via -var or a .tfvars file
 } 

@@ -47,11 +47,12 @@ resource "aws_cloudwatch_event_target" "ecs_inventory_task_target" {
   rule      = aws_cloudwatch_event_rule.update_inventory_schedule.name
   arn       = aws_ecs_cluster.cron_cluster.arn
   role_arn  = aws_iam_role.event_bridge_role.arn
+  target_id = "${var.project_name}-update-inventory-target"
 
   ecs_target {
-    task_count          = 1
-    task_definition_arn = aws_ecs_task_definition.update_inventory_task.arn # Point to the new task definition
     launch_type         = "FARGATE"
+    task_count          = 1
+    task_definition_arn = aws_ecs_task_definition.update_inventory_prices_task.arn
     platform_version    = "LATEST"
 
     network_configuration {
@@ -99,7 +100,7 @@ resource "aws_iam_policy" "event_bridge_policy" {
         # Updated Resource to include BOTH task definition ARNs
         Resource = [
             aws_ecs_task_definition.update_catalog_task.arn,
-            aws_ecs_task_definition.update_inventory_task.arn
+            aws_ecs_task_definition.update_inventory_prices_task.arn
         ],
         Condition = {
           ArnEquals = {
