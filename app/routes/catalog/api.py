@@ -9,7 +9,7 @@ from app.routes.catalog.schemas import CatalogsResponseSchema, ProductSearchRequ
 from core.database import get_db_session
 from core.models import Product, Catalog, Set
 from core.services.schemas.schema import ProductType
-from .search_utils import create_product_set_fts_vector, create_ts_query
+from ....core.utils.search import create_product_set_fts_vector, create_ts_query
 
 router = APIRouter(
     prefix="/catalog",

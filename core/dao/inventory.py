@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from core.models import SKU, SKULatestPriceData, Product, Set, Condition, Printing
 from core.models.transaction import Transaction, LineItem
-from app.routes.catalog.search_utils import create_product_set_fts_vector, create_ts_query
+from core.utils.search import create_product_set_fts_vector, create_ts_query
 
 def get_sku_cost_quantity_cte() -> CTE:
     total_quantity = func.sum(
