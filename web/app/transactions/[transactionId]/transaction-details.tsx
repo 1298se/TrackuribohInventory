@@ -178,7 +178,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                     <FormControl>
                                         <QuantityInput
                                             value={field.value}
-                                            onChange={(value) => field.onChange(value)}
+                                            onChange={field.onChange}
                                             className="w-16"
                                         />
                                     </FormControl>
@@ -205,8 +205,8 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                 <FormItem>
                                     <FormControl>
                                         <MoneyInput
-                                            initialValue={field.value}
-                                            onChange={(value) => field.onChange(value)}
+                                            value={field.value}
+                                            onChange={field.onChange}
                                             className="w-20"
                                         />
                                     </FormControl>
@@ -487,8 +487,8 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                                     <>
                                                         <FormControl>
                                                             <MoneyInput
-                                                                initialValue={field.value}
-                                                                onChange={(amount) => field.onChange(amount)}
+                                                                value={field.value}
+                                                                onChange={field.onChange}
                                                                 className="w-full"
                                                             />
                                                         </FormControl>
@@ -516,8 +516,8 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                                     <>
                                                         <FormControl>
                                                             <MoneyInput
-                                                                initialValue={field.value}
-                                                                onChange={(amount) => field.onChange(amount)}
+                                                                value={field.value}
+                                                                onChange={field.onChange}
                                                                 className="w-full"
                                                             />
                                                         </FormControl>

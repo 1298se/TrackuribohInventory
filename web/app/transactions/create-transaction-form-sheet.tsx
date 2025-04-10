@@ -164,8 +164,8 @@ const SubtotalAmountField = ({ control }: { control: any }) => (
                     <div className="relative">
                         <DollarSign className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <MoneyInput
-                            initialValue={field.value}
-                            onChange={(amount) => field.onChange(amount)}
+                            value={field.value}
+                            onChange={field.onChange}
                             className="pl-8 w-full"
                         />
                     </div>
@@ -190,8 +190,8 @@ const ShippingCostField = ({ control }: { control: any }) => (
                     <div className="relative">
                         <DollarSign className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <MoneyInput
-                            initialValue={field.value}
-                            onChange={(amount) => field.onChange(amount)}
+                            value={field.value}
+                            onChange={field.onChange}
                             className="pl-8 w-full"
                         />
                     </div>
@@ -215,8 +215,8 @@ const TaxAmountField = ({ control }: { control: any }) => (
                     <div className="relative">
                         <DollarSign className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <MoneyInput
-                            initialValue={value || 0}
-                            onChange={(amount) => onChange(amount)}
+                            value={value}
+                            onChange={onChange}
                             className="pl-8 w-full"
                             {...field}
                         />
@@ -539,8 +539,8 @@ export default function CreateTransactionFormDialog() {
                                         <FormLabel>Subtotal *</FormLabel>
                                         <FormControl>
                                             <MoneyInput
-                                                initialValue={field.value}
-                                                onChange={(amount) => field.onChange(amount)}
+                                                value={field.value}
+                                                onChange={field.onChange}
                                                 className="w-full"
                                             />
                                         </FormControl>
@@ -560,8 +560,8 @@ export default function CreateTransactionFormDialog() {
                                         <FormLabel>Shipping Cost</FormLabel>
                                         <FormControl>
                                             <MoneyInput
-                                                initialValue={field.value}
-                                                onChange={(amount) => field.onChange(amount)}
+                                                value={field.value}
+                                                onChange={field.onChange}
                                                 className="w-full"
                                             />
                                         </FormControl>
@@ -580,8 +580,8 @@ export default function CreateTransactionFormDialog() {
                                         <FormLabel>Tax Amount</FormLabel>
                                         <FormControl>
                                             <MoneyInput
-                                                initialValue={value || 0}
-                                                onChange={(amount) => onChange(amount)}
+                                                value={value}
+                                                onChange={onChange}
                                                 className="w-full"
                                                 {...field}
                                             />
