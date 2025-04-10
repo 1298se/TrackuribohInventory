@@ -109,6 +109,8 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     // Initialize form with react-hook-form
     const form = useForm<TransactionEditForm>({
         resolver: zodResolver(TransactionEditFormSchema),
+        mode: "onSubmit",
+        reValidateMode: "onSubmit",
     })
 
     // Use useFieldArray to manage the array of line items
@@ -172,6 +174,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                     return (
                         <FormField
                             control={form.control}
+                            key={row.original.id}
                             name={`line_items.${row.index}.quantity`}
                             render={({ field }) => (
                                 <FormItem>
@@ -200,6 +203,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                     return (
                         <FormField
                             control={form.control}
+                            key={row.original.id}
                             name={`line_items.${row.index}.unit_price_amount`}
                             render={({ field }) => (
                                 <FormItem>
@@ -488,7 +492,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                                         <FormControl>
                                                             <MoneyInput
                                                                 value={field.value}
-                                                                onChange={field.onChange}
+                                                                onChange={(amount) => field.onChange(amount)}
                                                                 className="w-full"
                                                             />
                                                         </FormControl>
@@ -517,7 +521,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                                         <FormControl>
                                                             <MoneyInput
                                                                 value={field.value}
-                                                                onChange={field.onChange}
+                                                                onChange={(amount) => field.onChange(amount)}
                                                                 className="w-full"
                                                             />
                                                         </FormControl>
