@@ -4,12 +4,16 @@ import { API_URL, fetcher } from "../api/fetcher";
 import { 
     TransactionCreateRequest, 
     TransactionResponse, 
+    TransactionResponseSchema,
     TransactionsResponse,
+    TransactionsResponseSchema,
     BulkTransactionDeleteRequestSchema,
     TransactionUpdateRequest,
     PlatformResponse,
+    PlatformResponseSchema,
     PlatformCreateRequest
 } from "./schemas";
+import { z } from "zod";
 
 async function createTransaction(_url: string, { arg }: { arg: TransactionCreateRequest }) {
     const response = await fetch(`${API_URL}/transactions`, {
@@ -32,40 +36,37 @@ export function useCreateTransaction() {
 }
 
 export function useTransactions(query?: string) {
-    // Construct the URL with query parameter if provided
     const url = query 
         ? `${API_URL}/transactions?query=${encodeURIComponent(query)}` 
         : `${API_URL}/transactions`;
     
-    const { data, error, isLoading, mutate } = useSWR<TransactionsResponse>(
+    return useSWR<TransactionsResponse>(
         url,
-        (url: string) => fetcher({
-            url
+        (fetchUrl: string) => fetcher({
+            url: fetchUrl,
+            schema: TransactionsResponseSchema
         })
     );
-
-    return {
-        data,
-        isLoading,
-        error,
-        mutate
-    };
 }
 
 export function useTransaction(id: string) {
     return useSWR<TransactionResponse>(
         `${API_URL}/transactions/${id}`,
-        (url: string) => fetcher({
-            url
+        (fetchUrl: string) => fetcher({ 
+            url: fetchUrl, 
+            schema: TransactionResponseSchema
         })
     )
 }
 
 export function usePlatforms() {
+    const PlatformArraySchema = z.array(PlatformResponseSchema);
+
     return useSWR<PlatformResponse[]>(
         `${API_URL}/transactions/platforms`,
-        (url: string) => fetcher({
-            url
+        (fetchUrl: string) => fetcher({
+            url: fetchUrl,
+            schema: PlatformArraySchema
         })
     )
 }

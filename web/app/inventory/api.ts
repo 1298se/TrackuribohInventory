@@ -1,28 +1,24 @@
 import { z } from "zod";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
-import { InventoryResponse, ProductSearchResponse, CatalogsResponse } from "./schemas";
+import { InventoryResponse, InventoryResponseSchema, ProductSearchResponse, ProductSearchResponseSchema, CatalogsResponse, CatalogsResponseSchema } from "./schemas";
 import { API_URL, fetcher } from "../api/fetcher";
 
 export function useInventory(query: string | null = null) {
-  // Construct the base URL
-  const url = `${API_URL}/inventory`;
-  
   // Prepare parameters object
   const params: { [key: string]: string } = {};
   if (query) {
     params.query = query;
   }
 
+  const key = {
+    url: `${API_URL}/inventory`,
+    params,
+  };
+
   return useSWR<InventoryResponse>(
-    // Pass the URL and params object to SWR key
-    // SWR will automatically handle query string formatting
-    {
-      url,
-      params,
-    },
-    // The fetcher remains the same, it expects an object with url and optional params
-    fetcher
+    key,
+    () => fetcher({ ...key, schema: InventoryResponseSchema })
   );
 }
 
@@ -40,21 +36,26 @@ export function useSearchProducts(query: string, catalog: string | null = null, 
     params.product_type = productType;
   }
 
+  const key = {
+    url: `${API_URL}/catalog/search`,
+    params,
+  };
+
   return useSWR<ProductSearchResponse>(
-    {
-      url: `${API_URL}/catalog/search`,
-      params,
-    },
-    fetcher
+    key,
+    // Pass an inline function that calls fetcher correctly
+    () => fetcher({ ...key, schema: ProductSearchResponseSchema })
   )
 }
 
 export function useCatalogs() {
+  const key = {
+    url: `${API_URL}/catalog/catalogs`
+  };
+
   return useSWR<CatalogsResponse>(
-    {
-      url: `${API_URL}/catalog/catalogs`
-    },
-    fetcher
+    key,
+    () => fetcher({ ...key, schema: CatalogsResponseSchema })
   )
 }
 
