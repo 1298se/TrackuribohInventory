@@ -628,11 +628,7 @@ export default function CreateTransactionFormDialog() {
 
             {/* Persistent footer with submit button */}
             <div
-                className="fixed bottom-0 py-4 px-4 bg-background border-t shadow-sm z-10"
-                style={{
-                    width: formContainerRef?.clientWidth ? `${formContainerRef.clientWidth}px` : 'auto',
-                    left: formContainerRef?.getBoundingClientRect().left || 0
-                }}
+                className="fixed bottom-0 left-0 right-0 md:left-64 py-4 px-4 bg-background border-t shadow-sm z-10"
             >
                 <div className="flex justify-end pr-2">
                     <Button
