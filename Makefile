@@ -62,7 +62,7 @@ endef
 define docker_run
 	docker stop trackuriboh-$(1) || true
 	docker rm trackuriboh-$(1) || true
-	docker run -d --name trackuriboh-$(1) $(2) --env-file .env $(3)
+	docker run -d --name trackuriboh-$(1) $(2) --env-file .env $(3):$(IMAGE_TAG)
 endef
 
 # Build targets

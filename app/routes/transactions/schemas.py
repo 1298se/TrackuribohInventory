@@ -113,5 +113,20 @@ class TransactionResponseSchema(ORMModel):
 class TransactionsResponseSchema(BaseModel):
     transactions: list[TransactionResponseSchema]
 
+# Request schema for weighted price calculation endpoint
+class WeightedPriceCalculationRequestSchema(BaseModel):
+    line_items: list[LineItemCreateRequestSchema]
+    total_amount: MoneyAmountSchema
+
+# Response schema for individual calculated weighted line item price
+class CalculatedWeightedLineItemSchema(BaseModel):
+    sku_id: uuid.UUID
+    quantity: int
+    unit_price_amount: MoneyAmountSchema
+
+# Response schema for the weighted price calculation endpoint
+class WeightedPriceCalculationResponseSchema(BaseModel):
+    calculated_line_items: list[CalculatedWeightedLineItemSchema]
+
 class BulkTransactionDeleteRequestSchema(BaseModel):
     transaction_ids: list[uuid.UUID]

@@ -3,13 +3,13 @@
 import { format } from "date-fns"
 import { SKUDisplay } from "@/components/ui/sku-display"
 import { Separator } from "@/components/ui/separator"
-import { useTransaction, useUpdateTransaction, usePlatforms } from "../api"
+import { useTransaction, useUpdateTransaction, usePlatforms, useCalculateWeightedPrices } from "../api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { DataTable } from "../../inventory/data-table"
 import { type Column } from "../../inventory/data-table"
-import { LineItemUpdateRequest, LineItemUpdateRequestSchema, TransactionUpdateRequest, TransactionUpdateRequestSchema } from "../schemas"
+import { LineItemUpdateRequest, LineItemUpdateRequestSchema, TransactionUpdateRequest, TransactionUpdateRequestSchema, WeightedPriceCalculationRequest } from "../schemas"
 import { MoneyInput } from "@/components/ui/money-input"
 import { useState, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -102,6 +102,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     const { data: transaction, isLoading, error, mutate } = useTransaction(transactionId)
     const { trigger: updateTransaction, isMutating } = useUpdateTransaction()
     const { data: platforms, isLoading: isPlatformsLoading } = usePlatforms()
+    const { trigger: calculatePrices, isMutating: isCalculating } = useCalculateWeightedPrices()
     const { toast } = useToast()
     const [isEditing, setIsEditing] = useState(false)
     const [isSelectProductDialogOpen, setIsSelectProductDialogOpen] = useState(false)
@@ -150,7 +151,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             cell: ({ row }) => {
                 const imageUrl = row.original.sku?.product.image_url
                 const productName = row.original.sku?.product.name || "Product image"
-                
+
                 return imageUrl ? (
                     <ProductImage
                         src={imageUrl}
@@ -248,7 +249,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             header: "",
             cell: ({ row }) => {
                 if (!isEditing) return null;
-                
+
                 return (
                     <button
                         type="button"
@@ -320,6 +321,76 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
         }
     }
 
+    // Handler for redistributing prices based on original transaction total
+    const handleRedistributePrices = async () => {
+        if (!transaction) return;
+
+        const currentLineItems = form.getValues("line_items");
+
+        // Validate that all line items have a valid sku_id
+        if (currentLineItems.some(item => !item.sku?.id)) {
+            toast({
+                title: "Missing SKU",
+                description: "Cannot redistribute prices. One or more line items is missing SKU information.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        // Calculate the original total amount from the transaction
+        const originalTotalAmount = transaction.line_items.reduce(
+            (sum, item) => sum + (item.unit_price_amount * item.quantity),
+            0
+        );
+
+        // Prepare the request payload with line items from the form
+        const requestPayload: WeightedPriceCalculationRequest = {
+            line_items: currentLineItems.map((item: LineItemEdit) => ({
+                sku_id: item.sku?.id || "",
+                quantity: item.quantity
+            })),
+            total_amount: originalTotalAmount
+        };
+
+        toast({ title: "Redistributing prices..." });
+
+        try {
+            // Call the API to calculate weighted prices
+            const result = await calculatePrices(requestPayload);
+
+            if (result && result.calculated_line_items) {
+                
+                // Create a map for fast lookup of prices by sku_id
+                const priceMap = new Map(
+                    result.calculated_line_items.map(item => [item.sku_id, item.unit_price_amount])
+                );
+                
+                // Directly update each field using setValue
+                currentLineItems.forEach((lineItem, index) => {
+                    if (lineItem.sku?.id) {
+                        const newPrice = priceMap.get(lineItem.sku.id);
+                        
+                        if (newPrice !== undefined) {
+                            // Use setValue with the exact path
+                            form.setValue(`line_items.${index}.unit_price_amount`, newPrice);
+                        }
+                    }
+                });
+                
+                toast({ title: "Prices Redistributed", description: "Line item prices have been updated." });
+            } else {
+                throw new Error("Invalid response received from server.");
+            }
+        } catch (err) {
+            console.error("Failed to redistribute prices:", err);
+            toast({
+                title: "Redistribution Failed",
+                description: err instanceof Error ? err.message : "An unknown error occurred.",
+                variant: "destructive"
+            });
+        }
+    };
+
     // Early return for error states
     if (error) {
         return (
@@ -382,6 +453,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                         setIsEditing(false);
                                         form.reset();
                                     }}
+                                    disabled={isMutating || isCalculating}
                                 >
                                     Cancel
                                 </Button>
@@ -389,8 +461,9 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                     size="sm"
                                     onClick={form.handleSubmit(handleSaveChanges)}
                                     type="submit"
+                                    disabled={isMutating || isCalculating}
                                 >
-                                    Save Changes
+                                    {isMutating ? "Saving..." : "Save Changes"}
                                 </Button>
                             </div>
                         ) : (
@@ -431,7 +504,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                                 {isEditing ? (
                                                     <>
                                                         <FormControl>
-                                                            <DatePickerInput 
+                                                            <DatePickerInput
                                                                 value={field.value ? new Date(field.value) : undefined}
                                                                 onChange={(date) => field.onChange(date ? date.toISOString() : "")}
                                                                 dateFormat="MMMM d, yyyy"
@@ -573,12 +646,24 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
 
                                 <Separator />
 
-                                {/* DataTable section now inside Form */}
+                                {/* DataTable section with added Redistribute Prices button */}
                                 <div className="space-y-4">
-                                    <div className="flex items-center gap-2">
-                                        <FormLabel>Line Items</FormLabel>
+                                    <div className="flex justify-between items-center gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <FormLabel>Line Items</FormLabel>
+                                            {isEditing && (
+                                                <SelectProductDialog onSelect={onProductSelected} />
+                                            )}
+                                        </div>
+
                                         {isEditing && (
-                                            <SelectProductDialog onSelect={onProductSelected} />
+                                            <Button
+                                                type="button"
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={handleRedistributePrices}
+                                                disabled={fields.length === 0 || isCalculating}
+                                            >Redistribute Prices</Button>
                                         )}
                                     </div>
                                     <div className="mt-2">

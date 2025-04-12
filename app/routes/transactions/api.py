@@ -1,18 +1,16 @@
 import uuid
-from typing import List, Tuple, Dict, Any, Optional
+from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from sqlalchemy import desc, select, func, or_, exists, select as subquery_select, and_
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
-from decimal import Decimal
 
+from app.routes.transactions.service import create_transaction_service
 from core.dao.transaction import (
     InsufficientInventoryError,
     create_transaction_line_items,
     delete_transaction_line_items,
     delete_transactions, TransactionNotFoundError,
-    create_transaction_with_line_items,
-    TransactionDataDict,
     LineItemDataDict
 )
 from app.routes.transactions.schemas import (
@@ -22,14 +20,15 @@ from app.routes.transactions.schemas import (
     BulkTransactionDeleteRequestSchema,
     TransactionUpdateRequestSchema,
     PlatformResponseSchema,
-    PlatformCreateRequestSchema
+    PlatformCreateRequestSchema,
+    WeightedPriceCalculationRequestSchema,
+    WeightedPriceCalculationResponseSchema,
+    CalculatedWeightedLineItemSchema
 )
-from app.routes.transactions.service import create_transaction_service
-from core.dao.skus import get_skus_by_id
 from core.database import get_db_session
-from core.models import TransactionType
-from core.models.transaction import Transaction, LineItem, LineItemConsumption, Platform
+from core.models.transaction import Transaction, LineItem, Platform
 from core.models.catalog import SKU, Product
+from core.services.create_transaction import LineItemInput, calculate_weighted_unit_prices
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService, get_tcgplayer_catalog_service
 
 router = APIRouter(
@@ -281,4 +280,43 @@ async def update_transaction(
     )
         
     return transaction
+
+@router.post("/calculate-weighted-line-item-prices", response_model=WeightedPriceCalculationResponseSchema)
+async def calculate_weighted_prices(
+    request: WeightedPriceCalculationRequestSchema,
+    session: Session = Depends(get_db_session),
+    catalog_service: TCGPlayerCatalogService = Depends(get_tcgplayer_catalog_service)
+):
+    """Calculate unit prices by distributing total amount based on market price weighting."""
+    
+    # Map API request line items to core LineItemInput dataclass
+    core_line_items = [
+        LineItemInput(sku_id=item.sku_id, quantity=item.quantity)
+        for item in request.line_items
+    ]
+    
+    # Call the core service function
+    try:
+        calculated_data: List[LineItemDataDict] = await calculate_weighted_unit_prices(
+            session=session,
+            catalog_service=catalog_service,
+            line_items=core_line_items,
+            total_amount=request.total_amount
+        )
+    except Exception as e:
+        # Handle potential errors during calculation (e.g., TCGPlayer API issues)
+        # Log the error e
+        raise HTTPException(status_code=500, detail=f"Error during price calculation: {e}")
+
+    # Map the result (List[LineItemDataDict]) to the response schema (PriceCalculationResponseSchema)
+    response_items = [
+        CalculatedWeightedLineItemSchema(
+            sku_id=item["sku_id"],
+            quantity=item["quantity"],
+            unit_price_amount=item["unit_price_amount"]
+        )
+        for item in calculated_data
+    ]
+
+    return WeightedPriceCalculationResponseSchema(calculated_line_items=response_items)
 

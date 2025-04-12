@@ -133,3 +133,33 @@ export const TransactionUpdateRequestSchema = z.object({
 })
 
 export type TransactionUpdateRequest = z.infer<typeof TransactionUpdateRequestSchema>
+
+// Schema for line item in weighted price calculation request
+export const LineItemForCalculationSchema = z.object({
+  sku_id: z.string().uuid(),
+  quantity: z.number().int().min(1)
+});
+
+// Request schema for weighted price calculation
+export const WeightedPriceCalculationRequestSchema = z.object({
+  line_items: z.array(LineItemForCalculationSchema),
+  total_amount: z.number() // Decimal value expected by the API
+});
+
+// Schema for calculated line item with price
+export const CalculatedWeightedLineItemSchema = z.object({
+  sku_id: z.string().uuid(),
+  quantity: z.number().int().min(1),
+  unit_price_amount: MoneyAmountSchema
+});
+
+// Response schema for weighted price calculation
+export const WeightedPriceCalculationResponseSchema = z.object({
+  calculated_line_items: z.array(CalculatedWeightedLineItemSchema)
+});
+
+// Export inferred types
+export type LineItemForCalculation = z.infer<typeof LineItemForCalculationSchema>;
+export type WeightedPriceCalculationRequest = z.infer<typeof WeightedPriceCalculationRequestSchema>;
+export type CalculatedWeightedLineItem = z.infer<typeof CalculatedWeightedLineItemSchema>;
+export type WeightedPriceCalculationResponse = z.infer<typeof WeightedPriceCalculationResponseSchema>;

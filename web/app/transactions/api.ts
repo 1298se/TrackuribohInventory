@@ -11,9 +11,14 @@ import {
     TransactionUpdateRequest,
     PlatformResponse,
     PlatformResponseSchema,
-    PlatformCreateRequest
+    PlatformCreateRequest,
+    WeightedPriceCalculationRequest,
+    WeightedPriceCalculationResponse,
+    WeightedPriceCalculationResponseSchema
 } from "./schemas";
 import { z } from "zod";
+import { ProductSearchResponse } from "../inventory/schemas";
+import { MoneyAmountSchema } from "../schemas";
 
 // Create reusable mutation functions using our helper
 const createTransaction = createMutation<
@@ -30,6 +35,11 @@ const createPlatform = createMutation<
     PlatformCreateRequest,
     typeof PlatformResponseSchema
 >("/transactions/platforms", HTTPMethod.POST, PlatformResponseSchema);
+
+const calculateWeightedPrices = createMutation<
+    WeightedPriceCalculationRequest,
+    typeof WeightedPriceCalculationResponseSchema
+>("/transactions/calculate-weighted-line-item-prices", HTTPMethod.POST, WeightedPriceCalculationResponseSchema);
 
 // For DELETE, we create a specialized mutation function
 const deleteTransactionsRequest = async (_: string, { arg }: { arg: string[] }) => {
@@ -124,5 +134,12 @@ export function useCreatePlatform() {
     return useSWRMutation<PlatformResponse, Error, string, PlatformCreateRequest>(
         `${API_URL}/transactions/platforms`, 
         createPlatform
+    );
+}
+
+export function useCalculateWeightedPrices() {
+    return useSWRMutation<WeightedPriceCalculationResponse, Error, string, WeightedPriceCalculationRequest>(
+        `${API_URL}/transactions/calculate-weighted-line-item-prices`, 
+        calculateWeightedPrices
     );
 }
