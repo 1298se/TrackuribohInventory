@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
-import { API_URL, fetcher } from "../api/fetcher";
+import { API_URL, fetcher, HTTPMethod, createMutation } from "../api/fetcher";
 import { 
     TransactionCreateRequest, 
     TransactionResponse, 
@@ -15,121 +15,114 @@ import {
 } from "./schemas";
 import { z } from "zod";
 
-async function createTransaction(_url: string, { arg }: { arg: TransactionCreateRequest }) {
-    const response = await fetch(`${API_URL}/transactions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(arg)
+// Create reusable mutation functions using our helper
+const createTransaction = createMutation<
+    TransactionCreateRequest,
+    typeof TransactionResponseSchema
+>("/transactions", HTTPMethod.POST, TransactionResponseSchema);
+
+const updateTransaction = createMutation<
+    TransactionUpdateRequest,
+    typeof TransactionResponseSchema
+>("/transactions", HTTPMethod.PATCH, TransactionResponseSchema);
+
+const createPlatform = createMutation<
+    PlatformCreateRequest,
+    typeof PlatformResponseSchema
+>("/transactions/platforms", HTTPMethod.POST, PlatformResponseSchema);
+
+// For DELETE, we create a specialized mutation function
+const deleteTransactionsRequest = async (_: string, { arg }: { arg: string[] }) => {
+    const payload = BulkTransactionDeleteRequestSchema.parse({ transaction_ids: arg });
+    
+    return fetcher({
+        url: `${API_URL}/transactions/bulk`,
+        method: HTTPMethod.POST,
+        body: payload,
+        schema: z.void()
     });
-    
-    if (!response.ok) {
-        throw new Error('Failed to create transaction');
-    }
-    
-    return response.json();
-}
+};
 
-export function useCreateTransaction() {
-    return useSWRMutation(`${API_URL}/transactions`, createTransaction)
-}
-
+// For GET requests, we use the standard fetcher
 export function useTransactions(query?: string) {
-    const url = query 
-        ? `${API_URL}/transactions?query=${encodeURIComponent(query)}` 
-        : `${API_URL}/transactions`;
-    
-    return useSWR<TransactionsResponse>(
-        url,
-        (fetchUrl: string) => fetcher({
-            url: fetchUrl,
+    const params: { [key: string]: string } = {};
+    if (query) {
+        params.query = query;
+    }
+
+    return useSWR(
+        ['/transactions', params],
+        ([path, params]) => fetcher({
+            url: `${API_URL}${path}`,
+            params,
+            method: HTTPMethod.GET,
             schema: TransactionsResponseSchema
         })
     );
 }
 
 export function useTransaction(id: string) {
-    return useSWR<TransactionResponse>(
-        `${API_URL}/transactions/${id}`,
-        (fetchUrl: string) => fetcher({ 
-            url: fetchUrl, 
+    return useSWR(
+        ['/transactions', id],
+        ([path, id]) => fetcher({ 
+            url: `${API_URL}${path}/${id}`, 
+            method: HTTPMethod.GET,
             schema: TransactionResponseSchema
         })
-    )
+    );
 }
 
 export function usePlatforms() {
     const PlatformArraySchema = z.array(PlatformResponseSchema);
 
-    return useSWR<PlatformResponse[]>(
-        `${API_URL}/transactions/platforms`,
-        (fetchUrl: string) => fetcher({
-            url: fetchUrl,
+    return useSWR(
+        '/transactions/platforms',
+        (path) => fetcher({
+            url: `${API_URL}${path}`,
+            method: HTTPMethod.GET,
             schema: PlatformArraySchema
         })
-    )
+    );
 }
 
-async function createPlatform(_url: string, { arg }: { arg: PlatformCreateRequest }) {
-    const response = await fetch(`${API_URL}/transactions/platforms`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(arg)
-    });
-    
-    if (!response.ok) {
-        throw new Error('Failed to create platform');
-    }
-    
-    return response.json();
+// Export hooks using our mutation functions
+export function useCreateTransaction() {
+    return useSWRMutation<TransactionResponse, Error, string, TransactionCreateRequest>(
+        `${API_URL}/transactions`, 
+        createTransaction
+    );
 }
 
-export function useCreatePlatform() {
-    return useSWRMutation(`${API_URL}/transactions/platforms`, createPlatform);
-}
-
-async function deleteTransactions(transactionIds: string[]) {
-    const payload = BulkTransactionDeleteRequestSchema.parse({ transaction_ids: transactionIds });
-
-    await fetch(`${API_URL}/transactions/bulk`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-    });
-}
-
-export function useDeleteTransactions() {
-    return useSWRMutation(
-        `${API_URL}/transactions/bulk`,
-        async (_url: string, { arg }: { arg: string[] }) => {
-            return deleteTransactions(arg);
+export function useUpdateTransaction() {
+    // Note: we need to add handling for path parameter in the trigger
+    return useSWRMutation<
+        TransactionResponse, 
+        Error, 
+        string, 
+        { id: string; data: TransactionUpdateRequest }
+    >(
+        `${API_URL}/transactions`,
+        async (_url: string, { arg }: { arg: { id: string; data: TransactionUpdateRequest } }) => {
+            return fetcher({
+                url: `${API_URL}/transactions/${arg.id}`,
+                method: HTTPMethod.PATCH,
+                body: arg.data,
+                schema: TransactionResponseSchema
+            });
         }
     );
 }
 
-async function updateTransaction(arg: { id: string; data: TransactionUpdateRequest }) {
-    const response = await fetch(`${API_URL}/transactions/${arg.id}`, {
-        method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(arg.data)
-    });
-    
-    if (!response.ok) {
-        throw new Error('Failed to update transaction');
-    }
-    
-    return response.json();
+export function useDeleteTransactions() {
+    return useSWRMutation<void, Error, string, string[]>(
+        `${API_URL}/transactions/bulk`,
+        deleteTransactionsRequest
+    );
 }
 
-export function useUpdateTransaction() {
-    return useSWRMutation(`${API_URL}/transactions`, async (_url: string, { arg }: { arg: { id: string; data: TransactionUpdateRequest } }) => {
-        return updateTransaction(arg);
-    });
+export function useCreatePlatform() {
+    return useSWRMutation<PlatformResponse, Error, string, PlatformCreateRequest>(
+        `${API_URL}/transactions/platforms`, 
+        createPlatform
+    );
 }
