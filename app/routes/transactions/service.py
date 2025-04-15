@@ -53,15 +53,25 @@ async def create_transaction_service(
 
     # Calculate line item prices using the helper function
     line_items_data = await calculate_weighted_unit_prices(
-        request.line_items,
-        request.total_amount,
-        catalog_service,
-        session
+        session=session,
+        catalog_service=catalog_service,
+        line_items=request.line_items,
+        total_amount=request.total_amount
     )
+
+    # Prepare line items for DAO - this stays in the service
+    dao_line_items: list[LineItemDataDict] = [
+        {
+            "sku_id": item["sku_id"],
+            "quantity": item["quantity"],
+            "unit_price_amount": item["unit_price_amount"],
+        }
+        for item in line_items_data
+    ]
 
     try:
         # Use the DAO function to create the transaction and line items
-        transaction = create_transaction_with_line_items(session, transaction_data, line_items_data)
+        transaction = create_transaction_with_line_items(session, transaction_data, dao_line_items)
     
         # Return the created transaction
         return transaction
