@@ -3,11 +3,14 @@ import useSWR from "swr";
 import { InventoryResponse, InventoryResponseSchema, ProductSearchResponse, ProductSearchResponseSchema, CatalogsResponse, CatalogsResponseSchema } from "./schemas";
 import { API_URL, fetcher, HTTPMethod, createMutation } from "../api/fetcher";
 
-export function useInventory(query: string | null = null) {
+export function useInventory(query: string | null = null, catalog_id: string | null = null) {
   // Prepare parameters object
   const params: { [key: string]: string } = {};
   if (query) {
     params.query = query;
+  }
+  if (catalog_id) {
+    params.catalog_id = catalog_id;
   }
 
   return useSWR(
@@ -49,6 +52,17 @@ export function useSearchProducts(query: string, catalog: string | null = null, 
 export function useCatalogs() {
   return useSWR(
     '/catalog/catalogs',
+    (path) => fetcher({ 
+      url: `${API_URL}${path}`,
+      method: HTTPMethod.GET,
+      schema: CatalogsResponseSchema 
+    })
+  );
+}
+
+export function useInventoryCatalogs() {
+  return useSWR(
+    '/inventory/catalogs',
     (path) => fetcher({ 
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,

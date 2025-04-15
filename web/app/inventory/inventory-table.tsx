@@ -1,5 +1,5 @@
 import { CellContext, ColumnDef } from "@tanstack/react-table"
-import { useInventory } from "./api"
+import { useInventory, useInventoryCatalogs } from "./api"
 import { DataTable  } from "./data-table"
 import { InventoryItemResponse } from "./schemas"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,6 +11,14 @@ import { type Column } from "./data-table"
 import { SKUDisplay } from "@/components/ui/sku-display"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { useState, useEffect, useCallback } from "react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 
 const ImageLoading = () => <Skeleton className="h-16 w-16 rounded-md" />
 const ProductLoading = () => (
@@ -153,21 +161,29 @@ export function InventoryTable() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
-    // Get initial query from URL or default to empty string
+    // Get initial query and catalog from URL or default to empty/null
     const initialQuery = searchParams.get('q') || "";
+    const initialCatalogId = searchParams.get('catalog_id');
 
     // State to manage the input field value (controlled by DataTable)
     const [searchInput, setSearchInput] = useState(initialQuery);
+    const [selectedCatalogId, setSelectedCatalogId] = useState(initialCatalogId);
 
-    // Fetch data based on the query from the URL params
-    const { data, isLoading, error } = useInventory(initialQuery)
+    // Fetch catalogs for dropdown
+    const { data: catalogsData, isLoading: catalogsLoading, error: catalogsError } = useInventoryCatalogs();
+
+    // Fetch data based on the query and catalog_id from the URL params
+    const { data, isLoading, error } = useInventory(initialQuery, selectedCatalogId);
 
     // Effect to update the input field if the URL changes (e.g., back/forward)
     useEffect(() => {
         if (initialQuery !== searchInput) {
             setSearchInput(initialQuery);
         }
-    }, [initialQuery]);
+        if (initialCatalogId !== selectedCatalogId) {
+            setSelectedCatalogId(initialCatalogId);
+        }
+    }, [initialQuery, initialCatalogId]);
 
     // Handler to update URL when filter is submitted via DataTable
     const handleFilterSubmit = useCallback((query: string) => {
@@ -177,6 +193,23 @@ export function InventoryTable() {
         } else {
             current.set('q', query);
         }
+        const search = current.toString();
+        const queryStr = search ? `?${search}` : "";
+        router.replace(`${pathname}${queryStr}`);
+    }, [router, searchParams, pathname]);
+
+    // Handler for catalog dropdown changes
+    const handleCatalogChange = useCallback((value: string) => {
+        const current = new URLSearchParams(Array.from(searchParams.entries()));
+        
+        if (value === "all") {
+            current.delete('catalog_id');
+            setSelectedCatalogId(null);
+        } else {
+            current.set('catalog_id', value);
+            setSelectedCatalogId(value);
+        }
+        
         const search = current.toString();
         const queryStr = search ? `?${search}` : "";
         router.replace(`${pathname}${queryStr}`);
@@ -196,9 +229,30 @@ export function InventoryTable() {
 
     return (
         <div className="space-y-4">
-             {/* Add Header */}
-             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">Inventory</h2>
+             {/* Header with catalog dropdown */}
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold">Inventory</h2>
+                    <div className="w-[250px]">
+                        <Select
+                            value={selectedCatalogId || "all"}
+                            onValueChange={handleCatalogChange}
+                            disabled={catalogsLoading}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a catalog" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All</SelectItem>
+                                {catalogsData?.catalogs.map((catalog) => (
+                                    <SelectItem key={catalog.id} value={catalog.id}>
+                                        {catalog.display_name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
                 {/* Placeholder for potential future action buttons */}
             </div>
 

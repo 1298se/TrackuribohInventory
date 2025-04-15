@@ -29,9 +29,9 @@ def get_sku_cost_quantity_cte() -> CTE:
 # Added type alias definition
 InventoryQueryResultRow = Tuple[SKU, int, Decimal, Optional[SKULatestPriceData]]
 
-def query_inventory_items(query: Optional[str] = None) -> Select:
+def query_inventory_items() -> Select:
     """
-    Query inventory items with their quantities and prices.
+    Query inventory items with their quantities and prices. Doesn't include FTS.
     
     Returns:
         Select query that returns rows matching InventoryItem TypedDict structure
@@ -49,33 +49,5 @@ def query_inventory_items(query: Optional[str] = None) -> Select:
     ).outerjoin(
         SKULatestPriceData, SKU.id == SKULatestPriceData.sku_id
     )
-
-    if query:
-        # Join necessary tables for searching
-        sql_query = sql_query.join( 
-            Product, SKU.product_id == Product.id
-        ).join(
-            Set, Product.set_id == Set.id
-        ).join(
-            Condition, SKU.condition_id == Condition.id
-        ).join(
-            Printing, SKU.printing_id == Printing.id
-        )
-
-        # Use utility function to create base combined TS vector (Product, Set)
-        combined_ts_vector = create_product_set_fts_vector()
-
-        # Condition Name (Weight D)
-        condition_name_ts = func.setweight(func.to_tsvector('english', func.coalesce(Condition.name, '')), 'D')
-        combined_ts_vector = combined_ts_vector.op('||')(condition_name_ts)
-
-        # Printing Name (Weight D)
-        printing_name_ts = func.setweight(func.to_tsvector('english', func.coalesce(Printing.name, '')), 'D')
-        combined_ts_vector = combined_ts_vector.op('||')(printing_name_ts)
-        
-        # Use utility function to create TS query
-        ts_query_func = create_ts_query(query)
-        # Apply FTS filter
-        sql_query = sql_query.where(combined_ts_vector.op('@@')(ts_query_func))
 
     return sql_query
