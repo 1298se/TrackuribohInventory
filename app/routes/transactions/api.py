@@ -1,9 +1,9 @@
 import uuid
-from typing import List
+from typing import List, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.routes.transactions.service import create_transaction_service
 from core.dao.transaction import (
@@ -11,7 +11,9 @@ from core.dao.transaction import (
     create_transaction_line_items,
     delete_transaction_line_items,
     delete_transactions, TransactionNotFoundError,
-    LineItemDataDict
+    LineItemData,
+    LineItemUpdateSpec,
+    bulk_update_transaction_line_items
 )
 from app.routes.transactions.schemas import (
     TransactionResponseSchema,
@@ -47,9 +49,10 @@ async def create_platform(
     session: Session = Depends(get_db_session)
 ):
     """Create a new platform."""
-    platform = Platform(name=request.name)
-    session.add(platform)
-    session.commit()
+    with session.begin():
+        platform = Platform(name=request.name)
+        session.add(platform)
+    
     session.refresh(platform)
     return platform
 
@@ -147,9 +150,10 @@ async def create_transaction(
         session: Session = Depends(get_db_session),
 ):
     try:
-        # Use the service function to create the transaction
-        transaction = await create_transaction_service(request, catalog_service, session)
-        session.commit()
+        # Start a transaction explicitly
+        with session.begin():
+            # Use the service function to create the transaction
+            transaction = await create_transaction_service(request, catalog_service, session)
         
         # Reload transaction with the appropriate load options
         transaction = session.scalar(
@@ -169,13 +173,12 @@ async def bulk_delete_transactions(
     session: Session = Depends(get_db_session),
 ):
     try:
-        delete_transactions(session, request.transaction_ids)
+        with session.begin():
+            delete_transactions(session, request.transaction_ids)
     except TransactionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except InsufficientInventoryError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-    session.commit()
 
 @router.patch("/{transaction_id}", response_model=TransactionResponseSchema)
 async def update_transaction(
@@ -183,103 +186,105 @@ async def update_transaction(
     request: TransactionUpdateRequestSchema,
     session: Session = Depends(get_db_session),
 ):
-    # First, retrieve the transaction
-    transaction = session.get(Transaction, transaction_id)
+    # Start a transaction explicitly
+    with session.begin():
+        # Step 1: Retrieve the transaction
+        # Eager load line items to avoid extra queries
+        transaction = session.get(Transaction, transaction_id, options=[joinedload(Transaction.line_items)])
 
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    
-    # Check if there are changes to the date or line items
-    date_changed = transaction.date != request.date
-    
-    # Check for line item changes (different quantities, prices, or set of line items)
-    existing_line_items = {line_item.id: line_item for line_item in transaction.line_items}
-    
-    # Separate request line items with IDs from new ones (with id=None)
-    request_line_items_with_ids = {item.id: item for item in request.line_items if item.id is not None}
-    new_line_items = [item for item in request.line_items if item.id is None]
-    
-    # Check if line items have been added, removed, or if there are new ones
-    line_items_ids_changed = (set(existing_line_items.keys()) != 
-                             set(request_line_items_with_ids.keys()) or 
-                             len(new_line_items) > 0)
-    
-    # Check if quantities or prices have changed for existing line items
-    line_items_content_changed = False
-    for item_id in set(existing_line_items.keys()) & set(request_line_items_with_ids.keys()):
-        if (existing_line_items[item_id].quantity != request_line_items_with_ids[item_id].quantity or
-            existing_line_items[item_id].unit_price_amount != request_line_items_with_ids[item_id].unit_price_amount):
-            line_items_content_changed = True
-            break
-    
-    line_items_changed = line_items_ids_changed or line_items_content_changed
-    
-    # Always update the basic transaction properties
-    transaction.date = request.date
-    transaction.counterparty_name = request.counterparty_name
-    transaction.comment = request.comment
-    transaction.currency = request.currency
-    transaction.platform_id = request.platform_id
-    transaction.shipping_cost_amount = request.shipping_cost_amount
-    transaction.tax_amount = request.tax_amount
+        if not transaction:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        
+        # Step 2: Update basic transaction properties (Simplified: Always assign)
+        transaction.date = request.date
+        transaction.counterparty_name = request.counterparty_name
+        transaction.comment = request.comment
+        transaction.currency = request.currency
+        transaction.platform_id = request.platform_id
+        transaction.shipping_cost_amount = request.shipping_cost_amount
+        transaction.tax_amount = request.tax_amount
 
-    session.flush()
+        # Step 3: Prepare lookups for line item comparison
+        existing_items_map: Dict[uuid.UUID, LineItem] = {item.id: item for item in transaction.line_items}
+        # Assuming request.line_items are Pydantic models with .id attribute
+        request_items_map: Dict[uuid.UUID, TransactionUpdateRequestSchema.LineItemSchema] = { 
+            item.id: item for item in request.line_items if item.id is not None
+        }
 
-    try:
-        
-        # If date or line items changed, update the line items
-        if date_changed or line_items_changed:
-            # Extract existing line item IDs
-            existing_line_item_ids = list(existing_line_items.keys())
+        # Step 4: Identify changes
+        ids_to_delete: List[uuid.UUID] = []
+        items_to_update: List[LineItemUpdateSpec] = []
+        items_to_add: List[LineItemData] = []
+
+        # Identify deletions (and sku changes treated as delete+add)
+        for existing_id, existing_item in existing_items_map.items():
+            request_item = request_items_map.get(existing_id)
+            if not request_item or request_item.sku_id != existing_item.sku_id:
+                ids_to_delete.append(existing_id)
+
+        # Identify additions and updates
+        for request_item in request.line_items:
+            existing_item = existing_items_map.get(request_item.id) if request_item.id else None
             
-            # Delete existing line items using the appropriate function
-            if existing_line_item_ids:
-                delete_transaction_line_items(session, transaction.type, existing_line_item_ids)
-            
-            # Create new line items from the request
-            line_items_data: list[LineItemDataDict] = []
-            
-            # Process existing line items with IDs
-            for line_item in request.line_items:
-                if line_item.id is not None:
-                    # This is an existing line item being updated
-                    line_items_data.append({
-                        "sku_id": line_item.sku_id,
-                        "quantity": line_item.quantity,
-                        "unit_price_amount": line_item.unit_price_amount,
-                        "id": line_item.id  # Pass the existing ID to reuse it
-                    })
-                else:
-                    # This is a new line item
-                    line_items_data.append({
-                        "sku_id": line_item.sku_id,
-                        "quantity": line_item.quantity,
-                        "unit_price_amount": line_item.unit_price_amount
-                        # No id provided for new items
-                    })
-            
-            # Create the new line items associated with this transaction
-            create_transaction_line_items(
-                session, 
-                transaction.id, 
-                transaction.type, 
-                line_items_data
-            )
-        
-        session.commit()
-        
-    except InsufficientInventoryError:
-        session.rollback()
-        raise HTTPException(status_code=400, detail="Not enough inventory to complete the updated transaction")
-    
-    # Reload transaction with the appropriate load options
-    transaction = session.scalar(
+            if not existing_item or request_item.sku_id != existing_item.sku_id:
+                # This is a new item or an existing item with a changed SKU (treat as add)
+                items_to_add.append(LineItemData(
+                    sku_id=request_item.sku_id,
+                    quantity=request_item.quantity,
+                    unit_price_amount=request_item.unit_price_amount
+                    # ID is omitted for new items
+                ))
+            elif (request_item.quantity != existing_item.quantity or 
+                request_item.unit_price_amount != existing_item.unit_price_amount):
+                # This is an existing item with changed quantity or price (treat as update)
+                items_to_update.append(LineItemUpdateSpec(
+                    line_item_id=existing_item.id, # Must have ID here
+                    quantity=request_item.quantity,
+                    unit_price_amount=request_item.unit_price_amount
+                ))
+            # Else: Item exists, SKU matches, quantity and price match -> No change needed
+
+        # Step 5 & 6: Execute changes
+        if ids_to_delete or items_to_update or items_to_add:
+            try:
+                # Execute in order: Delete -> Update -> Add
+                if ids_to_delete:
+                    delete_transaction_line_items(session, transaction.type, ids_to_delete)
+                    session.flush() # Flush deletions so subsequent operations see the changes
+
+                if items_to_update:
+                    bulk_update_transaction_line_items(
+                        session=session, 
+                        transaction_type=transaction.type, 
+                        updates=items_to_update
+                    )
+                    session.flush() # Flush updates so subsequent operations see the changes
+
+                if items_to_add:
+                    create_transaction_line_items(
+                        session=session, 
+                        transaction_id=transaction.id, 
+                        transaction_type=transaction.type, 
+                        line_items_data=items_to_add
+                    )
+                
+            except (InsufficientInventoryError, NotImplementedError) as e:
+                # Will be rollback by the session.begin() context manager
+                raise HTTPException(status_code=400, detail=str(e)) 
+            except Exception as e:
+                # Will be rollback by the session.begin() context manager
+                # Log e
+                raise HTTPException(status_code=500, detail=f"An unexpected error occurred during transaction update: {e}")
+
+    # Step 7: Reload transaction with the appropriate load options for the response
+    # Need to create a new transaction here since we're outside the previous one
+    refreshed_transaction = session.scalar(
         select(Transaction)
         .options(*TransactionResponseSchema.get_load_options())
-        .where(Transaction.id == transaction.id)
+        .where(Transaction.id == transaction_id)
     )
         
-    return transaction
+    return refreshed_transaction
 
 @router.post("/calculate-weighted-line-item-prices", response_model=WeightedPriceCalculationResponseSchema)
 async def calculate_weighted_prices(
@@ -289,31 +294,29 @@ async def calculate_weighted_prices(
 ):
     """Calculate unit prices by distributing total amount based on market price weighting."""
     
-    # Map API request line items to core LineItemInput dataclass
     core_line_items = [
         LineItemInput(sku_id=item.sku_id, quantity=item.quantity)
         for item in request.line_items
     ]
     
-    # Call the core service function
     try:
-        calculated_data: List[LineItemDataDict] = await calculate_weighted_unit_prices(
+        # Function now returns List[LineItemData]
+        calculated_data: List[LineItemData] = await calculate_weighted_unit_prices(
             session=session,
             catalog_service=catalog_service,
             line_items=core_line_items,
             total_amount=request.total_amount
         )
     except Exception as e:
-        # Handle potential errors during calculation (e.g., TCGPlayer API issues)
         # Log the error e
         raise HTTPException(status_code=500, detail=f"Error during price calculation: {e}")
 
-    # Map the result (List[LineItemDataDict]) to the response schema (PriceCalculationResponseSchema)
+    # Map the result (List[LineItemData]) to the response schema using attribute access
     response_items = [
         CalculatedWeightedLineItemSchema(
-            sku_id=item["sku_id"],
-            quantity=item["quantity"],
-            unit_price_amount=item["unit_price_amount"]
+            sku_id=item.sku_id, # Use attribute access
+            quantity=item.quantity, # Use attribute access
+            unit_price_amount=item.unit_price_amount # Use attribute access
         )
         for item in calculated_data
     ]

@@ -1,10 +1,11 @@
 import uuid
-from typing import Sequence, assert_never, TypedDict, Optional, NotRequired, Dict, Tuple
+from typing import Sequence, assert_never, TypedDict, Optional, NotRequired, Dict, Tuple, List
 from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal
+from dataclasses import dataclass, field
 
-from sqlalchemy import and_, asc, desc, select
+from sqlalchemy import and_, asc, desc, select, func
 from sqlalchemy.orm import Session, joinedload
 
 from core.models import SKU, TransactionType
@@ -220,42 +221,58 @@ def delete_transaction_line_items(session: Session, transaction_type: Transactio
             case TransactionType.SALE:
                 delete_sale_line_items(session, line_item_ids)
 
-class TransactionDataDict(TypedDict):
+@dataclass
+class TransactionData:
     date: datetime
     type: TransactionType
     counterparty_name: str
-    comment: Optional[str]
     currency: str
     shipping_cost_amount: MoneyAmount
     tax_amount: MoneyAmount
-    platform_id: NotRequired[Optional[uuid.UUID]]
+    comment: Optional[str] = None
+    platform_id: Optional[uuid.UUID] = None
 
-
-class LineItemDataDict(TypedDict, total=False):
-    id: NotRequired[uuid.UUID]
+@dataclass
+class LineItemData:
     sku_id: uuid.UUID
+    quantity: int
+    unit_price_amount: MoneyAmount
+    id: Optional[uuid.UUID] = None
+
+@dataclass
+class LineItemUpdateSpec:
+    line_item_id: uuid.UUID
     quantity: int
     unit_price_amount: MoneyAmount
 
 def create_transaction_with_line_items(
     session: Session,
-    transaction_data: TransactionDataDict,
-    line_items_data: list[LineItemDataDict],
+    transaction_data: TransactionData,
+    line_items_data: list[LineItemData],
 ) -> Transaction:
     """
     Creates a transaction and its associated line items.
     
     Args:
         session: The database session
-        transaction_data: Dictionary containing transaction data (date, type, counterparty_name, etc.)
-        line_items_data: List of dictionaries containing line item data 
+        transaction_data: Dataclass containing transaction data (date, type, counterparty_name, etc.)
+        line_items_data: List of dataclasses containing line item data 
                          (sku_id, quantity, unit_price_amount)
         
     Returns:
         The created transaction with line items
     """
-    # Create the transaction
-    transaction = Transaction(**transaction_data)
+    # Create the transaction using attributes from dataclass
+    transaction = Transaction(
+        date=transaction_data.date,
+        type=transaction_data.type,
+        counterparty_name=transaction_data.counterparty_name,
+        comment=transaction_data.comment,
+        currency=transaction_data.currency,
+        shipping_cost_amount=transaction_data.shipping_cost_amount,
+        tax_amount=transaction_data.tax_amount,
+        platform_id=transaction_data.platform_id
+    )
     session.add(transaction)
     session.flush()  # Flush to get transaction ID
 
@@ -267,11 +284,18 @@ def create_transaction_line_items(
     session: Session,
     transaction_id: uuid.UUID,
     transaction_type: TransactionType,
-    line_items_data: list[LineItemDataDict],
+    line_items_data: list[LineItemData],
 ) -> list[LineItem]:
-    # Create the line items with the transaction ID using list comprehension
+    # Create the line items using attributes from dataclasses
     line_items = [
-        LineItem(**{**dict(item_data), "transaction_id": transaction_id})
+        LineItem(
+            transaction_id=transaction_id, 
+            sku_id=item_data.sku_id,
+            quantity=item_data.quantity,
+            unit_price_amount=item_data.unit_price_amount,
+            # Use the id from dataclass if provided (relevant for updates later, though create doesn't use it)
+            id=item_data.id 
+        )
         for item_data in line_items_data
     ]
     
@@ -286,6 +310,119 @@ def create_transaction_line_items(
                 
         case TransactionType.SALE:
             process_sale_line_items(session, line_items)
+
+# --- NEW FUNCTION ---
+def bulk_update_transaction_line_items(
+    session: Session, 
+    transaction_type: TransactionType, 
+    updates: list[LineItemUpdateSpec]
+) -> None:
+    """
+    Updates existing transaction line items in bulk.
+
+    Handles quantity changes, including validation against consumed quantities
+    for PURCHASE items. Price updates are also applied.
+
+    Relies on the caller to manage session flush, commit, and rollback.
+
+    Args:
+        session: The database session.
+        transaction_type: The type of the parent transaction (PURCHASE or SALE).
+        updates: A list of dataclasses specifying the updates. Each dict
+                 should contain 'line_item_id', 'quantity', and 'unit_price_amount'.
+
+    Raises:
+        InsufficientInventoryError: If attempting to decrease a purchase line item's
+                                     quantity below what has already been consumed.
+        NotImplementedError: If attempting to change the quantity of a SALE line item
+                             (as this requires complex consumption reprocessing).
+    """
+    if not updates:
+        return
+
+    line_item_ids = [spec.line_item_id for spec in updates]
+    
+    # Fetch all relevant line items in one query
+    line_items_map: Dict[uuid.UUID, LineItem] = {
+        li.id: li for li in session.scalars(
+            select(LineItem).where(LineItem.id.in_(line_item_ids))
+        ).all()
+    }
+
+    # Fetch consumed quantities for purchase items if needed (only if decreasing)
+    consumed_quantities: Dict[uuid.UUID, int] = {}
+    if transaction_type == TransactionType.PURCHASE:
+        purchase_items_to_check = [
+            spec.line_item_id for spec in updates 
+            if spec.line_item_id in line_items_map and spec.quantity < line_items_map[spec.line_item_id].quantity
+        ]
+        if purchase_items_to_check:
+            # Aggregate consumed quantity per purchase line item
+            consumption_sums = session.execute(
+                select(
+                    LineItemConsumption.purchase_line_item_id,
+                    func.sum(LineItemConsumption.quantity).label('consumed_total')
+                )
+                .where(LineItemConsumption.purchase_line_item_id.in_(purchase_items_to_check))
+                .group_by(LineItemConsumption.purchase_line_item_id)
+            ).all()
+            consumed_quantities = {row.purchase_line_item_id: row.consumed_total for row in consumption_sums}
+
+
+    for spec in updates:
+        line_item_id = spec.line_item_id
+        new_quantity = spec.quantity
+        new_unit_price = spec.unit_price_amount
+
+        line_item = line_items_map.get(line_item_id)
+        
+        # Should not happen if caller logic is correct, but defensive check
+        if not line_item:  
+            # Maybe log a warning here? Or raise? For now, skip.
+            continue 
+
+        original_quantity = line_item.quantity
+        quantity_delta = new_quantity - original_quantity
+
+        # --- Quantity Change Logic ---
+        if quantity_delta != 0:
+            match transaction_type:
+                case TransactionType.PURCHASE:
+                    # Check for decrease below consumed quantity
+                    if quantity_delta < 0:
+                        consumed = consumed_quantities.get(line_item_id, 0)
+                        if new_quantity < consumed:
+                            raise InsufficientInventoryError(
+                                f"Cannot reduce quantity of purchase line item {line_item_id} "
+                                f"to {new_quantity}. Already consumed: {consumed}."
+                            )
+                    
+                    # Update remaining quantity
+                    if line_item.remaining_quantity is not None: # Should always be true for PURCHASE
+                         # Ensure remaining_quantity doesn't go below zero, although the check above should prevent this for decreases
+                        line_item.remaining_quantity = max(0, line_item.remaining_quantity + quantity_delta)
+                    else:
+                        # This case shouldn't happen for a purchase item, but defensively set it
+                        line_item.remaining_quantity = max(0, new_quantity - consumed_quantities.get(line_item_id, 0))
+
+                    line_item.quantity = new_quantity
+
+                case TransactionType.SALE:
+                    # Updating sale quantity requires reprocessing consumptions, which is complex.
+                    # For now, disallow quantity changes for sales.
+                    raise NotImplementedError(
+                        "Changing the quantity of a SALE line item is not supported "
+                        "due to inventory reprocessing complexity."
+                    )
+                case _:
+                    assert_never(transaction_type)
+
+        # --- Price Change Logic ---
+        if line_item.unit_price_amount != new_unit_price:
+            line_item.unit_price_amount = new_unit_price
+
+        # Line item is already part of the session, modifications are tracked.
+        # No explicit session.add(line_item) needed unless it was detached.
 
 def get_total_sales_profit(session: Session) -> Tuple[int, Decimal]:
     """

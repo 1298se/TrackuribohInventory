@@ -1,18 +1,18 @@
 from dataclasses import dataclass
 import uuid
-from typing import List
+from typing import List, assert_never, Optional, TypedDict, cast
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-# Import the API schema for the entry point function for now
 # Import core DAO types
 from core.dao.transaction import (
-    LineItemDataDict
+    LineItemData
 )
 from core.dao.skus import get_skus_by_id
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
 # Import the new core schema type
+from core.models import TransactionType, SKU
 
 @dataclass
 class LineItemInput:
@@ -24,8 +24,18 @@ async def calculate_weighted_unit_prices(
     catalog_service: TCGPlayerCatalogService,
     line_items: List[LineItemInput],
     total_amount: Decimal,
-) -> list[LineItemDataDict]:
-    """Calculate unit prices by distributing total_amount based on market price weighting."""
+) -> list[LineItemData]:
+    """Calculates unit prices for line items based on market price weighting.
+
+    Args:
+        session: DB session.
+        catalog_service: TCGPlayer service.
+        line_items: List of input line items (sku_id, quantity).
+        total_amount: Total amount to distribute.
+
+    Returns:
+        List of LineItemData objects with calculated unit prices.
+    """
     # Get SKU information for price calculation
     sku_id_to_tcgplayer_id = {
         sku.id: sku.tcgplayer_id
@@ -63,7 +73,7 @@ async def calculate_weighted_unit_prices(
     )
 
     # Prepare line items data with calculated prices
-    line_items_data: list[LineItemDataDict] = []
+    line_items_data: list[LineItemData] = []
 
     # Calculate quantities
     total_priced_items_units = sum(item.quantity for item, _ in items_with_prices) if items_with_prices else 0
@@ -93,17 +103,17 @@ async def calculate_weighted_unit_prices(
     for item, sku_price in items_with_prices:
         tcgplayer_id = sku_id_to_tcgplayer_id.get(item.sku_id)
 
-        line_items_data.append({
-            "sku_id": item.sku_id,
-            "quantity": item.quantity,
-            "unit_price_amount": tcgplayer_id_to_lowest_price.get(tcgplayer_id, Decimal(0)) * ratio_for_priced_items,
-        })
+        line_items_data.append(LineItemData(
+            sku_id=item.sku_id,
+            quantity=item.quantity,
+            unit_price_amount=tcgplayer_id_to_lowest_price.get(tcgplayer_id, Decimal(0)) * ratio_for_priced_items,
+        ))
 
     for item in items_without_prices:
-        line_items_data.append({
-            "sku_id": item.sku_id,
-            "quantity": item.quantity,
-            "unit_price_amount": unpriced_unit_price,
-        })
+        line_items_data.append(LineItemData(
+            sku_id=item.sku_id,
+            quantity=item.quantity,
+            unit_price_amount=unpriced_unit_price,
+        ))
         
     return line_items_data

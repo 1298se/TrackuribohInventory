@@ -34,8 +34,10 @@ def upsert(model: Type[Base], values: list[dict], index_elements=None) -> Insert
 
 def get_db_session() -> Generator[Session, None, None]:
     """
-    You should still explicitly commit
-    :return:
+    Get a database session. You must explicitly begin/commit/rollback transactions.
     """
-    with SessionLocal() as session:
+    session = SessionLocal()
+    try:
         yield session
+    finally:
+        session.close()
