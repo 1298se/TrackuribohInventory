@@ -115,7 +115,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     })
 
     // Use useFieldArray to manage the array of line items
-    const { fields, append, remove } = useFieldArray({
+    const { fields, remove, prepend } = useFieldArray({
         control: form.control,
         name: "line_items",
     })
@@ -688,7 +688,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
         if (product.skus && product.skus.length > 0) {
             const selectedSku = product.skus[0];
             // Create a new line item with the selected product
-            append({
+            prepend({
                 // This will be treated as a new line item when saving
                 id: undefined,
                 sku: {
