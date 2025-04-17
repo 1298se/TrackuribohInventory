@@ -1,10 +1,10 @@
 import { useTransactions, useDeleteTransactions } from "./api"
-import { DataTable } from "../inventory/data-table"
+import { DataTable } from "../../components/data-table"
 import { TransactionResponse } from "./schemas"
 import { Skeleton } from "@/components/ui/skeleton"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { type Column } from "../inventory/data-table"
+import { type Column } from "../../components/data-table"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -181,20 +181,12 @@ export function TransactionTable() {
     // Get initial query from URL or default to empty string
     const initialQuery = searchParams.get('q') || "";
 
-    // State to manage the *input field value* separately
-    const [searchInput, setSearchInput] = useState(initialQuery);
-    
     // State for row selection remains the same
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({}) //manage your own row selection state
     
     // Fetch data based on the query *from the URL*
     const { data, isLoading, mutate } = useTransactions(initialQuery)
     const deleteMutation = useDeleteTransactions()
-
-    // Effect to update the input field if the URL changes (e.g., back/forward)
-    useEffect(() => {
-        setSearchInput(initialQuery);
-    }, [initialQuery]);
 
     // Handler to update URL when search is submitted
     const handleSearchSubmit = useCallback((query: string) => {
@@ -261,10 +253,9 @@ export function TransactionTable() {
                 onRowClick={(row) => router.push(`/transactions/${row.original.id}`)}
                 filterProps={{
                     placeholder: "Search by counterparty or product name...",
-                    // Pass the controlled input value and change handler
-                    inputValue: searchInput,
-                    onInputChange: setSearchInput,
-                    // Pass the handler that updates the URL
+                    // Pass initialValue instead of inputValue and onInputChange
+                    initialValue: initialQuery,
+                    // Keep onFilterSubmit
                     onFilterSubmit: handleSearchSubmit
                 }}
             />

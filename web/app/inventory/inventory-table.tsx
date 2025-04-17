@@ -1,13 +1,13 @@
 import { CellContext, ColumnDef } from "@tanstack/react-table"
 import { useInventory, useInventoryCatalogs } from "./api"
-import { DataTable  } from "./data-table"
+import { DataTable  } from "../../components/data-table"
 import { InventoryItemResponse } from "./schemas"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Package2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
-import { type Column } from "./data-table"
+import { type Column } from "../../components/data-table"
 import { SKUDisplay } from "@/components/ui/sku-display"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { useState, useEffect, useCallback } from "react"
@@ -166,7 +166,8 @@ export function InventoryTable() {
     const initialCatalogId = searchParams.get('catalog_id');
 
     // State to manage the input field value (controlled by DataTable)
-    const [searchInput, setSearchInput] = useState(initialQuery);
+    // No longer needed - DataTable handles this internally
+    // const [searchInput, setSearchInput] = useState(initialQuery);
     const [selectedCatalogId, setSelectedCatalogId] = useState(initialCatalogId);
 
     // Fetch catalogs for dropdown
@@ -175,15 +176,16 @@ export function InventoryTable() {
     // Fetch data based on the query and catalog_id from the URL params
     const { data, isLoading, error } = useInventory(initialQuery, selectedCatalogId);
 
-    // Effect to update the input field if the URL changes (e.g., back/forward)
+    // Effect to update the input field if the URL changes is no longer needed for search input
+    // We only need to keep the part for catalog ID
     useEffect(() => {
-        if (initialQuery !== searchInput) {
-            setSearchInput(initialQuery);
-        }
+        // if (initialQuery !== searchInput) {
+        //     setSearchInput(initialQuery);
+        // }
         if (initialCatalogId !== selectedCatalogId) {
             setSelectedCatalogId(initialCatalogId);
         }
-    }, [initialQuery, initialCatalogId]);
+    }, [initialCatalogId]);  // Remove initialQuery from dependencies
 
     // Handler to update URL when filter is submitted via DataTable
     const handleFilterSubmit = useCallback((query: string) => {
@@ -222,8 +224,10 @@ export function InventoryTable() {
 
     const filterProps = {
         placeholder: "Search by name, set, rarity...",
-        inputValue: searchInput,
-        onInputChange: setSearchInput,
+        // Change inputValue to initialValue
+        initialValue: initialQuery,
+        // Remove onInputChange
+        // onInputChange: setSearchInput,
         onFilterSubmit: handleFilterSubmit,
     };
 

@@ -13,7 +13,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectProductDialog } from "../inventory/select-product-dialog";
 import { ColumnDef } from "@tanstack/react-table";
-import { DataTable } from "../inventory/data-table";
+import { DataTable } from "../../components/data-table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateTransaction } from "./api";
 import { ProductWithSetAndSKUsResponseSchema, ProductWithSetAndSKUsResponse } from "../inventory/schemas";
