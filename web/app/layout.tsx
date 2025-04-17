@@ -2,7 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/app-sidebar';
+import { AppSidebar } from '@/app/app-sidebar';
 
 export const metadata: Metadata = {
   title: 'Create Next App',

@@ -8,7 +8,6 @@ export default function TransactionsPage() {
   const router = useRouter()
   return (
     <div className="container space-y-4">
-      <Button onClick={() => {router.push("/transactions/new")}}>Add new transaction</Button>
       <TransactionTable />
     </div>
   )

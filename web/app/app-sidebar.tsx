@@ -1,4 +1,8 @@
-import { Package2, LayoutGrid, CircleDollarSign } from "lucide-react"
+"use client"
+
+import { Package2, LayoutGrid, CircleDollarSign, Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +15,8 @@ import {
 } from "@/components/ui/sidebar"
 
 export function AppSidebar() {
+  const router = useRouter()
+
   return (
     <Sidebar>
       <SidebarContent>
@@ -33,6 +39,15 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Portfolio</SidebarGroupLabel>
           <SidebarGroupContent>
+            <Button 
+              className="justify-start mb-2"
+              variant="default"
+              onClick={() => router.push("/transactions/new")}
+            >
+              <Plus className="mr-2 h-4 w-4" /> 
+              Add Transaction
+            </Button>
+            
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
