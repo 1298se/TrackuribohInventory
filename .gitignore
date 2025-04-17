@@ -62,3 +62,6 @@ terraform.tfvars
 
 # Terraform working directory (contains downloaded providers, modules, etc.)
 terraform/.terraform/
+
+# Tmp directory
+.tmp/
