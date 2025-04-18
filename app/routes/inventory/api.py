@@ -52,46 +52,41 @@ def get_inventory(
     catalog_id: uuid.UUID | None = None,
 ):
     inventory_query = query_inventory_items()
+    required_joins = {} # Use dict keys for deduplication and insertion order preservation (Python 3.7+)
+                        # Values store the (target, onclause) tuple for the join.
     
-    # Add catalog filter if provided
+    # Define join conditions once
+    product_join = (Product, SKU.product_id == Product.id)
+    set_join = (Set, Product.set_id == Set.id)
+    condition_join = (Condition, SKU.condition_id == Condition.id)
+    printing_join = (Printing, SKU.printing_id == Printing.id)
+
+    # Determine required joins based on parameters
     if catalog_id:
-        inventory_query = (
-            inventory_query
-            .join(Product, SKU.product_id == Product.id)
-            .join(Set, Product.set_id == Set.id)
-            .where(Set.catalog_id == catalog_id)
-        )
+        required_joins[Product] = product_join
+        required_joins[Set] = set_join
+        # Apply catalog filter immediately as it doesn't depend on other joins yet
+        inventory_query = inventory_query.where(Set.catalog_id == catalog_id)
         
+    if query:
+        required_joins[Product] = product_join
+        required_joins[Set] = set_join
+        required_joins[Condition] = condition_join
+        required_joins[Printing] = printing_join
+        
+    # Apply all required joins uniquely based on insertion order
+    for target, onclause in required_joins.values():
+        inventory_query = inventory_query.join(target, onclause)
+            
     # Apply full-text search if query parameter is present
     if query:
-        # Join necessary tables for searching (if not already joined by catalog filter)
-        # A bit complex to check if already joined, so just join again for simplicity.
-        # SQLAlchemy might optimize this.
-        inventory_query = inventory_query.join( 
-            Product, SKU.product_id == Product.id
-        ).join(
-            Set, Product.set_id == Set.id
-        ).join(
-            Condition, SKU.condition_id == Condition.id
-        ).join(
-            Printing, SKU.printing_id == Printing.id
-        )
-
-        # Use utility function to create base combined TS vector (Product, Set)
+        # FTS logic relies on the previously applied joins
         combined_ts_vector = create_product_set_fts_vector()
-
-        # Condition Name (Weight D)
         condition_name_ts = func.setweight(func.to_tsvector('english', func.coalesce(Condition.name, '')), 'D')
         combined_ts_vector = combined_ts_vector.op('||')(condition_name_ts)
-
-        # Printing Name (Weight D)
         printing_name_ts = func.setweight(func.to_tsvector('english', func.coalesce(Printing.name, '')), 'D')
         combined_ts_vector = combined_ts_vector.op('||')(printing_name_ts)
-        
-        # Use utility function to create TS query
         ts_query_func = create_ts_query(query)
-        
-        # Apply FTS filter
         inventory_query = inventory_query.where(combined_ts_vector.op('@@')(ts_query_func))
         
     inventory_query = inventory_query.options(*SKUWithProductResponseSchema.get_load_options())
