@@ -266,6 +266,7 @@ export function InventoryTable() {
                 data={data?.inventory_items ?? []}
                 loading={isLoading}
                 filterProps={filterProps} // Pass filter props
+                onRowClick={(row) => router.push(`/inventory/${row.original.sku.id}`)}
              />
         </div>
     )

@@ -17,7 +17,7 @@ import {
     WeightedPriceCalculationResponseSchema
 } from "./schemas";
 import { z } from "zod";
-import { ProductSearchResponse } from "../inventory/schemas";
+import { ProductSearchResponse } from "../catalog/schemas";
 import { MoneyAmountSchema } from "../schemas";
 
 // Create reusable mutation functions using our helper

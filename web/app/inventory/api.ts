@@ -1,6 +1,16 @@
 import { z } from "zod";
 import useSWR from "swr";
-import { InventoryResponse, InventoryResponseSchema, ProductSearchResponse, ProductSearchResponseSchema, CatalogsResponse, CatalogsResponseSchema } from "./schemas";
+import useSWRMutation from "swr/mutation";
+import { 
+    InventoryItemDetailResponseSchema, InventoryItemDetailResponse, 
+    InventoryItemUpdateRequest, InventoryItemUpdateRequestSchema, 
+    InventoryResponse, InventoryResponseSchema, 
+    InventorySKUTransactionsResponse, InventorySKUTransactionsResponseSchema
+} from "./schemas";
+import { 
+    ProductSearchResponseSchema, 
+    CatalogsResponseSchema, CatalogsResponse 
+} from "../catalog/schemas";
 import { API_URL, fetcher, HTTPMethod, createMutation } from "../api/fetcher";
 
 export function useInventory(query: string | null = null, catalog_id: string | null = null) {
@@ -69,5 +79,49 @@ export function useInventoryCatalogs() {
       schema: CatalogsResponseSchema 
     })
   );
+}
+
+export function useInventoryItem(inventoryItemId: string) {
+  return useSWR(
+    inventoryItemId ? `/inventory/${inventoryItemId}` : null,
+    (path) => fetcher({
+      url: `${API_URL}${path}`,
+      method: HTTPMethod.GET,
+      schema: InventoryItemDetailResponseSchema
+    })
+  );
+}
+
+export function useUpdateInventoryItem() {
+  return useSWRMutation<
+    InventoryItemDetailResponse,
+    Error,
+    string,
+    { id: string; data: InventoryItemUpdateRequest }
+  >(
+    `${API_URL}/inventory`,
+    async (_url: string, { arg }: { arg: { id: string; data: InventoryItemUpdateRequest } }) => {
+      return fetcher({
+        url: `${API_URL}/inventory/${arg.id}`,
+        method: HTTPMethod.PATCH,
+        body: arg.data,
+        schema: InventoryItemDetailResponseSchema
+      });
+    }
+  );
+}
+
+// Hook to fetch transaction history for a specific SKU
+export function useInventoryItemTransactions(skuId: string | null) {
+    const key = skuId ? `/inventory/${skuId}/transactions` : null;
+  
+    return useSWR<InventorySKUTransactionsResponse>(
+        key,
+        (path: string) => fetcher({
+            url: `${API_URL}${path}`,
+            method: HTTPMethod.GET,
+            schema: InventorySKUTransactionsResponseSchema // Ensure validation against the correct schema
+        })
+    );
 }
 

@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { MoneyAmountSchema, MoneySchema } from "../schemas"
-import { SKUWithProductResponseSchema } from "../inventory/schemas"
+import { SKUWithProductResponseSchema } from "../catalog/schemas"
 
 /**
  * TransactionTypeSchema
