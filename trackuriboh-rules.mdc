@@ -198,7 +198,7 @@ export type InventoryResponse = z.infer<typeof InventoryResponseSchema>
 
 ## Dependencies
 
-1. Python dependencies are managed with Poetry (pyproject.toml)
+1. Python dependencies are defined in `pyproject.toml` and managed with uv.
 2. Frontend dependencies are managed with npm (package.json)
 3. Specify exact versions for critical dependencies
 

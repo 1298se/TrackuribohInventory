@@ -1,0 +1,32 @@
+# .pre-commit-config.yaml
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+-   repo: local
+    hooks:
+      - id: update-requirements-lock
+        name: Update requirements.lock
+        # Regenerate requirements.lock if pyproject.toml changed
+        entry: bash -c 'uv pip compile pyproject.toml -o requirements.lock && git add requirements.lock'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: ^pyproject\.toml$ # Only run if pyproject.toml itself is changing
+
+      - id: update-requirements-dev-lock
+        name: Update requirements-dev.lock
+        # Regenerate requirements-dev.lock if pyproject.toml changed
+        entry: bash -c 'uv pip compile pyproject.toml --extra dev -o requirements-dev.lock && git add requirements-dev.lock'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: ^pyproject\.toml$ # Only run if pyproject.toml itself is changing
+
+# You can add other hooks here, e.g., for Ruff:
+# -   repo: https://github.com/astral-sh/ruff-pre-commit
+#     # Find the latest tag/rev: https://github.com/astral-sh/ruff-pre-commit/releases
+#     rev: v0.5.5
+#     hooks:
+#       - id: ruff
+#         args: [--fix]
+#       - id: ruff-format 
