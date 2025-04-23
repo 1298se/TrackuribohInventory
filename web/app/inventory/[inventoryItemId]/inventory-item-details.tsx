@@ -13,6 +13,7 @@ import { SKUDisplay } from "@/components/ui/sku-display"
 import { ProductImage } from "@/components/ui/product-image"
 import { cn } from "@/lib/utils"
 import { MetricCard } from "@/components/ui/metric-card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface InventoryItemDetailsProps {
     inventoryItemId: string
@@ -103,80 +104,117 @@ export function InventoryItemDetails({ inventoryItemId }: InventoryItemDetailsPr
 
     return (
         <div className="space-y-6">
-            {/* Header Section */}
-            <Card>
-                <CardContent className="pt-6">
-                    {itemLoading ? (
-                        <div className="flex items-start gap-6">
-                            <Skeleton className="h-32 w-24 rounded-md flex-shrink-0" />
-                            <div className="space-y-2 flex-grow pt-1"> 
-                                <Skeleton className="h-6 w-3/4" />
-                                <Skeleton className="h-5 w-1/2" />
-                                <Skeleton className="h-4 w-1/4" />
-                                <Skeleton className="h-4 w-3/4" />
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
-                            <ProductImage
-                                src={inventoryItem!.sku.product.image_url}
-                                alt={inventoryItem!.sku.product.name}
-                                containerClassName="h-32 w-24 flex-shrink-0 rounded-md overflow-hidden"
-                            />
-                            <div className="space-y-1 flex-grow">
-                                <h1 className="text-2xl font-semibold leading-tight">
-                                    {inventoryItem!.sku.product.name}
-                                </h1>
-                                <div className="text-sm text-muted-foreground">
-                                    <div className="text-base font-medium text-foreground">{inventoryItem!.sku.product.set.name}</div>
-                                    <div className="pt-0.5">{inventoryItem!.sku.product.rarity}</div>
-                                    <div className="pt-0.5">
-                                        {[inventoryItem!.sku.condition?.name, inventoryItem!.sku.printing?.name, inventoryItem!.sku.language?.name]
-                                            .filter(Boolean)
-                                            .join(" • ")}
-                                    </div>
+            {/* Combined Overview Section */}
+            <div className="flex flex-col lg:flex-row gap-3">
+                {/* Column 1: Item Identification Card */}
+                <Card className="lg:w-1/3 flex-shrink-0">
+                    <CardContent className="pt-4">
+                        {itemLoading ? (
+                            <div className="flex flex-col items-center gap-2">
+                                <Skeleton className="h-32 w-24 rounded-md" />
+                                <div className="space-y-1 w-full text-center">
+                                    <Skeleton className="h-5 w-3/4 mx-auto" />
+                                    <Skeleton className="h-4 w-1/2 mx-auto" />
+                                    <Skeleton className="h-4 w-1/4 mx-auto" />
+                                    <Skeleton className="h-4 w-3/4 mx-auto" />
                                 </div>
                             </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                        ) : (
+                            <div className="flex flex-col items-center gap-2">
+                                <ProductImage
+                                    src={inventoryItem!.sku.product.image_url}
+                                    alt={inventoryItem!.sku.product.name}
+                                    containerClassName="h-32 w-auto max-w-[8rem] rounded-md overflow-hidden"
+                                />
+                                <div className="space-y-1 text-center">
+                                    <h1 className="text-lg font-semibold leading-tight">
+                                        {inventoryItem!.sku.product.name}
+                                    </h1>
+                                    <div className="text-sm text-muted-foreground">
+                                        <div className="text-base font-medium text-foreground">{inventoryItem!.sku.product.set.name}</div>
+                                        <div className="pt-0.5">{inventoryItem!.sku.product.rarity}</div>
+                                        <div className="pt-0.5 text-xs">
+                                            {[inventoryItem!.sku.condition?.name, inventoryItem!.sku.printing?.name, inventoryItem!.sku.language?.name]
+                                                .filter(Boolean)
+                                                .join(" • ")}
+                                        </div>
+                                    </div>
+                                    {/* Quantity could also go here if needed */}
+                                    {/* <p className="text-sm font-medium pt-2">Quantity: {quantity}</p> */}
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
-            {/* Financial Snapshot Section */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <MetricCard
-                    isLoading={itemLoading}
-                    title="Quantity In Stock"
-                    value={quantity}
-                    subtitle="Units"
-                />
-                <MetricCard
-                    isLoading={itemLoading}
-                    title="Total Cost"
-                    value={formatCurrency(totalAcquisitionCost, currency)}
-                    subtitle={`Avg. ${formatCurrency(avgCostPerUnit, currency)} /unit`}
-                />
-                <MetricCard
-                    isLoading={itemLoading}
-                    title="Total Market Value"
-                    value={formatCurrency(totalMarketValue, currency)}
-                    subtitle={marketPricePerUnit !== undefined 
-                        ? `${formatCurrency(marketPricePerUnit, currency)} /unit market price` 
-                        : "Market price unavailable"}
-                />
-                <MetricCard
-                    isLoading={itemLoading}
-                    title="Unrealized Profit"
-                    value={formatCurrency(totalProfitLoss, currency)}
-                    subtitle={formattedPercentage ?? "Cost basis zero"}
-                />
+                {/* Column 2: Financial Snapshot Metrics */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-grow">
+                    <MetricCard
+                        isLoading={itemLoading}
+                        title="Quantity In Stock"
+                        value={quantity}
+                        subtitle="Units"
+                    />
+                    <MetricCard
+                        isLoading={itemLoading}
+                        title="Total Cost"
+                        value={formatCurrency(totalAcquisitionCost, currency)}
+                        subtitle={`Avg. ${formatCurrency(avgCostPerUnit, currency)} /unit`}
+                    />
+                    <MetricCard
+                        isLoading={itemLoading}
+                        title="Total Market Value"
+                        value={formatCurrency(totalMarketValue, currency)}
+                        subtitle={marketPricePerUnit !== undefined
+                            ? `${formatCurrency(marketPricePerUnit, currency)} /unit market price`
+                            : "Market price unavailable"}
+                    />
+                    <MetricCard
+                        isLoading={itemLoading}
+                        title="Unrealized Profit"
+                        value={formatCurrency(totalProfitLoss, currency)}
+                        subtitle={formattedPercentage ?? "Cost basis zero"}
+                    />
+                </div>
             </div>
 
-            <DataTable
-                columns={transactionColumns}
-                data={transactionsData?.items ?? []} 
-                loading={itemLoading || transactionsLoading}
-            />
+            {/* Detailed Information Tabs */}
+            <Tabs defaultValue="history" className="w-full">
+                <div className="flex justify-center">
+                    <TabsList>
+                        <TabsTrigger value="history">History</TabsTrigger>
+                        <TabsTrigger value="market">Market Data</TabsTrigger>
+                        <TabsTrigger value="details">Details</TabsTrigger>
+                    </TabsList>
+                </div>
+                <TabsContent value="history" className="mt-4">
+                    <DataTable
+                        columns={transactionColumns}
+                        data={transactionsData?.items ?? []}
+                        loading={itemLoading || transactionsLoading}
+                        // TODO: Add pagination/filtering if needed
+                    />
+                    {/* TODO: Add Listing History Table here */} 
+                    {/* TODO: Add Audit Trail Table here */} 
+                </TabsContent>
+                <TabsContent value="market" className="mt-4">
+                    <Card>
+                        <CardContent>
+                            {/* TODO: Implement Market Data components based on spec */}
+                            <p>Market data components (Chart, Trends, Prices) will go here.</p>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="details" className="mt-4">
+                     <Card>
+                        <CardContent>
+                            {/* TODO: Implement Details components (Grading, Notes) */}
+                            <p>Grading information and notes will go here.</p>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+
         </div>
     );
 } 
