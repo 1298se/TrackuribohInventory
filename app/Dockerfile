@@ -6,11 +6,11 @@ RUN pip install --no-cache-dir uv
 WORKDIR /code
 
 # Copy dependency definition and lock file first to leverage Docker layer caching
-COPY pyproject.toml requirements.lock ./
+COPY pyproject.toml uv.lock ./
 
 # Install dependencies using the lock file
 # This layer will be cached as long as the dependencies don't change
-RUN uv pip sync requirements.lock --system
+RUN uv pip sync uv.lock --system
 
 # Final stage - uses a slim image for the runtime
 FROM python:3.12-slim

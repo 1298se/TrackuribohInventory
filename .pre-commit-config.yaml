@@ -4,19 +4,10 @@
 repos:
 -   repo: local
     hooks:
-      - id: update-requirements-lock
-        name: Update requirements.lock
-        # Regenerate requirements.lock if pyproject.toml changed
-        entry: bash -c 'uv pip compile pyproject.toml -o requirements.lock && git add requirements.lock'
-        language: system
-        pass_filenames: false
-        stages: [commit]
-        files: ^pyproject\.toml$ # Only run if pyproject.toml itself is changing
-
-      - id: update-requirements-dev-lock
-        name: Update requirements-dev.lock
-        # Regenerate requirements-dev.lock if pyproject.toml changed
-        entry: bash -c 'uv pip compile pyproject.toml --extra dev -o requirements-dev.lock && git add requirements-dev.lock'
+      - id: update-uv-lock
+        name: Update uv.lock
+        # Regenerate uv.lock if pyproject.toml changed
+        entry: bash -c 'uv pip compile pyproject.toml -o uv.lock && git add uv.lock'
         language: system
         pass_filenames: false
         stages: [commit]

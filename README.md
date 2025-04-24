@@ -27,11 +27,8 @@ source .venv/bin/activate  # On Linux/macOS
 ### Install Dependencies
 
 ```bash
-# Install dependencies from requirements.txt
-uv pip install -r requirements.txt
-
-# Install dev dependencies (if you have any)
-uv pip install -r requirements-dev.txt  # If available
+# Install dependencies from the lock file for reproducibility
+uv pip sync uv.lock
 ```
 
 ### Update Dependencies
@@ -40,8 +37,8 @@ uv pip install -r requirements-dev.txt  # If available
 # Add a new package
 uv pip install package_name
 
-# Update requirements.txt after adding packages
-uv pip freeze > requirements-lock.txt
+# Re-resolve and regenerate the lock file
+uv pip compile pyproject.toml -o uv.lock
 ```
 
 ### Running the Application
@@ -50,6 +47,6 @@ uv pip freeze > requirements-lock.txt
 uvicorn app.main:app --reload
 ```
 
-## Migrated from Poetry
+## Lock file strategy
 
-This project was migrated from Poetry to uv. The requirements.txt file contains all necessary dependencies, and requirements-lock.txt contains the exact versions currently installed. 
+The authoritative lock file is `uv.lock`, committed to version control for deterministic builds. Other `requirements*.txt` files are no longer used. 

@@ -31,12 +31,12 @@ login:
 	@echo "Logging into ECR $(ECR_URL)..."
 	aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(ECR_URL)
 
-# Generate requirements-lock.txt if it doesn't exist
-.PHONY: ensure-lock-file
-ensure-lock-file:
-	@if [ ! -f requirements-lock.txt ]; then \
-		echo "Generating requirements-lock.txt..."; \
-		uv pip freeze > requirements-lock.txt; \
+# Generate uv.lock if it doesn't exist
+.PHONY: ensure-uv-lock
+ensure-uv-lock:
+	@if [ ! -f uv.lock ]; then \
+		echo "Generating uv.lock..."; \
+		uv pip compile pyproject.toml -o uv.lock; \
 	fi
 
 # Generic build function
@@ -67,11 +67,11 @@ endef
 
 # Build targets
 .PHONY: build-cron
-build-cron: ensure-lock-file
+build-cron: ensure-uv-lock
 	$(call build_image,cron,$(CRON_REPO))
 
 .PHONY: build-api
-build-api: ensure-lock-file
+build-api: ensure-uv-lock
 	$(call build_image,app,$(API_REPO))
 
 
@@ -104,13 +104,13 @@ push-api:
 
 # Local development targets (uv)
 .PHONY: setup
-setup:
+setup: ensure-uv-lock
 	uv venv
-	uv pip install -r requirements.txt
+	uv pip sync uv.lock
 
 .PHONY: update-deps
 update-deps:
-	uv pip freeze > requirements-lock.txt
+	uv pip compile pyproject.toml -o uv.lock
 
 .PHONY: run-local
 run-local:
