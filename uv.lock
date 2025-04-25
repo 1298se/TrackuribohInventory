@@ -41,11 +41,11 @@ frozenlist==1.6.0
     # via
     #   aiohttp
     #   aiosignal
-h11==0.14.0
+h11==0.16.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==1.0.8
+httpcore==1.0.9
     # via httpx
 httptools==0.6.4
     # via uvicorn
@@ -107,7 +107,7 @@ rich==14.0.0
     #   typer
 rich-toolkit==0.14.3
     # via fastapi-cli
-sentry-sdk==2.26.1
+sentry-sdk==2.27.0
     # via trackuriboh-inv (pyproject.toml)
 shellingham==1.5.4
     # via typer

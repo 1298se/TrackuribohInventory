@@ -231,7 +231,7 @@ export function TransactionTable() {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">Transactions</h2>
+                {/* Header removed; title managed by SiteHeader */}
                 <Button 
                     onClick={handleBulkDelete} 
                     disabled={selectedCount === 0}

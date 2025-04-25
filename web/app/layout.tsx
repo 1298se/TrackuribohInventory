@@ -1,8 +1,10 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/app/app-sidebar';
+import { SiteHeader } from '@/components/site-header';
+import { Card } from '@/components/ui/card';
 
 export const metadata: Metadata = {
   title: 'Create Next App',
@@ -19,10 +21,12 @@ export default function RootLayout({
       <body className="min-h-screen bg-background text-foreground antialiased">
         <SidebarProvider>
           <AppSidebar />
-          <main className="flex flex-1 flex-col gap-6 p-6">
-            <SidebarTrigger />
-            {children}
-          </main>
+          <div className="flex flex-1 flex-col">
+            <SiteHeader />
+            <main className="flex flex-1 flex-col p-6">
+              {children}
+            </main>
+          </div>
         </SidebarProvider>
       </body>
     </html>

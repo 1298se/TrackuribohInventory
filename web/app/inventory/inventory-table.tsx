@@ -1,5 +1,5 @@
 import { CellContext, ColumnDef } from "@tanstack/react-table"
-import { useInventory, useInventoryCatalogs } from "./api"
+import { useInventory } from "./api"
 import { DataTable  } from "../../components/data-table"
 import { InventoryItemResponse } from "./schemas"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,15 +10,13 @@ import { cn } from "@/lib/utils"
 import { type Column } from "../../components/data-table"
 import { SKUDisplay } from "@/components/ui/sku-display"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
-import { useState, useEffect, useCallback } from "react"
+import { useEffect, useCallback, useState } from "react"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
+import { useInventoryCatalogs } from "./api"
 
 const ImageLoading = () => <Skeleton className="h-16 w-16 rounded-md" />
 const ProductLoading = () => (
@@ -165,27 +163,20 @@ export function InventoryTable() {
     const initialQuery = searchParams.get('q') || "";
     const initialCatalogId = searchParams.get('catalog_id');
 
-    // State to manage the input field value (controlled by DataTable)
-    // No longer needed - DataTable handles this internally
-    // const [searchInput, setSearchInput] = useState(initialQuery);
     const [selectedCatalogId, setSelectedCatalogId] = useState(initialCatalogId);
 
-    // Fetch catalogs for dropdown
-    const { data: catalogsData, isLoading: catalogsLoading, error: catalogsError } = useInventoryCatalogs();
+    // Fetch catalogs for Tabs
+    const { data: catalogsData, isLoading: catalogsLoading } = useInventoryCatalogs();
 
-    // Fetch data based on the query and catalog_id from the URL params
+    // Fetch inventory data based on selected catalog
     const { data, isLoading, error } = useInventory(initialQuery, selectedCatalogId);
 
-    // Effect to update the input field if the URL changes is no longer needed for search input
-    // We only need to keep the part for catalog ID
+    // Sync selectedCatalogId when URL param changes (e.g., via back/forward)
     useEffect(() => {
-        // if (initialQuery !== searchInput) {
-        //     setSearchInput(initialQuery);
-        // }
-        if (initialCatalogId !== selectedCatalogId) {
-            setSelectedCatalogId(initialCatalogId);
-        }
-    }, [initialCatalogId]);  // Remove initialQuery from dependencies
+      if (initialCatalogId !== selectedCatalogId) {
+        setSelectedCatalogId(initialCatalogId);
+      }
+    }, [initialCatalogId]);
 
     // Handler to update URL when filter is submitted via DataTable
     const handleFilterSubmit = useCallback((query: string) => {
@@ -200,22 +191,23 @@ export function InventoryTable() {
         router.replace(`${pathname}${queryStr}`);
     }, [router, searchParams, pathname]);
 
-    // Handler for catalog dropdown changes
-    const handleCatalogChange = useCallback((value: string) => {
+    // Handler for catalog tab change
+    const handleCatalogChange = useCallback(
+      (value: string) => {
         const current = new URLSearchParams(Array.from(searchParams.entries()));
-        
         if (value === "all") {
-            current.delete('catalog_id');
-            setSelectedCatalogId(null);
+          current.delete("catalog_id");
+          setSelectedCatalogId(null);
         } else {
-            current.set('catalog_id', value);
-            setSelectedCatalogId(value);
+          current.set("catalog_id", value);
+          setSelectedCatalogId(value);
         }
-        
         const search = current.toString();
         const queryStr = search ? `?${search}` : "";
         router.replace(`${pathname}${queryStr}`);
-    }, [router, searchParams, pathname]);
+      },
+      [router, searchParams, pathname]
+    );
 
     // Handle potential error state from useInventory
     if (error) {
@@ -227,38 +219,31 @@ export function InventoryTable() {
         // Change inputValue to initialValue
         initialValue: initialQuery,
         // Remove onInputChange
-        // onInputChange: setSearchInput,
         onFilterSubmit: handleFilterSubmit,
     };
 
     return (
         <div className="space-y-4">
-             {/* Header with catalog dropdown */}
-             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-bold">Inventory</h2>
-                    <div className="w-[250px]">
-                        <Select
-                            value={selectedCatalogId || "all"}
-                            onValueChange={handleCatalogChange}
-                            disabled={catalogsLoading}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a catalog" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All</SelectItem>
-                                {catalogsData?.catalogs.map((catalog) => (
-                                    <SelectItem key={catalog.id} value={catalog.id}>
-                                        {catalog.display_name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                {/* Placeholder for potential future action buttons */}
-            </div>
+             {/* Catalog Tabs */}
+             <div className="flex items-center">
+               {catalogsLoading ? (
+                 <Skeleton className="h-10 w-[250px]" />
+               ) : (
+                 <Tabs
+                   value={selectedCatalogId || "all"}
+                   onValueChange={handleCatalogChange}
+                 >
+                   <TabsList>
+                     <TabsTrigger value="all">All</TabsTrigger>
+                     {catalogsData?.catalogs.map((catalog) => (
+                       <TabsTrigger key={catalog.id} value={catalog.id}>
+                         {catalog.display_name}
+                       </TabsTrigger>
+                     ))}
+                   </TabsList>
+                 </Tabs>
+               )}
+             </div>
 
              {/* DataTable is now rendered unconditionally */}
              <DataTable 
