@@ -2,7 +2,7 @@ from sqlalchemy import func, select, Select, CTE
 from typing import Optional, TypedDict
 from decimal import Decimal
 
-from core.models import SKU, SKULatestPriceData
+from core.models import SKU, SKULatestPriceData, Catalog, Set, Product
 from core.models.transaction import Transaction, LineItem
 
 
@@ -33,6 +33,23 @@ class InventoryQueryResultRow(TypedDict):
     total_quantity: int
     total_cost: Decimal
     latest_price_data: Optional[SKULatestPriceData]
+
+
+def query_inventory_catalogs() -> Select:
+    # Select only sku ids from the inventory items query as a subquery
+    sku_ids_subquery = query_inventory_items().with_only_columns(SKU.id).subquery()
+
+    # Find which catalogs these SKUs belong to using the subquery
+    catalogs_query = (
+        select(Catalog)
+        .distinct()
+        .join(Set, Catalog.id == Set.catalog_id)
+        .join(Product, Set.id == Product.set_id)
+        .join(SKU, Product.id == SKU.product_id)
+        .where(SKU.id.in_(sku_ids_subquery))
+        .order_by(Catalog.display_name)
+    )
+    return catalogs_query
 
 
 def query_inventory_items() -> Select:

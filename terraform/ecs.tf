@@ -203,6 +203,81 @@ resource "aws_ecs_task_definition" "update_inventory_prices_task" {
   }
 }
 
+# --- Define ECS Task Definition for Inventory Snapshots ---
+resource "aws_ecs_task_definition" "snapshot_inventory_task" {
+  family                   = "${var.project_name}-snapshot-inventory"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.task_cpu
+  memory                   = var.task_memory
+  task_role_arn            = aws_iam_role.cron_task_role.arn
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "${var.project_name}-snapshot-inventory-container"
+      image     = local.image_uri
+      essential = true
+
+      # Specify the command to run the snapshot script
+      command = ["python", "-m", "cron.tasks.snapshot_inventory"]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.cron_log_group.name
+          "awslogs-region"        = data.aws_region.current.name
+          "awslogs-stream-prefix" = "ecs-snapshot" # Prefix for easier log filtering
+        }
+      }
+
+      # Use the same secrets as other tasks
+      secrets = [
+        {
+          name      = "db_username"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
+        },
+        {
+          name      = "db_password"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "db_endpoint"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "db_port"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+        },
+        {
+          name      = "db_name"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
+        },
+        {
+          name      = "tcgplayer_client_id"
+          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
+        },
+        {
+          name      = "tcgplayer_client_secret"
+          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+        }
+      ]
+
+      environment = [
+        {
+          name = "ENV"
+          value = "PROD"
+        }
+      ]
+    }
+  ])
+
+  tags = {
+    Name      = "${var.project_name}-snapshot-inventory-task-def"
+    ManagedBy = "Terraform"
+  }
+}
+
 # --- Outputs ---
 output "ecs_cluster_id" {
   description = "ID of the ECS Cluster"
@@ -217,6 +292,11 @@ output "ecs_task_definition_arn" {
 output "ecs_task_definition_inventory_prices_arn" {
   description = "ARN of the Inventory Update ECS Task Definition"
   value       = aws_ecs_task_definition.update_inventory_prices_task.arn
+}
+
+output "ecs_task_definition_snapshot_inventory_arn" {
+  description = "ARN of the Inventory Snapshot ECS Task Definition"
+  value       = aws_ecs_task_definition.snapshot_inventory_task.arn
 }
 
 output "cloudwatch_log_group_name" {

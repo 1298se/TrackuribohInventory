@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from app.routes.catalog.schemas import SKUWithProductResponseSchema
 from app.routes.utils import MoneySchema, ORMModel
 from core.models.transaction import TransactionType
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 
 
@@ -40,3 +40,11 @@ class InventoryMetricsResponseSchema(BaseModel):
     unrealised_profit: float
     lifetime_profit: float
     currency: str = "USD"
+
+
+# New schema for inventory history items
+class InventoryHistoryItemSchema(BaseModel):
+    snapshot_date: date
+    total_cost: float
+    total_market_value: float
+    unrealised_profit: float

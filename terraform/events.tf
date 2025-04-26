@@ -63,6 +63,38 @@ resource "aws_cloudwatch_event_target" "ecs_inventory_task_target" {
   }
 }
 
+# --- Snapshot Inventory Schedule (Daily) ---
+resource "aws_cloudwatch_event_rule" "snapshot_inventory_schedule" {
+  name                = "${var.project_name}-snapshot-inventory-rule"
+  description         = "Triggers the inventory snapshot task daily at 00:05 UTC"
+  schedule_expression = "cron(5 0 * * ? *)"  # Runs at 00:05 UTC daily
+
+  tags = {
+    Name      = "${var.project_name}-snapshot-inventory-rule"
+    ManagedBy = "Terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "ecs_snapshot_inventory_target" {
+  rule      = aws_cloudwatch_event_rule.snapshot_inventory_schedule.name
+  arn       = aws_ecs_cluster.cron_cluster.arn
+  role_arn  = aws_iam_role.event_bridge_role.arn
+  target_id = "${var.project_name}-snapshot-inventory-target"
+
+  ecs_target {
+    launch_type         = "FARGATE"
+    task_count          = 1
+    task_definition_arn = aws_ecs_task_definition.snapshot_inventory_task.arn
+    platform_version    = "LATEST"
+
+    network_configuration {
+      subnets          = var.private_subnet_ids
+      security_groups  = var.task_security_group_ids
+      assign_public_ip = true
+    }
+  }
+}
+
 # --- IAM Role for EventBridge to start ECS tasks ---
 # EventBridge needs permissions to run tasks on ECS
 resource "aws_iam_role" "event_bridge_role" {
@@ -100,7 +132,8 @@ resource "aws_iam_policy" "event_bridge_policy" {
         # Updated Resource to include BOTH task definition ARNs
         Resource = [
             aws_ecs_task_definition.update_catalog_task.arn,
-            aws_ecs_task_definition.update_inventory_prices_task.arn
+            aws_ecs_task_definition.update_inventory_prices_task.arn,
+            aws_ecs_task_definition.snapshot_inventory_task.arn
         ],
         Condition = {
           ArnEquals = {
