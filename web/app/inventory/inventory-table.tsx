@@ -21,6 +21,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryCatalogs } from "./api";
 import { InventoryMetricCard } from "@/components/inventory-metric-card";
 import { useInventoryMetrics } from "./api";
+import { InventoryHistoryGraph } from "./inventory-history-graph";
 
 const ImageLoading = () => <Skeleton className="h-16 w-16 rounded-md" />;
 const ProductLoading = () => (
@@ -286,6 +287,7 @@ export function InventoryTable() {
           isLoading={metricLoading}
         />
       </div>
+      <InventoryHistoryGraph catalogId={selectedCatalogId} />
       {/* Catalog Tabs */}
       <div className="flex items-center">
         {catalogsLoading ? (

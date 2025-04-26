@@ -110,3 +110,12 @@ export const InventoryMetricsResponseSchema = z.object({
 export type InventoryMetricsResponse = z.infer<
   typeof InventoryMetricsResponseSchema
 >;
+
+export const InventoryHistoryItemSchema = z.object({
+  snapshot_date: z.string(),
+  total_cost: z.number(),
+  total_market_value: z.number(),
+  unrealised_profit: z.number(),
+});
+
+export type InventoryHistoryItem = z.infer<typeof InventoryHistoryItemSchema>;

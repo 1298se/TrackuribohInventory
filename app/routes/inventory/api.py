@@ -5,6 +5,7 @@ from sqlalchemy import select, desc
 from typing import List, TypedDict
 from uuid import UUID
 from decimal import Decimal
+from datetime import date
 
 from app.routes.catalog.schemas import (
     SKUWithProductResponseSchema,
@@ -34,6 +35,38 @@ from core.inventory.service import get_inventory_metrics, get_inventory_history
 router = APIRouter(
     prefix="/inventory",
 )
+
+
+# -------------------------------------------------------------------------
+# Inventory History endpoint
+# -------------------------------------------------------------------------
+
+
+@router.get("/history", response_model=list[InventoryHistoryItemSchema])
+def get_inventory_history_endpoint(
+    catalog_id: UUID | None = None,
+    days: int | None = None,
+    session: Session = Depends(get_db_session),
+):
+    """Return historical inventory valuation snapshots.
+
+    If ``catalog_id`` is omitted the response aggregates across catalogues. When
+    ``days`` is omitted, all available history is returned.
+    """
+
+    # 1) Load persisted end-of-day snapshots
+    history = get_inventory_history(session=session, catalog_id=catalog_id, days=days)
+    # 2) Fetch live metrics for today
+    metrics = get_inventory_metrics(session=session, catalog_id=catalog_id)
+    # 3) Build today's snapshot row
+    today_snapshot = InventoryHistoryItemSchema(
+        snapshot_date=date.today(),
+        total_cost=metrics["total_inventory_cost"],
+        total_market_value=metrics["total_market_value"],
+        unrealised_profit=metrics["unrealised_profit"],
+    )
+    # 4) Return combined history
+    return [*history, today_snapshot]
 
 
 @router.get("/metrics", response_model=InventoryMetricsResponseSchema)
@@ -251,23 +284,3 @@ def get_sku_transaction_history(
         )
 
     return InventorySKUTransactionsResponseSchema(items=history_items, total=total)
-
-
-# -------------------------------------------------------------------------
-# Inventory History endpoint
-# -------------------------------------------------------------------------
-
-
-@router.get("/history", response_model=list[InventoryHistoryItemSchema])
-def get_inventory_history_endpoint(
-    catalog_id: UUID | None = None,
-    days: int | None = None,
-    session: Session = Depends(get_db_session),
-):
-    """Return historical inventory valuation snapshots.
-
-    If ``catalog_id`` is omitted the response aggregates across catalogues. When
-    ``days`` is omitted, all available history is returned.
-    """
-
-    return get_inventory_history(session=session, catalog_id=catalog_id, days=days)

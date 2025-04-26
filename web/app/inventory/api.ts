@@ -12,6 +12,8 @@ import {
   InventorySKUTransactionsResponseSchema,
   InventoryMetricsResponse,
   InventoryMetricsResponseSchema,
+  InventoryHistoryItemSchema,
+  InventoryHistoryItem,
 } from "./schemas";
 import {
   ProductSearchResponseSchema,
@@ -153,6 +155,29 @@ export function useInventoryMetrics(catalog_id: string | null = null) {
         params: queryParams,
         method: HTTPMethod.GET,
         schema: InventoryMetricsResponseSchema,
+      });
+    },
+  );
+}
+
+export function useInventoryHistory(
+  catalog_id: string | null = null,
+  days: number = 7,
+) {
+  const params: { [key: string]: string } = { days: days.toString() };
+  if (catalog_id) {
+    params.catalog_id = catalog_id;
+  }
+
+  return useSWR<InventoryHistoryItem[]>(
+    ["/inventory/history", params],
+    (args: [string, Record<string, string>]) => {
+      const [path, queryParams] = args;
+      return fetcher({
+        url: `${API_URL}${path}`,
+        params: queryParams,
+        method: HTTPMethod.GET,
+        schema: z.array(InventoryHistoryItemSchema),
       });
     },
   );
