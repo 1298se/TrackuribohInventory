@@ -31,3 +31,11 @@ class InventorySKUTransactionLineItemSchema(ORMModel):
 class InventorySKUTransactionsResponseSchema(BaseModel):
     items: list[InventorySKUTransactionLineItemSchema]
     total: int
+
+
+class InventoryMetricsResponseSchema(BaseModel):
+    number_of_items: int
+    total_inventory_cost: float
+    total_market_value: float
+    unrealised_profit: float
+    currency: str = "USD"

@@ -1,7 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, desc
 from typing import List, TypedDict
 from uuid import UUID
 from decimal import Decimal
@@ -20,6 +20,7 @@ from app.routes.inventory.schemas import (
     InventoryItemResponseSchema,
     InventorySKUTransactionsResponseSchema,
     InventorySKUTransactionLineItemSchema,
+    InventoryMetricsResponseSchema,
 )
 from app.routes.utils import MoneySchema
 from core.database import get_db_session
@@ -28,19 +29,28 @@ from core.models import (
     Product,
     Set,
     Catalog,
-    Condition,
-    Printing,
     SKULatestPriceData,
     LineItem,
     Transaction,
     Platform,
 )
 from core.models.transaction import TransactionType
-from core.utils.search import create_product_set_fts_vector, create_ts_query
+from core.inventory.query_builder import build_inventory_query
+from core.inventory.service import get_inventory_metrics
 
 router = APIRouter(
     prefix="/inventory",
 )
+
+
+@router.get("/metrics", response_model=InventoryMetricsResponseSchema)
+def get_inventory_metrics_endpoint(
+    catalog_id: UUID | None = None,
+    session: Session = Depends(get_db_session),
+):
+    """Return aggregate metrics for the selected catalogue (or all)."""
+    metrics = get_inventory_metrics(session=session, catalog_id=catalog_id)
+    return InventoryMetricsResponseSchema(**metrics)
 
 
 @router.get("/catalogs", response_model=CatalogsResponseSchema)
@@ -78,51 +88,7 @@ def get_inventory(
     query: str | None = None,
     catalog_id: UUID | None = None,
 ):
-    inventory_query = query_inventory_items()
-    required_joins = {}  # Use dict keys for deduplication and insertion order preservation (Python 3.7+)
-    # Values store the (target, onclause) tuple for the join.
-
-    # Define join conditions once
-    product_join = (Product, SKU.product_id == Product.id)
-    set_join = (Set, Product.set_id == Set.id)
-    condition_join = (Condition, SKU.condition_id == Condition.id)
-    printing_join = (Printing, SKU.printing_id == Printing.id)
-
-    # Determine required joins based on parameters
-    if catalog_id:
-        required_joins[Product] = product_join
-        required_joins[Set] = set_join
-        # Apply catalog filter immediately as it doesn't depend on other joins yet
-        inventory_query = inventory_query.where(Set.catalog_id == catalog_id)
-
-    if query:
-        required_joins[Product] = product_join
-        required_joins[Set] = set_join
-        required_joins[Condition] = condition_join
-        required_joins[Printing] = printing_join
-
-    # Apply all required joins uniquely based on insertion order
-    for target, onclause in required_joins.values():
-        inventory_query = inventory_query.join(target, onclause)
-
-    # Apply full-text search if query parameter is present
-    if query:
-        # FTS logic relies on the previously applied joins
-        combined_ts_vector = create_product_set_fts_vector()
-        condition_name_ts = func.setweight(
-            func.to_tsvector("english", func.coalesce(Condition.name, "")), "D"
-        )
-        combined_ts_vector = combined_ts_vector.op("||")(condition_name_ts)
-        printing_name_ts = func.setweight(
-            func.to_tsvector("english", func.coalesce(Printing.name, "")), "D"
-        )
-        combined_ts_vector = combined_ts_vector.op("||")(printing_name_ts)
-        ts_query_func = create_ts_query(query)
-        inventory_query = inventory_query.where(
-            combined_ts_vector.op("@@")(ts_query_func)
-        )
-
-    inventory_query = inventory_query.options(
+    inventory_query = build_inventory_query(query=query, catalog_id=catalog_id).options(
         *SKUWithProductResponseSchema.get_load_options()
     )
     skus_with_quantity: List[InventoryQueryResultRow] = session.execute(
