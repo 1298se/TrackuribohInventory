@@ -6,9 +6,18 @@ from functools import lru_cache
 import aiohttp
 
 from core.environment import get_environment
-from core.services.schemas.schema import CatalogDetailResponseSchema, CatalogPrintingResponseSchema, \
-    CatalogConditionResponseSchema, CatalogRarityResponseSchema, CatalogLanguageResponseSchema, \
-    CatalogSetResponseSchema, ProductType, ProductResponseSchema, SKUPricingResponseSchema, RefreshTokenRequestSchema, TCGPlayerProductType
+from core.services.schemas.schema import (
+    CatalogDetailResponseSchema,
+    CatalogPrintingResponseSchema,
+    CatalogConditionResponseSchema,
+    CatalogRarityResponseSchema,
+    CatalogLanguageResponseSchema,
+    CatalogSetResponseSchema,
+    ProductResponseSchema,
+    SKUPricingResponseSchema,
+    RefreshTokenRequestSchema,
+    TCGPlayerProductType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +34,7 @@ def access_token_expired(expiry) -> bool:
     expiry_date = datetime.strptime(expiry, "%a, %d %b %Y %H:%M:%S %Z")
 
     return datetime.now() > expiry_date
+
 
 class TCGPlayerCatalogService:
     def __init__(self):
@@ -54,15 +64,14 @@ class TCGPlayerCatalogService:
 
             await self._check_and_refresh_access_token()
 
-            headers['Authorization'] = f"bearer {self.access_token}"
+            headers["Authorization"] = f"bearer {self.access_token}"
 
             return headers
 
-
     async def get_catalogs(self, catalog_ids: list[int]) -> CatalogDetailResponseSchema:
         response = await self.session.get(
-            f"{TCGPLAYER_CATALOG_URL}/categories/{",".join([str(id) for id in catalog_ids])}",
-            headers=await self.get_authorization_headers()
+            f"{TCGPLAYER_CATALOG_URL}/categories/{','.join([str(id) for id in catalog_ids])}",
+            headers=await self.get_authorization_headers(),
         )
 
         response_data = await response.json()
@@ -72,7 +81,7 @@ class TCGPlayerCatalogService:
     async def get_printings(self, catalog_id: int) -> CatalogPrintingResponseSchema:
         response = await self.session.get(
             f"{_get_category_metadata_url(catalog_id)}/printings",
-            headers=await self.get_authorization_headers()
+            headers=await self.get_authorization_headers(),
         )
 
         response_data = await response.json()
@@ -103,19 +112,23 @@ class TCGPlayerCatalogService:
 
         return CatalogLanguageResponseSchema.model_validate(await response.json())
 
-    async def get_sets(self, catalog_id: int, offset: int, limit: int) -> CatalogSetResponseSchema:
+    async def get_sets(
+        self, catalog_id: int, offset: int, limit: int
+    ) -> CatalogSetResponseSchema:
         response = await self.session.get(
             f"{_get_category_metadata_url(catalog_id)}/groups",
             headers=await self.get_authorization_headers(),
             params={
                 "offset": offset,
                 "limit": limit,
-            }
+            },
         )
 
         return CatalogSetResponseSchema.model_validate(await response.json())
 
-    async def get_products(self, tcgplayer_set_id: int, offset, limit, product_type: TCGPlayerProductType) -> ProductResponseSchema:
+    async def get_products(
+        self, tcgplayer_set_id: int, offset, limit, product_type: TCGPlayerProductType
+    ) -> ProductResponseSchema:
         query_params = {
             "getExtendedFields": "true",
             "includeSkus": "true",
@@ -126,21 +139,22 @@ class TCGPlayerCatalogService:
         }
 
         response = await self.session.get(
-            f'{TCGPLAYER_CATALOG_URL}/products',
+            f"{TCGPLAYER_CATALOG_URL}/products",
             headers=await self.get_authorization_headers(),
-            params=query_params
+            params=query_params,
         )
 
         return ProductResponseSchema.model_validate(await response.json())
 
-    async def get_sku_prices(self, tcgplayer_sku_ids: list[int]) -> SKUPricingResponseSchema:
+    async def get_sku_prices(
+        self, tcgplayer_sku_ids: list[int]
+    ) -> SKUPricingResponseSchema:
         response = await self.session.get(
-            f"{TCGPLAYER_PRICING_URL}/sku/{", ".join([str(id) for id in tcgplayer_sku_ids])}",
+            f"{TCGPLAYER_PRICING_URL}/sku/{', '.join([str(id) for id in tcgplayer_sku_ids])}",
             headers=await self.get_authorization_headers(),
         )
 
         return SKUPricingResponseSchema.model_validate(await response.json())
-
 
     async def _check_and_refresh_access_token(self) -> bool:
         if access_token_expired(self.access_token_expiry):
@@ -161,17 +175,18 @@ class TCGPlayerCatalogService:
 
             data = await response.json()
 
-            self.access_token = data['access_token']
-            self.access_token_expiry = data['.expires']
+            self.access_token = data["access_token"]
+            self.access_token_expiry = data[".expires"]
 
             return True
         else:
             return False
 
+
 @lru_cache()
 def get_tcgplayer_catalog_service() -> TCGPlayerCatalogService:
     return TCGPlayerCatalogService()
 
+
 def _get_category_metadata_url(catalog_id):
     return f"{TCGPLAYER_CATALOG_URL}/categories/{catalog_id}"
-

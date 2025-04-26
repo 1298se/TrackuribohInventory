@@ -1,23 +1,30 @@
 import asyncio
 import logging
 import uuid
-import sys
-import argparse
 from dataclasses import dataclass
 from datetime import timezone
 
 from sqlalchemy import select
 
 from core.database import upsert, SessionLocal
-from core.models import Set, Product, SKU, Catalog, Printing, Condition, Language
-from core.services.schemas.schema import CatalogSetSchema, ProductType, TCGPlayerProductType, map_tcgplayer_product_type_to_product_type
+from core.models.catalog import Set
+from core.models.catalog import Product
+from core.models.catalog import SKU
+from core.models.catalog import Catalog
+from core.models.catalog import Printing
+from core.models.catalog import Condition
+from core.models.catalog import Language
+from core.services.schemas.schema import (
+    CatalogSetSchema,
+    TCGPlayerProductType,
+    map_tcgplayer_product_type_to_product_type,
+)
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
 from core.utils.workers import process_task_queue
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -28,12 +35,15 @@ SUPPORTED_CATALOGS = frozenset(
     [2, 3, 85]
 )
 
+
 @dataclass
 class CatalogMappings:
     """Container for TCGPlayer ID to database ID mappings for a catalog."""
+
     printing: dict[int, uuid.UUID]  # TCGPlayer printing ID to database ID mapping
     condition: dict[int, uuid.UUID]  # TCGPlayer condition ID to database ID mapping
-    language: dict[int, uuid.UUID]   # TCGPlayer language ID to database ID mapping
+    language: dict[int, uuid.UUID]  # TCGPlayer language ID to database ID mapping
+
 
 async def update_set(
     service: TCGPlayerCatalogService,
@@ -57,15 +67,16 @@ async def update_set(
                         "catalog_id": catalog_id,
                     }
                 ],
-                index_elements=[Set.tcgplayer_id]
+                index_elements=[Set.tcgplayer_id],
             ).returning(Set.id)
         ).one()
 
-
         for tcgplayer_product_type in TCGPlayerProductType:
-            product_type = map_tcgplayer_product_type_to_product_type(tcgplayer_product_type)
+            product_type = map_tcgplayer_product_type_to_product_type(
+                tcgplayer_product_type
+            )
             logger.debug(f"Processing product type: {product_type}")
-            
+
             current_offset = 0
             total = None
 
@@ -79,12 +90,20 @@ async def update_set(
                 )
 
                 if "No products were found." in sets_response.errors:
-                    logger.info(f"No products were found for product type: {product_type}")
+                    logger.info(
+                        f"No products were found for product type: {product_type}"
+                    )
                     break
 
                 current_offset += len(sets_response.results)
-                total = sets_response.total_items if sets_response.total_items is not None else 0
-                logger.debug(f"Retrieved {len(sets_response.results)} products, total: {total}")
+                total = (
+                    sets_response.total_items
+                    if sets_response.total_items is not None
+                    else 0
+                )
+                logger.debug(
+                    f"Retrieved {len(sets_response.results)} products, total: {total}"
+                )
 
                 product_values = [
                     {
@@ -111,19 +130,27 @@ async def update_set(
                 )
 
                 product_tcgplayer_id_to_id_mapping = {
-                    row.tcgplayer_id: row.id
-                    for row in result.all()
+                    row.tcgplayer_id: row.id for row in result.all()
                 }
 
                 sku_values = [
                     {
                         "tcgplayer_id": sku.tcgplayer_id,
-                        "product_id": product_tcgplayer_id_to_id_mapping[sku.tcgplayer_product_id],
-                        "printing_id": printing_tcgplayer_id_to_id_mapping[sku.tcgplayer_printing_id],
-                        "condition_id": condition_tcgplayer_id_to_id_mapping[sku.tcgplayer_condition_id],
-                        "language_id": language_tcgplayer_id_to_id_mapping[sku.tcgplayer_language_id],
+                        "product_id": product_tcgplayer_id_to_id_mapping[
+                            sku.tcgplayer_product_id
+                        ],
+                        "printing_id": printing_tcgplayer_id_to_id_mapping[
+                            sku.tcgplayer_printing_id
+                        ],
+                        "condition_id": condition_tcgplayer_id_to_id_mapping[
+                            sku.tcgplayer_condition_id
+                        ],
+                        "language_id": language_tcgplayer_id_to_id_mapping[
+                            sku.tcgplayer_language_id
+                        ],
                     }
-                    for product in sets_response.results for sku in product.skus
+                    for product in sets_response.results
+                    for sku in product.skus
                 ]
 
                 if sku_values:
@@ -136,14 +163,17 @@ async def update_set(
                     )
                     logger.debug(f"Upserted {len(sku_values)} SKUs")
 
-async def fetch_catalog_mappings(service: TCGPlayerCatalogService, catalog: Catalog) -> CatalogMappings:
+
+async def fetch_catalog_mappings(
+    service: TCGPlayerCatalogService, catalog: Catalog
+) -> CatalogMappings:
     """
     Fetches and upserts printings, conditions, and languages for a catalog.
-    
+
     Args:
         service: The TCGPlayerCatalogService to use for API calls
         catalog: The catalog to fetch mappings for
-        
+
     Returns:
         A CatalogMappings object containing the mappings between TCGPlayer IDs and database UUIDs:
         - printing: Maps TCGPlayer printing IDs to database UUIDs
@@ -171,13 +201,15 @@ async def fetch_catalog_mappings(service: TCGPlayerCatalogService, catalog: Cata
 
         # Use tcgplayer_id alone as the constraint for the printing table
         result = session.execute(
-            upsert(model=Printing, values=printing_values, index_elements=[Printing.tcgplayer_id])
-            .returning(Printing.tcgplayer_id, Printing.id)
+            upsert(
+                model=Printing,
+                values=printing_values,
+                index_elements=[Printing.tcgplayer_id],
+            ).returning(Printing.tcgplayer_id, Printing.id)
         ).all()
 
         printing_tcgplayer_id_to_id_mapping = {
-            row.tcgplayer_id: row.id
-            for row in result
+            row.tcgplayer_id: row.id for row in result
         }
 
         condition_values = [
@@ -185,20 +217,22 @@ async def fetch_catalog_mappings(service: TCGPlayerCatalogService, catalog: Cata
                 "tcgplayer_id": condition_detail_response.tcgplayer_id,
                 "catalog_id": catalog.id,
                 "name": condition_detail_response.name,
-                "abbreviation": condition_detail_response.abbreviation
+                "abbreviation": condition_detail_response.abbreviation,
             }
             for condition_detail_response in conditions_response.results
         ]
 
         # Use tcgplayer_id alone as the constraint for the condition table
         result = session.execute(
-            upsert(model=Condition, values=condition_values, index_elements=[Condition.tcgplayer_id])
-            .returning(Condition.tcgplayer_id, Condition.id)
+            upsert(
+                model=Condition,
+                values=condition_values,
+                index_elements=[Condition.tcgplayer_id],
+            ).returning(Condition.tcgplayer_id, Condition.id)
         ).all()
 
         condition_tcgplayer_id_to_id_mapping = {
-            row.tcgplayer_id: row.id
-            for row in result
+            row.tcgplayer_id: row.id for row in result
         }
 
         languages_values = [
@@ -206,27 +240,30 @@ async def fetch_catalog_mappings(service: TCGPlayerCatalogService, catalog: Cata
                 "tcgplayer_id": language_detail_response.tcgplayer_id,
                 "catalog_id": catalog.id,
                 "name": language_detail_response.name,
-                "abbreviation": language_detail_response.abbr
+                "abbreviation": language_detail_response.abbr,
             }
             for language_detail_response in languages_response.results
         ]
 
         # Use tcgplayer_id alone as the constraint for the language table
         result = session.execute(
-            upsert(model=Language, values=languages_values, index_elements=[Language.tcgplayer_id])
-            .returning(Language.tcgplayer_id, Language.id)
+            upsert(
+                model=Language,
+                values=languages_values,
+                index_elements=[Language.tcgplayer_id],
+            ).returning(Language.tcgplayer_id, Language.id)
         ).all()
 
         language_tcgplayer_id_to_id_mapping = {
-            row.tcgplayer_id: row.id
-            for row in result
+            row.tcgplayer_id: row.id for row in result
         }
-        
+
         return CatalogMappings(
             printing=printing_tcgplayer_id_to_id_mapping,
             condition=condition_tcgplayer_id_to_id_mapping,
-            language=language_tcgplayer_id_to_id_mapping
+            language=language_tcgplayer_id_to_id_mapping,
         )
+
 
 async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
     # Each coroutine should have its own connection to db
@@ -242,39 +279,53 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
         sets_response = await service.get_sets(
             catalog_id=catalog.tcgplayer_id,
             offset=current_offset,
-            limit=PAGINATION_SIZE
+            limit=PAGINATION_SIZE,
         )
 
         with SessionLocal() as session:
-            sets_response_ids = [response.tcgplayer_id for response in sets_response.results]
-            existing_sets = session.scalars(select(Set).where(Set.tcgplayer_id.in_(sets_response_ids))).all()
+            sets_response_ids = [
+                response.tcgplayer_id for response in sets_response.results
+            ]
+            existing_sets = session.scalars(
+                select(Set).where(Set.tcgplayer_id.in_(sets_response_ids))
+            ).all()
 
             tcgplayer_id_to_existing_set = {
-                set.tcgplayer_id: set
-                for set in existing_sets
+                set.tcgplayer_id: set for set in existing_sets
             }
 
-        total = sets_response.total_items if sets_response.total_items is not None else 0
+        total = (
+            sets_response.total_items if sets_response.total_items is not None else 0
+        )
         current_offset += len(sets_response.results)
 
         for response_set in sets_response.results:
             existing_set = tcgplayer_id_to_existing_set.get(response_set.tcgplayer_id)
 
-            if existing_set is None or response_set.modified_on.replace(tzinfo=timezone.utc) > existing_set.modified_date:
-                await task_queue.put(update_set(
-                    service=service,
-                    tcgplayer_set=response_set,
-                    catalog_id=catalog.id,
-                    printing_tcgplayer_id_to_id_mapping=mappings.printing,
-                    condition_tcgplayer_id_to_id_mapping=mappings.condition,
-                    language_tcgplayer_id_to_id_mapping=mappings.language,
-                ))
+            if (
+                existing_set is None
+                or response_set.modified_on.replace(tzinfo=timezone.utc)
+                > existing_set.modified_date
+            ):
+                await task_queue.put(
+                    update_set(
+                        service=service,
+                        tcgplayer_set=response_set,
+                        catalog_id=catalog.id,
+                        printing_tcgplayer_id_to_id_mapping=mappings.printing,
+                        condition_tcgplayer_id_to_id_mapping=mappings.condition,
+                        language_tcgplayer_id_to_id_mapping=mappings.language,
+                    )
+                )
             else:
-                logger.info(f"Skipping set {response_set.tcgplayer_id} - {response_set.name}")
+                logger.info(
+                    f"Skipping set {response_set.tcgplayer_id} - {response_set.name}"
+                )
 
         # We do this because we have a maximum number of simultaneous connections we can make to the database.
         # The number 20 was picked arbitrarily, but works quite well.
         await process_task_queue(task_queue, num_workers=20)
+
 
 async def update_card_database():
     """Update the entire card database by fetching all catalogs and their sets from TCGPlayer."""
@@ -294,18 +345,25 @@ async def update_card_database():
                     for catalog_detail_response in catalog_response.results
                 ]
 
-                session.execute(upsert(model=Catalog, values=catalog_values, index_elements=[Catalog.tcgplayer_id]))
+                session.execute(
+                    upsert(
+                        model=Catalog,
+                        values=catalog_values,
+                        index_elements=[Catalog.tcgplayer_id],
+                    )
+                )
 
             for catalog in session.scalars(select(Catalog)).all():
                 logger.info(f"Processing catalog: {catalog.display_name}")
                 await update_catalog(service=service, catalog=catalog)
-        
+
         logger.info("Database update completed successfully")
     except Exception as e:
         logger.error(f"Error updating card database: {str(e)}")
         raise
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     logger.info("Starting TCGPlayer catalog database update")
     asyncio.run(update_card_database())
     logger.info("Completed TCGPlayer catalog database update")

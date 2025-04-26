@@ -1,12 +1,11 @@
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum, StrEnum
+from enum import StrEnum
 from functools import cached_property
-from typing import Any, Dict
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, Json
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
-from sqlalchemy import alias
 from typing_extensions import List, Optional
 
 
@@ -17,10 +16,12 @@ class TCGPlayerCatalogResponseModel(BaseModel):
         extra="ignore",
     )
 
+
 class RefreshTokenRequestSchema(BaseModel):
     grant_type: str
     client_id: str
     client_secret: str
+
 
 class CatalogDetailSchema(TCGPlayerCatalogResponseModel):
     tcgplayer_id: int = Field(alias="categoryId")
@@ -34,10 +35,12 @@ class CatalogDetailSchema(TCGPlayerCatalogResponseModel):
     is_scannable: bool
     popularity: int
 
+
 class CatalogDetailResponseSchema(TCGPlayerCatalogResponseModel):
     success: bool
     errors: List[str]
     results: List[CatalogDetailSchema]
+
 
 class CatalogPrintingSchema(TCGPlayerCatalogResponseModel):
     tcgplayer_id: int = Field(alias="printingId")
@@ -45,10 +48,12 @@ class CatalogPrintingSchema(TCGPlayerCatalogResponseModel):
     display_order: int
     modified_on: datetime
 
+
 class CatalogPrintingResponseSchema(TCGPlayerCatalogResponseModel):
     success: bool
     errors: List[str]
     results: List[CatalogPrintingSchema]
+
 
 class CatalogConditionSchema(TCGPlayerCatalogResponseModel):
     tcgplayer_id: int = Field(alias="conditionId")
@@ -62,10 +67,12 @@ class CatalogConditionResponseSchema(TCGPlayerCatalogResponseModel):
     errors: List[str]
     results: List[CatalogConditionSchema]
 
+
 class CatalogLanguageSchema(TCGPlayerCatalogResponseModel):
     tcgplayer_id: int = Field(alias="languageId")
     name: str
     abbr: str
+
 
 class CatalogLanguageResponseSchema(TCGPlayerCatalogResponseModel):
     success: bool
@@ -78,10 +85,12 @@ class CatalogRaritySchema(TCGPlayerCatalogResponseModel):
     display_text: str
     db_value: str
 
+
 class CatalogRarityResponseSchema(TCGPlayerCatalogResponseModel):
     success: bool
     errors: List[str]
     results: List[CatalogRaritySchema]
+
 
 class CatalogSetSchema(TCGPlayerCatalogResponseModel):
     tcgplayer_id: int = Field(alias="groupId")
@@ -91,6 +100,7 @@ class CatalogSetSchema(TCGPlayerCatalogResponseModel):
     published_on: datetime
     modified_on: datetime
     catalog_tcgplayer_id: int = Field(alias="categoryId")
+
 
 class CatalogSetResponseSchema(TCGPlayerCatalogResponseModel):
     total_items: int | None = None
@@ -106,16 +116,19 @@ class SKUSchema(TCGPlayerCatalogResponseModel):
     tcgplayer_printing_id: int = Field(alias="printingId")
     tcgplayer_condition_id: int = Field(alias="conditionId")
 
+
 class ExtendedDataSchema(TCGPlayerCatalogResponseModel):
     name: str
     displayName: str
     value: str
+
 
 class TCGPlayerProductType(StrEnum):
     CARDS = "Cards"
     SEALED_PRODUCTS = "Sealed Products"
     BOX_SETS = "Box Sets"
     FAT_PACK = "Fat Pack"
+
 
 class ProductSchema(TCGPlayerCatalogResponseModel):
     tcgplayer_id: int = Field(alias="productId")
@@ -130,11 +143,13 @@ class ProductSchema(TCGPlayerCatalogResponseModel):
     image_count: int
     extended_data: List[dict[str, Any]]
 
+
 class ProductResponseSchema(TCGPlayerCatalogResponseModel):
     total_items: int | None = None
     success: bool
     errors: List[str]
     results: List[ProductSchema]
+
 
 class SKUPricingSchema(TCGPlayerCatalogResponseModel):
     sku_id: int
@@ -146,18 +161,27 @@ class SKUPricingSchema(TCGPlayerCatalogResponseModel):
 
     @cached_property
     def lowest_listing_price_total(self) -> int | None:
-        return self.lowest_listing_price + self.lowest_shipping or 0 if self.lowest_listing_price is not None else None
+        return (
+            self.lowest_listing_price + self.lowest_shipping or 0
+            if self.lowest_listing_price is not None
+            else None
+        )
+
 
 class SKUPricingResponseSchema(BaseModel):
     success: bool
     errors: List[str]
     results: List[SKUPricingSchema]
 
+
 class ProductType(StrEnum):
     CARDS = "Cards"
     SEALED = "Sealed Products"
 
-def map_tcgplayer_product_type_to_product_type(tcgplayer_type: TCGPlayerProductType) -> ProductType:
+
+def map_tcgplayer_product_type_to_product_type(
+    tcgplayer_type: TCGPlayerProductType,
+) -> ProductType:
     match tcgplayer_type:
         case TCGPlayerProductType.CARDS:
             return ProductType.CARDS
@@ -169,4 +193,3 @@ def map_tcgplayer_product_type_to_product_type(tcgplayer_type: TCGPlayerProductT
             return ProductType.SEALED
         case _:
             raise ValueError(f"Unknown TCGPlayerProductType: {tcgplayer_type}")
-

@@ -1,17 +1,19 @@
-import uuid
 from datetime import datetime, timezone
-from decimal import Decimal
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.main import app
-from app.routes.transactions.schemas import BulkTransactionDeleteRequestSchema, LineItemBaseSchema, TransactionCreateRequestSchema, \
-    LineItemCreateRequestSchema
-from app.routes.utils import MoneyAmountSchema, MoneySchema
+from app.routes.transactions.schemas import (
+    BulkTransactionDeleteRequestSchema,
+    TransactionCreateRequestSchema,
+    LineItemCreateRequestSchema,
+)
+from app.routes.utils import MoneyAmountSchema
 from core.database import SessionLocal
-from core.models import Product, SKU
+from core.models.catalog import SKU
 from core.models.transaction import TransactionType
+
 
 def test_get_transactions():
     with TestClient(app) as client:
@@ -31,7 +33,7 @@ def test_create_purchase_transaction():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=3,
-                    unit_price_amount=MoneyAmountSchema("10.00")
+                    unit_price_amount=MoneyAmountSchema("10.00"),
                 )
             ],
             currency="USD",
@@ -45,7 +47,9 @@ def test_create_purchase_transaction():
             content=json,
         )
 
-        assert create_transaction_response.status_code == 200, create_transaction_response.json()
+        assert create_transaction_response.status_code == 200, (
+            create_transaction_response.json()
+        )
 
 
 def test_create_sale_transaction():
@@ -53,36 +57,41 @@ def test_create_sale_transaction():
         test_sku = get_test_sku()
 
         json = TransactionCreateRequestSchema(
-                date=datetime.now(timezone.utc),
-                type=TransactionType.SALE,
-                counterparty_name="Billy Bob",
-                line_items=[
-                    LineItemCreateRequestSchema(
-                        sku_id=test_sku.id,
-                        quantity=5,
-                        unit_price_amount=MoneyAmountSchema("20.00")
-                    )
-                ],
-                currency="USD",
-                shipping_cost_amount=MoneyAmountSchema("0.00"),
-                tax_amount=MoneyAmountSchema("0.00"),
-                subtotal_amount=MoneyAmountSchema("100.00"),
-            ).model_dump_json()
+            date=datetime.now(timezone.utc),
+            type=TransactionType.SALE,
+            counterparty_name="Billy Bob",
+            line_items=[
+                LineItemCreateRequestSchema(
+                    sku_id=test_sku.id,
+                    quantity=5,
+                    unit_price_amount=MoneyAmountSchema("20.00"),
+                )
+            ],
+            currency="USD",
+            shipping_cost_amount=MoneyAmountSchema("0.00"),
+            tax_amount=MoneyAmountSchema("0.00"),
+            subtotal_amount=MoneyAmountSchema("100.00"),
+        ).model_dump_json()
 
         create_transaction_response = client.post(
             url="/transactions/",
             content=json,
         )
 
-        assert create_transaction_response.status_code == 200, create_transaction_response.json()
+        assert create_transaction_response.status_code == 200, (
+            create_transaction_response.json()
+        )
 
         get_transaction_response = client.get(
-            url=f"/transactions/{create_transaction_response.json()["id"]}"
+            url=f"/transactions/{create_transaction_response.json()['id']}"
         )
 
         print(get_transaction_response.json())
 
-        assert get_transaction_response.status_code == 200, get_transaction_response.json()
+        assert get_transaction_response.status_code == 200, (
+            get_transaction_response.json()
+        )
+
 
 def test_bulk_delete_transaction():
     with TestClient(app) as client:
@@ -97,7 +106,7 @@ def test_bulk_delete_transaction():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=3,
-                    unit_price_amount=MoneyAmountSchema("10.00")
+                    unit_price_amount=MoneyAmountSchema("10.00"),
                 )
             ],
             currency="USD",
@@ -111,7 +120,9 @@ def test_bulk_delete_transaction():
             content=json,
         )
 
-        assert create_transaction_response.status_code == 200, create_transaction_response.json()
+        assert create_transaction_response.status_code == 200, (
+            create_transaction_response.json()
+        )
         transaction_id = create_transaction_response.json()["id"]
 
         # Now, test the bulk deletion endpoint by removing the created transaction.
@@ -124,6 +135,7 @@ def test_bulk_delete_transaction():
             content=bulk_delete_payload,
         )
         assert delete_response.status_code == 204, delete_response.text
+
 
 def test_bulk_delete_fail_on_insufficient_inventory():
     with TestClient(app) as client:
@@ -138,7 +150,7 @@ def test_bulk_delete_fail_on_insufficient_inventory():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=1,
-                    unit_price_amount=MoneyAmountSchema("10.00")
+                    unit_price_amount=MoneyAmountSchema("10.00"),
                 )
             ],
             currency="USD",
@@ -151,12 +163,18 @@ def test_bulk_delete_fail_on_insufficient_inventory():
             url="/transactions/",
             content=json,
         )
-        
+
         sale = TransactionCreateRequestSchema(
             date=datetime.now(timezone.utc),
             type=TransactionType.SALE,
             counterparty_name="Billy Bob",
-            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=1, unit_price_amount=MoneyAmountSchema("10.00"))],
+            line_items=[
+                LineItemCreateRequestSchema(
+                    sku_id=test_sku.id,
+                    quantity=1,
+                    unit_price_amount=MoneyAmountSchema("10.00"),
+                )
+            ],
             currency="USD",
             shipping_cost_amount=MoneyAmountSchema("0.00"),
             tax_amount=MoneyAmountSchema("0.00"),
@@ -180,6 +198,7 @@ def test_bulk_delete_fail_on_insufficient_inventory():
         # Only check status code, without trying to access JSON content
         assert delete_response.status_code == 400
 
+
 def test_bulk_delete_sale_and_purchase_simultaneous():
     with TestClient(app) as client:
         # Create a purchase transaction
@@ -193,7 +212,7 @@ def test_bulk_delete_sale_and_purchase_simultaneous():
                 LineItemCreateRequestSchema(
                     sku_id=test_sku.id,
                     quantity=3,
-                    unit_price_amount=MoneyAmountSchema("10.00")
+                    unit_price_amount=MoneyAmountSchema("10.00"),
                 )
             ],
             currency="USD",
@@ -211,7 +230,13 @@ def test_bulk_delete_sale_and_purchase_simultaneous():
             date=datetime.now(timezone.utc),
             type=TransactionType.SALE,
             counterparty_name="Billy Bob",
-            line_items=[LineItemCreateRequestSchema(sku_id=test_sku.id, quantity=3, unit_price_amount=MoneyAmountSchema("10.00"))],
+            line_items=[
+                LineItemCreateRequestSchema(
+                    sku_id=test_sku.id,
+                    quantity=3,
+                    unit_price_amount=MoneyAmountSchema("10.00"),
+                )
+            ],
             currency="USD",
             shipping_cost_amount=MoneyAmountSchema("0.00"),
             tax_amount=MoneyAmountSchema("0.00"),
@@ -233,6 +258,7 @@ def test_bulk_delete_sale_and_purchase_simultaneous():
         )
 
         assert delete_response.status_code == 204, delete_response.text
+
 
 def get_test_sku() -> SKU:
     with SessionLocal() as session:

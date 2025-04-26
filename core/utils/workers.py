@@ -1,7 +1,4 @@
 import asyncio
-from asyncio import Task
-from contextlib import asynccontextmanager
-from typing import Coroutine
 
 
 async def process_task_queue(queue: asyncio.Queue, num_workers: int):
@@ -29,5 +26,4 @@ async def _worker(queue, name=None):
         # Notify the queue that the "work item" has been processed.
         queue.task_done()
 
-        print(f'{name} has completed task')
-
+        print(f"{name} has completed task")

@@ -5,7 +5,7 @@ from typing_extensions import Type
 from typing import Generator
 
 from core.environment import Env, get_environment
-from core.models import Base
+from core.models.base import Base
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
 DATABASE_POOL_SIZE = 100

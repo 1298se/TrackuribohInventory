@@ -1,13 +1,14 @@
 from enum import Enum
-import os
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Env(str, Enum):
     DEBUG = "DEBUG"
     PROD = "PROD"
+
 
 class Environment(BaseSettings):
     env: Env
@@ -27,7 +28,7 @@ class Environment(BaseSettings):
 
     @property
     def db_url(self):
-        url = f'postgresql://{self.db_username}:{self.db_password}@{self.db_endpoint}:{self.db_port}'
+        url = f"postgresql://{self.db_username}:{self.db_password}@{self.db_endpoint}:{self.db_port}"
 
         print(url)
         return url

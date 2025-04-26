@@ -4,11 +4,13 @@ from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import ForeignKey, DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship, composite
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_extensions import uuid7
 
-from core.models import Base, sku_tablename, SKU
-from core.models.types import Money, MoneyAmount
+from core.models.base import Base
+from core.models.catalog import sku_tablename
+from core.models.catalog import SKU
+from core.models.types import MoneyAmount
 
 transaction_tablename = "transaction"
 line_item_tablename = "line_item"
@@ -21,7 +23,7 @@ class Platform(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     name: Mapped[str]
-    
+
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="platform")
 
 
@@ -31,12 +33,18 @@ class LineItemConsumption(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
 
     # The sale line item that consumes some quantity
-    sale_line_item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{line_item_tablename}.id"))
+    sale_line_item_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{line_item_tablename}.id")
+    )
     sale_line_item: Mapped["LineItem"] = relationship(foreign_keys=[sale_line_item_id])
 
     # The purchase line item from which the quantity is taken
-    purchase_line_item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{line_item_tablename}.id"))
-    purchase_line_item: Mapped["LineItem"] = relationship(foreign_keys=[purchase_line_item_id])
+    purchase_line_item_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{line_item_tablename}.id")
+    )
+    purchase_line_item: Mapped["LineItem"] = relationship(
+        foreign_keys=[purchase_line_item_id]
+    )
 
     # How many units were taken from that purchase line item
     quantity: Mapped[int]
@@ -55,13 +63,16 @@ class LineItem(Base):
 
     unit_price_amount: Mapped[MoneyAmount]
 
-    transaction_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{transaction_tablename}.id"))
+    transaction_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{transaction_tablename}.id")
+    )
     transaction: Mapped["Transaction"] = relationship(back_populates="line_items")
 
 
 class TransactionType(StrEnum):
     PURCHASE = "PURCHASE"
     SALE = "SALE"
+
 
 class Transaction(Base):
     __tablename__ = transaction_tablename
@@ -72,7 +83,9 @@ class Transaction(Base):
     counterparty_name: Mapped[str | None]
     comment: Mapped[str | None]  # Add comment column for transactions
     line_items: Mapped[list[LineItem]] = relationship(back_populates="transaction")
-    platform_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey(f"{platform_tablename}.id"), nullable=True)
+    platform_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(f"{platform_tablename}.id"), nullable=True
+    )
     platform: Mapped[Optional[Platform]] = relationship(back_populates="transactions")
     currency: Mapped[str] = mapped_column(server_default="USD")
     shipping_cost_amount: Mapped[MoneyAmount] = mapped_column(server_default="0")

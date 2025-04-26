@@ -4,7 +4,7 @@ from datetime import date
 from sqlalchemy.orm import Mapped, mapped_column
 from uuid_extensions import uuid7
 
-from core.models import Base
+from core.models.base import Base
 
 
 class InventoryDailySnapshot(Base):

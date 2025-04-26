@@ -25,17 +25,9 @@ from app.routes.inventory.schemas import (
 )
 from app.routes.utils import MoneySchema
 from core.database import get_db_session
-from core.models import (
-    SKU,
-    Product,
-    Set,
-    Catalog,
-    SKULatestPriceData,
-    LineItem,
-    Transaction,
-    Platform,
-)
-from core.models.transaction import TransactionType
+from core.models.catalog import SKU, Catalog, Product, Set
+from core.models.price import SKULatestPriceData
+from core.models.transaction import Transaction, LineItem, Platform, TransactionType
 from core.inventory.query_builder import build_inventory_query
 from core.inventory.service import get_inventory_metrics, get_inventory_history
 

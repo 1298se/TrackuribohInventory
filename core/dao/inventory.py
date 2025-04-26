@@ -2,7 +2,11 @@ from sqlalchemy import func, select, Select, CTE
 from typing import Optional, TypedDict
 from decimal import Decimal
 
-from core.models import SKU, SKULatestPriceData, Catalog, Set, Product
+from core.models.catalog import SKU
+from core.models.price import SKULatestPriceData
+from core.models.catalog import Catalog
+from core.models.catalog import Set
+from core.models.catalog import Product
 from core.models.transaction import Transaction, LineItem
 
 

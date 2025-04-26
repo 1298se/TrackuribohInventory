@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import List, Any
 
-from sqlalchemy import ForeignKey, func, select, UniqueConstraint, DateTime
+from sqlalchemy import ForeignKey, func, UniqueConstraint, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing_extensions import Optional
@@ -25,6 +25,8 @@ language_tablename = "language"
 """
     The franchise, such as Pokemon or YuGiOh
 """
+
+
 class Catalog(Base):
     __tablename__ = catalog_tablename
 
@@ -48,6 +50,7 @@ class Set(Base):
     catalog_id: Mapped[int] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     catalog: Mapped["Catalog"] = relationship()
     products: Mapped[list["Product"]] = relationship(back_populates="set")
+
 
 class Product(Base):
     __tablename__ = product_tablename
@@ -82,8 +85,7 @@ class Product(Base):
     def rarity(cls):
         # Find the first element in the data array where name = 'Rarity' and return its value
         return func.jsonb_path_query_first(
-            cls.data,
-            '$ ? (@.name == "Rarity").value'
+            cls.data, '$ ? (@.name == "Rarity").value'
         ).cast(String)
 
 
@@ -110,10 +112,12 @@ class Condition(Base):
     catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
     abbreviation: Mapped[str]
-    
+
     # Add unique constraint for catalog_id and tcgplayer_id combination
     __table_args__ = (
-        UniqueConstraint('catalog_id', 'tcgplayer_id', name='uq_condition_catalog_id_tcgplayer_id'),
+        UniqueConstraint(
+            "catalog_id", "tcgplayer_id", name="uq_condition_catalog_id_tcgplayer_id"
+        ),
     )
 
 
@@ -124,10 +128,12 @@ class Printing(Base):
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
     catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
-    
+
     # Add unique constraint for catalog_id and tcgplayer_id combination
     __table_args__ = (
-        UniqueConstraint('catalog_id', 'tcgplayer_id', name='uq_printing_catalog_id_tcgplayer_id'),
+        UniqueConstraint(
+            "catalog_id", "tcgplayer_id", name="uq_printing_catalog_id_tcgplayer_id"
+        ),
     )
 
 
@@ -139,10 +145,10 @@ class Language(Base):
     catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
     abbreviation: Mapped[str]
-    
+
     # Add unique constraint for catalog_id and tcgplayer_id combination
     __table_args__ = (
-        UniqueConstraint('catalog_id', 'tcgplayer_id', name='uq_language_catalog_id_tcgplayer_id'),
+        UniqueConstraint(
+            "catalog_id", "tcgplayer_id", name="uq_language_catalog_id_tcgplayer_id"
+        ),
     )
-
-

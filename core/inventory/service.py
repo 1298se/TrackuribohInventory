@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 from core.inventory.query_builder import build_inventory_query
 from core.dao.transaction import get_total_sales_profit
-from core.models import InventoryDailySnapshot
+from core.models.inventory_snapshot import InventoryDailySnapshot
 
 
 class InventoryMetrics(TypedDict):
