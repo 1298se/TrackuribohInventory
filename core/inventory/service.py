@@ -4,6 +4,7 @@ from typing import Optional
 from uuid import UUID
 
 from core.inventory.query_builder import build_inventory_query
+from core.dao.transaction import get_total_sales_profit
 
 
 def get_inventory_metrics(session: Session, catalog_id: Optional[UUID] = None):
@@ -33,11 +34,15 @@ def get_inventory_metrics(session: Session, catalog_id: Optional[UUID] = None):
     total_cost = float(row.total_inventory_cost)
     total_market = float(row.total_market_value)
     unrealised = total_market - total_cost
+    # Calculate lifetime realised profit using transaction DAO helper
+    _, profit_decimal = get_total_sales_profit(session)
+    lifetime_profit = float(profit_decimal)
 
     return {
         "number_of_items": num_items,
         "total_inventory_cost": total_cost,
         "total_market_value": total_market,
         "unrealised_profit": unrealised,
+        "lifetime_profit": lifetime_profit,
         "currency": "USD",
     }

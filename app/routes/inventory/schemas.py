@@ -38,4 +38,5 @@ class InventoryMetricsResponseSchema(BaseModel):
     total_inventory_cost: float
     total_market_value: float
     unrealised_profit: float
+    lifetime_profit: float
     currency: str = "USD"
