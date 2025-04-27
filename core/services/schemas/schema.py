@@ -193,3 +193,86 @@ def map_tcgplayer_product_type_to_product_type(
             return ProductType.SEALED
         case _:
             raise ValueError(f"Unknown TCGPlayerProductType: {tcgplayer_type}")
+
+
+# Listing & Sales Response Schemas for tcgplayer_listing_service
+class AggregationBucket(TCGPlayerCatalogResponseModel):
+    """Aggregation bucket entry with value and count."""
+
+    value: str | int
+    count: float
+
+
+class SKUListingResponseSchema(TCGPlayerCatalogResponseModel):
+    """Single listing item from TCGPlayer API."""
+
+    direct_product: bool
+    gold_seller: bool
+    listing_id: float
+    channel_id: float
+    condition_id: float
+    verified_seller: bool
+    direct_inventory: float
+    ranked_shipping_price: float
+    product_id: float
+    printing: str
+    language_abbreviation: str
+    seller_name: str
+    forward_freight: bool
+    seller_shipping_price: float
+    language: str
+    shipping_price: float
+    condition: str
+    language_id: float
+    score: float
+    direct_seller: bool
+    product_condition_id: float
+    seller_id: str
+    listing_type: str
+    seller_rating: float
+    seller_sales: str
+    quantity: float
+    seller_key: str
+    price: float
+    custom_data: dict[str, Any]
+
+
+class ListingResultSchema(TCGPlayerCatalogResponseModel):
+    """Container for a page of listings including aggregations."""
+
+    total_results: int
+    result_id: str
+    aggregations: dict[str, list[AggregationBucket]]
+    results: list[SKUListingResponseSchema]
+
+
+class ListingResponseSchema(TCGPlayerCatalogResponseModel):
+    """Root response from the listings endpoint."""
+
+    errors: list[str]
+    results: list[ListingResultSchema]
+
+
+class SaleRecordSchema(TCGPlayerCatalogResponseModel):
+    """Single sale record from TCGPlayer sales API."""
+
+    condition: str
+    variant: str
+    language: str
+    quantity: int
+    title: str
+    listing_type: str
+    custom_listing_id: str
+    purchase_price: Decimal
+    shipping_price: Decimal
+    order_date: datetime
+
+
+class SalesResponseSchema(TCGPlayerCatalogResponseModel):
+    """Root response from the sales endpoint."""
+
+    previous_page: str
+    next_page: str
+    result_count: int
+    total_results: int
+    data: list[SaleRecordSchema]

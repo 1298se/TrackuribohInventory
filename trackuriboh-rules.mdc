@@ -231,3 +231,6 @@ aws ecs run-task \
   --network-configuration "awsvpcConfiguration={subnets=[subnet-095f4b7e5c8eef77d,subnet-002b23ebe0247ec0c,subnet-04d6c95985fe61856],securityGroups=[sg-07591221a4fcad611],assignPublicIp=ENABLED}" \
   --region us-east-2
 ``` 
+
+Prompt for following specifications:
+Let's start with the implementation. Please follow the outlined steps in {spec} very closely. Please do not make any assumptions, and ask clarifying questions when needed

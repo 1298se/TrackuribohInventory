@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 import uuid
 from datetime import datetime
 
@@ -121,3 +121,33 @@ class ProductSearchRequestParams(BaseModel):
 
     class Config:
         extra = "forbid"
+
+
+# Schemas for Market Data endpoint
+class MarketDataSummary(BaseModel):
+    """High-level summary metrics for product market data, currently stubbed."""
+
+    current_lowest_listing_price: Optional[float] = None
+    median_sale_price_30_days: Optional[float] = None
+    avg_sale_price_last_7_days: Optional[float] = None
+    sale_count_last_7_days: Optional[int] = None
+    liquidity_ratio: Optional[float] = None
+    price_volatility_30_days: Optional[float] = None
+    price_spread_percent: Optional[float] = None
+    time_to_sell_estimate_days: Optional[float] = None
+
+
+class DepthLevel(BaseModel):
+    """Amount of listings available at a given price level."""
+
+    price: float
+    listing_count: int
+
+
+class SKUMarketDataSchema(BaseModel):
+    """Full market data response for a product, optionally scoped to a SKU variant."""
+
+    summary: MarketDataSummary
+    depth_levels: list[DepthLevel]
+    listings: list[Any]  # historical listings data (stub)
+    sales: list[Any]  # historical sales data (stub)

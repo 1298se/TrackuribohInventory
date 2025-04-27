@@ -7,7 +7,7 @@ import { z } from "zod";
 // Define product type constants
 export const PRODUCT_TYPES = {
   CARDS: "Cards",
-  SEALED: "Sealed Products"
+  SEALED: "Sealed Products",
 } as const;
 
 // Define the schema using the values from PRODUCT_TYPES
@@ -85,8 +85,12 @@ export type PrintingResponse = z.infer<typeof PrintingResponseSchema>;
 export type LanguageResponse = z.infer<typeof LanguageResponseSchema>;
 export type SetBaseResponse = z.infer<typeof SetBaseResponseSchema>;
 export type SKUBaseResponse = z.infer<typeof SKUBaseResponseSchema>;
-export type ProductWithSetAndSKUsResponse = z.infer<typeof ProductWithSetAndSKUsResponseSchema>;
-export type SKUWithProductResponse = z.infer<typeof SKUWithProductResponseSchema>;
+export type ProductWithSetAndSKUsResponse = z.infer<
+  typeof ProductWithSetAndSKUsResponseSchema
+>;
+export type SKUWithProductResponse = z.infer<
+  typeof SKUWithProductResponseSchema
+>;
 export type ProductSearchResponse = z.infer<typeof ProductSearchResponseSchema>;
 
 /* -----------------------------------------------------
@@ -102,4 +106,36 @@ export const CatalogsResponseSchema = z.object({
 });
 
 export type Catalog = z.infer<typeof CatalogSchema>;
-export type CatalogsResponse = z.infer<typeof CatalogsResponseSchema>; 
+export type CatalogsResponse = z.infer<typeof CatalogsResponseSchema>;
+
+/* -----------------------------------------------------
+ * 6) Market Data Schemas
+ * ----------------------------------------------------- */
+// Summary metrics (stubbed for initial depth-only view)
+export const MarketDataSummarySchema = z.object({
+  current_lowest_listing_price: z.number().nullable(),
+  median_sale_price_30_days: z.number().nullable(),
+  avg_sale_price_last_7_days: z.number().nullable(),
+  sale_count_last_7_days: z.number().nullable(),
+  liquidity_ratio: z.number().nullable(),
+  price_volatility_30_days: z.number().nullable(),
+  price_spread_percent: z.number().nullable(),
+  time_to_sell_estimate_days: z.number().nullable(),
+});
+export type MarketDataSummary = z.infer<typeof MarketDataSummarySchema>;
+
+// Depth level entry
+export const DepthLevelSchema = z.object({
+  price: z.number(),
+  listing_count: z.number(),
+});
+export type DepthLevel = z.infer<typeof DepthLevelSchema>;
+
+// Full market data for SKU
+export const SKUMarketDataSchema = z.object({
+  summary: MarketDataSummarySchema,
+  depth_levels: z.array(DepthLevelSchema),
+  listings: z.array(z.any()), // stub for future
+  sales: z.array(z.any()), // stub for future
+});
+export type SKUMarketData = z.infer<typeof SKUMarketDataSchema>;
