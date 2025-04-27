@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from typing import Optional, TypedDict
 from uuid import UUID
 from datetime import date, timedelta
+from decimal import Decimal
 
 from core.inventory.query_builder import build_inventory_query
-from core.dao.transaction import get_total_sales_profit
+from core.dao.transaction import build_total_sales_profit_query
 from core.models.inventory_snapshot import InventoryDailySnapshot
 
 
@@ -56,12 +57,14 @@ def get_inventory_metrics(
     row = session.execute(stmt).first()
 
     num_items = int(row.number_of_items)
-    total_cost = float(row.total_inventory_cost)
-    total_market = float(row.total_market_value)
+    total_cost = Decimal(row.total_inventory_cost)
+    total_market = Decimal(row.total_market_value)
     unrealised = total_market - total_cost
-    # Calculate lifetime realised profit using transaction DAO helper
-    _, profit_decimal = get_total_sales_profit(session)
-    lifetime_profit = float(profit_decimal)
+    # Calculate lifetime realised profit using profit query builder
+    num_sales, profit_decimal = session.execute(
+        build_total_sales_profit_query(catalog_id)
+    ).first()
+    lifetime_profit = profit_decimal
 
     return {
         "number_of_items": num_items,

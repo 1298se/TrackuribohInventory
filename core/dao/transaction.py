@@ -1,16 +1,16 @@
 import uuid
-from typing import assert_never, Optional, Dict, Tuple
+from typing import assert_never, Optional, Dict
 from collections import defaultdict
 from datetime import datetime
-from decimal import Decimal
 from dataclasses import dataclass
 
-from sqlalchemy import asc, desc, select, func
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import asc, desc, select, func, distinct
+from sqlalchemy.orm import Session, aliased
 
 from core.models.transaction import TransactionType
 from core.models.transaction import LineItem, LineItemConsumption, Transaction
 from core.models.types import MoneyAmount
+from core.models.catalog import SKU, Product, Set, Catalog
 
 
 class InsufficientInventoryError(Exception):
@@ -487,53 +487,43 @@ def bulk_update_transaction_line_items(
         # No explicit session.add(line_item) needed unless it was detached.
 
 
-def get_total_sales_profit(session: Session) -> Tuple[int, Decimal]:
+def build_total_sales_profit_query(catalog_id: Optional[uuid.UUID] = None):
     """
-    Calculate the total profit from all sales by analyzing LineItemConsumption records.
-
-    Args:
-        session: The database session
-
-    Returns:
-        A tuple containing (total_sales_count, total_profit)
+    Build a SQLAlchemy Select to calculate the total number of sales and total profit across all transactions.
     """
-    # Get all LineItemConsumption records with their associated sale and purchase line items
-    query = select(LineItemConsumption).options(
-        joinedload(LineItemConsumption.sale_line_item).joinedload(LineItem.transaction),
-        joinedload(LineItemConsumption.purchase_line_item).joinedload(
-            LineItem.transaction
-        ),
+
+    # Alias LineItem for sale and purchase sides
+    SaleLineItem = aliased(LineItem)
+    PurchaseLineItem = aliased(LineItem)
+
+    query = (
+        select(
+            # Count distinct sale transactions
+            func.count(distinct(SaleLineItem.transaction_id)).label("num_sales"),
+            # Sum of profit per consumption (sale price - purchase price) * quantity
+            func.coalesce(
+                func.sum(
+                    LineItemConsumption.quantity
+                    * (
+                        SaleLineItem.unit_price_amount
+                        - PurchaseLineItem.unit_price_amount
+                    )
+                ),
+                0,
+            ).label("total_profit"),
+        )
+        .select_from(LineItemConsumption)
+        .join(SaleLineItem, LineItemConsumption.sale_line_item)
+        .join(PurchaseLineItem, LineItemConsumption.purchase_line_item)
     )
+    # Apply catalog filter if provided
+    if catalog_id is not None:
+        query = (
+            query.join(SKU, SaleLineItem.sku_id == SKU.id)
+            .join(Product, SKU.product_id == Product.id)
+            .join(Set, Product.set_id == Set.id)
+            .join(Catalog, Set.catalog_id == Catalog.id)
+            .where(Catalog.id == catalog_id)
+        )
 
-    consumptions = session.scalars(query).all()
-
-    # Initialize counters
-    total_profit = Decimal("0")
-    total_revenue = Decimal("0")
-
-    # Process each consumption record
-    for consumption in consumptions:
-        # Skip if we can't find the associated transactions
-        if not consumption.sale_line_item or not consumption.purchase_line_item:
-            continue
-
-        # Get the sale and purchase prices
-        sale_unit_price = consumption.sale_line_item.unit_price_amount
-        purchase_unit_price = consumption.purchase_line_item.unit_price_amount
-        quantity = consumption.quantity
-
-        # Calculate profit for this consumption
-        item_revenue = sale_unit_price * quantity
-        item_cost = purchase_unit_price * quantity
-        item_profit = item_revenue - item_cost
-
-        # Add to totals
-        total_revenue += item_revenue
-        total_profit += item_profit
-
-    # Calculate number of sales
-    num_sales = len(
-        set(c.sale_line_item.transaction_id for c in consumptions if c.sale_line_item)
-    )
-
-    return num_sales, total_profit
+    return query

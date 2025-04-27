@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MoneySchema } from "../schemas";
+import { MoneySchema, MoneyAmountSchema } from "../schemas";
 import { TransactionTypeSchema } from "../transactions/schemas";
 import {
   SKUWithProductResponseSchema,
@@ -100,10 +100,10 @@ export type InventorySKUTransactionsResponse = z.infer<
 
 export const InventoryMetricsResponseSchema = z.object({
   number_of_items: z.number(),
-  total_inventory_cost: z.number(),
-  total_market_value: z.number(),
-  unrealised_profit: z.number(),
-  lifetime_profit: z.number(),
+  total_inventory_cost: MoneyAmountSchema,
+  total_market_value: MoneyAmountSchema,
+  unrealised_profit: MoneyAmountSchema,
+  lifetime_profit: MoneyAmountSchema,
   currency: z.string(),
 });
 

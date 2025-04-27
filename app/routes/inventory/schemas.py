@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 from app.routes.catalog.schemas import SKUWithProductResponseSchema
-from app.routes.utils import MoneySchema, ORMModel
+from app.routes.utils import MoneyAmountSchema, MoneySchema, ORMModel
 from core.models.transaction import TransactionType
 from datetime import datetime, date
 from uuid import UUID
@@ -35,10 +35,10 @@ class InventorySKUTransactionsResponseSchema(BaseModel):
 
 class InventoryMetricsResponseSchema(BaseModel):
     number_of_items: int
-    total_inventory_cost: float
-    total_market_value: float
-    unrealised_profit: float
-    lifetime_profit: float
+    total_inventory_cost: MoneyAmountSchema
+    total_market_value: MoneyAmountSchema
+    unrealised_profit: MoneyAmountSchema
+    lifetime_profit: MoneyAmountSchema
     currency: str = "USD"
 
 
