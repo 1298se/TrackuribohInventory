@@ -2,7 +2,7 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 
 from core.dao.inventory import query_inventory_catalogs
-from core.inventory.service import get_inventory_metrics
+from core.services.inventory_service import get_inventory_metrics
 from core.database import SessionLocal
 from core.models.inventory_snapshot import InventoryDailySnapshot
 

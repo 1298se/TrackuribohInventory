@@ -5,7 +5,7 @@ from uuid import UUID
 from datetime import date, timedelta
 from decimal import Decimal
 
-from core.inventory.query_builder import build_inventory_query
+from core.inventory.inventory import build_inventory_query
 from core.dao.transaction import build_total_sales_profit_query
 from core.models.inventory_snapshot import InventoryDailySnapshot
 
@@ -21,7 +21,6 @@ class InventoryMetrics(TypedDict):
     currency: str
 
 
-# TypedDict for a single historical inventory snapshot row
 class InventoryHistoryEntry(TypedDict):
     """TypedDict representing a historical snapshot row."""
 
@@ -60,6 +59,7 @@ def get_inventory_metrics(
     total_cost = Decimal(row.total_inventory_cost)
     total_market = Decimal(row.total_market_value)
     unrealised = total_market - total_cost
+
     # Calculate lifetime realised profit using profit query builder
     num_sales, profit_decimal = session.execute(
         build_total_sales_profit_query(catalog_id)
@@ -81,8 +81,8 @@ def get_inventory_history(
 ) -> list[InventoryHistoryEntry]:
     """Return historical snapshot rows for the given catalogue.
 
-    If ``catalog_id`` is ``None`` we aggregate across catalogues for each date.
-    ``days`` can be ``None`` to indicate *all time*.
+    If `catalog_id` is None we aggregate across catalogues for each date.
+    `days` can be None to indicate *all time*.
     """
 
     # Determine lower bound date if a time window is requested

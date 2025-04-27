@@ -3,11 +3,7 @@ from typing import Optional
 from uuid import UUID
 
 from core.dao.inventory import query_inventory_items
-from core.models.catalog import SKU
-from core.models.catalog import Product
-from core.models.catalog import Set
-from core.models.catalog import Condition
-from core.models.catalog import Printing
+from core.models.catalog import SKU, Product, Set, Condition, Printing
 from core.utils.search import create_product_set_fts_vector, create_ts_query
 
 
