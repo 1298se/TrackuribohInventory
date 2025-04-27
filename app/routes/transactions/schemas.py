@@ -51,6 +51,7 @@ class TransactionCreateRequestSchema(BaseModel):
     line_items: list[LineItemCreateRequestSchema]
     currency: str
     platform_id: uuid.UUID | None = None
+    platform_order_id: str | None = None
     shipping_cost_amount: (
         MoneyAmountSchema  # The shipping cost YOU incurred (what you paid for shipping)
     )
@@ -77,6 +78,7 @@ class TransactionUpdateRequestSchema(BaseModel):
     comment: str | None
     currency: str
     platform_id: uuid.UUID | None = None
+    platform_order_id: str | None = None
     shipping_cost_amount: (
         MoneyAmountSchema  # The shipping cost YOU incurred (what you paid for shipping)
     )
@@ -107,6 +109,7 @@ class TransactionResponseSchema(ORMModel):
     comment: str | None
     line_items: list[LineItemResponseSchema]
     platform: Optional[PlatformResponseSchema] = None
+    platform_order_id: str | None = None
     currency: str
     shipping_cost_amount: (
         MoneyAmountSchema  # The shipping cost YOU incurred (what you paid for shipping)

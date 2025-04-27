@@ -223,6 +223,7 @@ async def update_transaction(
         transaction.comment = request.comment
         transaction.currency = request.currency
         transaction.platform_id = request.platform_id
+        transaction.platform_order_id = request.platform_order_id
         transaction.shipping_cost_amount = request.shipping_cost_amount
         transaction.tax_amount = request.tax_amount
 

@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Optional
 
-from sqlalchemy import ForeignKey, DateTime
+from sqlalchemy import ForeignKey, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_extensions import uuid7
 
@@ -87,6 +87,7 @@ class Transaction(Base):
         ForeignKey(f"{platform_tablename}.id"), nullable=True
     )
     platform: Mapped[Optional[Platform]] = relationship(back_populates="transactions")
+    platform_order_id: Mapped[str | None] = mapped_column(String, nullable=True)
     currency: Mapped[str] = mapped_column(server_default="USD")
     shipping_cost_amount: Mapped[MoneyAmount] = mapped_column(server_default="0")
     tax_amount: Mapped[MoneyAmount] = mapped_column(server_default="0")

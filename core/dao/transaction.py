@@ -269,6 +269,7 @@ class TransactionData:
     tax_amount: MoneyAmount
     comment: Optional[str] = None
     platform_id: Optional[uuid.UUID] = None
+    platform_order_id: Optional[str] = None
 
 
 @dataclass
@@ -313,6 +314,7 @@ def create_transaction_with_line_items(
         shipping_cost_amount=transaction_data.shipping_cost_amount,
         tax_amount=transaction_data.tax_amount,
         platform_id=transaction_data.platform_id,
+        platform_order_id=transaction_data.platform_order_id,
     )
     session.add(transaction)
     session.flush()  # Flush to get transaction ID
