@@ -178,6 +178,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
         comment: transaction.comment,
         currency: transaction.currency,
         platform_id: transaction.platform?.id || null,
+        platform_order_id: transaction.platform_order_id ?? null,
         shipping_cost_amount: transaction.shipping_cost_amount,
         tax_amount: transaction.tax_amount,
         date: transaction.date,
@@ -403,6 +404,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
         comment: formData.comment,
         currency: formData.currency,
         platform_id: formData.platform_id,
+        platform_order_id: formData.platform_order_id,
         shipping_cost_amount: formData.shipping_cost_amount,
         tax_amount: formData.tax_amount,
         date: formData.date,
@@ -756,6 +758,14 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                           </FormItem>
                         )}
                       />
+                    )}
+                    {!isEditing && transaction.platform_order_id && (
+                      <div>
+                        <div className="text-sm font-medium mb-2">Order ID</div>
+                        <div className="mt-2">
+                          {transaction.platform_order_id}
+                        </div>
+                      </div>
                     )}
                     <FormField
                       control={form.control}
