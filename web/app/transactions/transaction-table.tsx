@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { SKUDisplay } from "@/components/ui/sku-display";
+import { SKUDisplay } from "@/components/sku-display";
 import { ProductImage } from "@/components/ui/product-image";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";

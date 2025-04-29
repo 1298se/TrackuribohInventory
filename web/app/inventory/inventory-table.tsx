@@ -14,7 +14,7 @@ import { Package2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { type Column } from "../../components/data-table";
-import { SKUDisplay } from "@/components/ui/sku-display";
+import { SKUDisplay } from "@/components/sku-display";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useCallback, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";

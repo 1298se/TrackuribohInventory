@@ -18,7 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { SKUDisplay } from "@/components/ui/sku-display";
+import { SKUDisplay } from "@/components/sku-display";
 import { ProductImage } from "@/components/ui/product-image";
 import { cn } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";

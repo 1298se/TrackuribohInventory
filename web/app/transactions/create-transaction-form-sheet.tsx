@@ -71,6 +71,7 @@ import { Separator } from "@/components/ui/separator";
 import { ProductImage } from "@/components/ui/product-image";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { FormFieldPlatformSelect } from "@/components/ui/platform-select";
+import { ProductDisplay } from "@/components/product-display";
 
 export const TransactionCreateFormLineItemSchema =
   LineItemCreateRequestSchema.extend({
@@ -331,25 +332,10 @@ export default function CreateTransactionFormDialog() {
     {
       accessorKey: "product.name",
       header: "Name",
-      cell: ({ row }) => {
-        const product = row.original.product;
-        // Create an array of parts to join
-        const details = [];
-        details.push(product.set.name); // Add set name first
-        if (product.rarity) {
-          details.push(product.rarity); // Add rarity second, if it exists
-        }
-
-        return (
-          <div>
-            {product.name}
-            <div className="text-sm text-muted-foreground">
-              {/* Join details with a delimiter */}
-              <div>{details.join(" · ")}</div>
-            </div>
-          </div>
-        );
-      },
+      cell: ({ row }) =>
+        row.original.product ? (
+          <ProductDisplay product={row.original.product} />
+        ) : null,
     },
     {
       accessorKey: "sku_id",

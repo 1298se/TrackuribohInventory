@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { SKUDisplay } from "@/components/ui/sku-display";
+import { ProductDisplay } from "@/components/product-display";
 import { Separator } from "@/components/ui/separator";
 import {
   useTransaction,
@@ -158,7 +158,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
   const selectedPlatformId = form.watch("platform_id");
 
   // Use useFieldArray to manage the array of line items
-  const { fields, remove, prepend } = useFieldArray({
+  const { fields, remove, prepend, update } = useFieldArray({
     control: form.control,
     name: "line_items",
   });
@@ -206,7 +206,68 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
         header: "Product",
         loading: ProductLoading,
         cell: ({ row }) =>
-          row.original.sku ? <SKUDisplay sku={row.original.sku} /> : null,
+          row.original.sku ? (
+            <ProductDisplay product={row.original.sku.product} />
+          ) : null,
+      },
+      {
+        id: "sku",
+        header: "SKU",
+        loading: DefaultLoading,
+        cell: ({ row }) => {
+          const originalSku = row.original.sku;
+          if (!originalSku) return null;
+          if (isEditing) {
+            return (
+              <FormField
+                control={form.control}
+                key={row.original.id}
+                name={`line_items.${row.index}.sku`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Select
+                        value={field.value.id}
+                        onValueChange={(skuId) => {
+                          const product = originalSku.product;
+                          const newSku = product.skus.find(
+                            (s) => s.id === skuId,
+                          );
+                          if (newSku) {
+                            update(row.index, {
+                              ...fields[row.index],
+                              sku: { ...newSku, product },
+                            });
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="min-w-[200px]">
+                          <SelectValue placeholder="Select SKU" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {originalSku.product.skus.map((sku) => (
+                            <SelectItem key={sku.id} value={sku.id}>
+                              {sku.condition.name} · {sku.printing.name} ·{" "}
+                              {sku.language.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            );
+          }
+          // In view mode, show only SKU variant details (without repeating product)
+          return (
+            <div className="text-sm font-medium">
+              {originalSku.condition.name} · {originalSku.printing.name} ·{" "}
+              {originalSku.language.name}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "quantity",
@@ -489,82 +550,91 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
 
   return (
     <div className="space-y-4">
-      <Card>
-        {/* Header - either skeleton or actual content */}
-        {!transaction ? (
-          <TransactionDetailsSkeletonHeader />
-        ) : (
-          <CardHeader className="flex flex-row justify-between">
-            <CardTitle>
-              {transaction.type === "PURCHASE"
-                ? `${Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: currency,
-                  }).format(
-                    totalAmount,
-                  )} purchase from ${transaction.counterparty_name}`
-                : `${Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: currency,
-                  }).format(
-                    totalAmount,
-                  )} sale to ${transaction.counterparty_name}`}
-            </CardTitle>
-            {isEditing ? (
-              <div className="space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsEditing(false);
-                    form.reset();
-                  }}
-                  disabled={isMutating || isCalculating}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={form.handleSubmit(handleSaveChanges)}
-                  type="submit"
-                  disabled={isMutating || isCalculating}
-                >
-                  {isMutating ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
-            ) : (
+      {/* Page header and form content without outer Card */}
+      {/* Header - either skeleton or actual content */}
+      {!transaction ? (
+        <TransactionDetailsSkeletonHeader />
+      ) : (
+        <div className="flex flex-row justify-between">
+          <CardTitle>
+            {transaction.type === "PURCHASE"
+              ? `${Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: currency,
+                }).format(
+                  totalAmount,
+                )} purchase from ${transaction.counterparty_name}`
+              : `${Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: currency,
+                }).format(
+                  totalAmount,
+                )} sale to ${transaction.counterparty_name}`}
+          </CardTitle>
+          {isEditing ? (
+            <div className="space-x-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setIsEditing(false);
+                  form.reset();
+                }}
+                disabled={isMutating || isCalculating}
               >
-                Edit Details
+                Cancel
               </Button>
-            )}
-          </CardHeader>
-        )}
+              <Button
+                size="sm"
+                onClick={form.handleSubmit(handleSaveChanges)}
+                type="submit"
+                disabled={isMutating || isCalculating}
+              >
+                {isMutating ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+            >
+              Edit Details
+            </Button>
+          )}
+        </div>
+      )}
 
-        {/* Main content - either skeleton with loading DataTable or full form with DataTable */}
-        {!transaction ? (
-          <>
-            <TransactionDetailsSkeletonContent />
-            <CardContent className="pt-0">
-              <DataTable columns={lineItemColumns} data={[]} loading={true} />
-            </CardContent>
-          </>
-        ) : (
-          <CardContent>
-            <Form {...form}>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date</FormLabel>
-                        {isEditing ? (
-                          <>
+      {/* Main content - either skeleton with loading DataTable or full form with DataTable */}
+      {!transaction ? (
+        <>
+          <TransactionDetailsSkeletonContent />
+          <div className="pt-0">
+            <DataTable columns={lineItemColumns} data={[]} loading={true} />
+          </div>
+        </>
+      ) : (
+        <div>
+          <Form {...form}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Basic Information */}
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>Basic Information</CardTitle>
+                  <CardDescription>
+                    Overview of this transaction
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Date, Counterparty, Comment fields */}
+                    <FormField
+                      control={form.control}
+                      name="date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date</FormLabel>
+                          {isEditing ? (
                             <FormControl>
                               <DatePickerInput
                                 value={
@@ -581,199 +651,195 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                                 clearable={true}
                               />
                             </FormControl>
-                            <FormMessage />
-                          </>
-                        ) : (
-                          <div className="mt-2">
-                            {format(new Date(transaction.date), "MMMM d, yyyy")}
-                          </div>
-                        )}
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="counterparty_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Counterparty Name</FormLabel>
-                        {isEditing ? (
-                          <>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </>
-                        ) : (
-                          <div className="mt-2">
-                            {transaction.counterparty_name}
-                          </div>
-                        )}
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormFieldPlatformSelect
-                    control={form.control}
-                    name="platform_id"
-                    label="Platform"
-                    isEditing={isEditing}
-                    displayValue={transaction.platform?.name}
-                  />
-
-                  {/* Show Order ID input when editing and a platform is selected */}
-                  {isEditing && selectedPlatformId && (
-                    <FormField
-                      control={form.control}
-                      name="platform_order_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Order ID</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value || ""}
-                              placeholder="Order ID"
-                            />
-                          </FormControl>
-                          <FormMessage />
+                          ) : (
+                            <div className="mt-2">
+                              {format(
+                                new Date(transaction.date),
+                                "MMMM d, yyyy",
+                              )}
+                            </div>
+                          )}
                         </FormItem>
                       )}
                     />
-                  )}
-
-                  <FormField
-                    control={form.control}
-                    name="shipping_cost_amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Shipping Cost</FormLabel>
-                        {isEditing ? (
-                          <>
-                            <FormControl>
-                              <MoneyInput
-                                value={field.value}
-                                onChange={(amount) => field.onChange(amount)}
-                                className="w-full"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </>
-                        ) : (
-                          <div className="mt-2">
-                            {Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: transaction.currency,
-                            }).format(transaction.shipping_cost_amount)}
-                          </div>
-                        )}
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="tax_amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tax Amount</FormLabel>
-                        {isEditing ? (
-                          <>
-                            <FormControl>
-                              <MoneyInput
-                                value={field.value}
-                                onChange={(amount) => field.onChange(amount)}
-                                className="w-full"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </>
-                        ) : (
-                          <div className="mt-2">
-                            {Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: transaction.currency,
-                            }).format(transaction.tax_amount)}
-                          </div>
-                        )}
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="comment"
-                    render={({ field }) => (
-                      <FormItem className={isEditing ? "pb-4" : ""}>
-                        <FormLabel>Comment</FormLabel>
-                        {isEditing ? (
-                          <>
-                            <FormControl>
-                              <Textarea
-                                {...field}
-                                value={field.value || ""}
-                                placeholder="Add a comment about this transaction"
-                                className="resize-none h-20"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </>
-                        ) : (
-                          <div className="mt-2">
-                            {transaction.comment ? (
-                              <span className="whitespace-pre-wrap max-w-[300px] block truncate">
-                                {transaction.comment}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground italic">
-                                No comment
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <Separator />
-
-                {/* DataTable section with added Redistribute Prices button */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center gap-2">
-                    <div className="flex items-center gap-2">
-                      <FormLabel>Line Items</FormLabel>
-                      {isEditing && (
-                        <SelectProductDialog onSelect={onProductSelected} />
+                    <FormField
+                      control={form.control}
+                      name="counterparty_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Counterparty Name</FormLabel>
+                          {isEditing ? (
+                            <>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </>
+                          ) : (
+                            <div className="mt-2">
+                              {transaction.counterparty_name}
+                            </div>
+                          )}
+                        </FormItem>
                       )}
-                    </div>
-
-                    {isEditing && (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={handleRedistributePrices}
-                        disabled={fields.length === 0 || isCalculating}
-                      >
-                        Redistribute Prices
-                      </Button>
-                    )}
-                  </div>
-                  <div className="mt-2">
-                    <DataTable
-                      columns={lineItemColumns}
-                      data={fields}
-                      loading={false}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="comment"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Comment</FormLabel>
+                          {isEditing ? (
+                            <>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  value={field.value ?? ""}
+                                  className="resize-none h-20"
+                                  placeholder="Add a comment"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </>
+                          ) : (
+                            <div className="mt-2">
+                              {transaction.comment ? (
+                                <span className="whitespace-pre-wrap max-w-[300px] block truncate">
+                                  {transaction.comment}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground italic">
+                                  No comment
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </FormItem>
+                      )}
                     />
                   </div>
-                </div>
-              </div>
-            </Form>
-          </CardContent>
-        )}
-      </Card>
+                </CardContent>
+              </Card>
+              {/* Order Details */}
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>Order Details</CardTitle>
+                  <CardDescription>
+                    Financial breakdown of this transaction
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Platform select, Platform Order ID, Shipping Cost, Tax Amount fields */}
+                    <FormFieldPlatformSelect
+                      control={form.control}
+                      name="platform_id"
+                      label="Platform"
+                      isEditing={isEditing}
+                      displayValue={transaction?.platform?.name}
+                    />
+                    {isEditing && selectedPlatformId && (
+                      <FormField
+                        control={form.control}
+                        name="platform_order_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Order ID</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? ""}
+                                placeholder="Order ID"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    <FormField
+                      control={form.control}
+                      name="shipping_cost_amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Shipping Cost</FormLabel>
+                          {isEditing ? (
+                            <>
+                              <FormControl>
+                                <MoneyInput
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  className="w-full"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </>
+                          ) : (
+                            <div className="mt-2">
+                              {Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: transaction.currency,
+                              }).format(transaction.shipping_cost_amount)}
+                            </div>
+                          )}
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="tax_amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tax Amount</FormLabel>
+                          {isEditing ? (
+                            <>
+                              <FormControl>
+                                <MoneyInput
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  className="w-full"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </>
+                          ) : (
+                            <div className="mt-2">
+                              {Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: transaction.currency,
+                              }).format(transaction.tax_amount)}
+                            </div>
+                          )}
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Line Items Section */}
+            <div className="flex justify-between items-center mt-4 mb-4">
+              {isEditing && (
+                <SelectProductDialog onSelect={onProductSelected} />
+              )}
+              {isEditing && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleRedistributePrices}
+                >
+                  Redistribute Prices
+                </Button>
+              )}
+            </div>
+            <DataTable
+              columns={lineItemColumns}
+              data={fields}
+              loading={isLoading}
+            />
+          </Form>
+        </div>
+      )}
     </div>
   );
 
