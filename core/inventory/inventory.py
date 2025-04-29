@@ -4,7 +4,7 @@ from uuid import UUID
 
 from core.dao.inventory import query_inventory_items
 from core.models.catalog import SKU, Product, Set, Condition, Printing
-from core.utils.search import create_product_set_fts_vector, create_ts_query
+from core.dao.catalog import create_product_set_fts_vector, create_ts_query
 
 
 def build_inventory_query(

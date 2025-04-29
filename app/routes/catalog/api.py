@@ -1,6 +1,6 @@
 from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.routes.catalog.schemas import (
@@ -19,7 +19,7 @@ from core.models.catalog import Catalog
 from core.models.catalog import Set
 from core.models.catalog import SKU
 from core.services.schemas.schema import ProductType
-from core.utils.search import create_product_set_fts_vector, create_ts_query
+from core.dao.catalog import build_product_search_query
 from core.services.tcgplayer_listing_service import (
     get_product_active_listings,
     CardRequestData,
@@ -49,21 +49,8 @@ def search_products(
     catalog_id = search_params.catalog_id
     product_type = search_params.product_type
 
-    # Use utility function to create combined TS vector for Product and Set
-    combined_ts_vector_weighted = create_product_set_fts_vector()
-
-    # Use utility function to create TS query
-    ts_query = create_ts_query(query_text)
-
-    # Define combined rank
-    combined_rank = func.ts_rank(combined_ts_vector_weighted, ts_query)
-
-    # Build search query
-    base_search_query = (
-        select(Product)
-        .join(Set, Product.set_id == Set.id)
-        .where(combined_ts_vector_weighted.op("@@")(ts_query))
-    )
+    # Build search query (automatically joins Set, filters, and orders by rank)
+    base_search_query = build_product_search_query(query_text)
 
     # Add catalog filter if provided
     if catalog_id:
@@ -74,9 +61,6 @@ def search_products(
         base_search_query = base_search_query.where(
             Product.product_type == product_type
         )
-
-    # Add ordering
-    base_search_query = base_search_query.order_by(combined_rank.desc())
 
     # Execute query
     results = session.scalars(

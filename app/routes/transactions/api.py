@@ -39,6 +39,7 @@ from core.services.tcgplayer_catalog_service import (
     TCGPlayerCatalogService,
     get_tcgplayer_catalog_service,
 )
+from core.dao.catalog import create_product_set_fts_vector
 
 router = APIRouter(
     prefix="/transactions",
@@ -75,6 +76,8 @@ async def get_transactions(
         .outerjoin(Transaction.line_items)
         .outerjoin(LineItem.sku)
         .outerjoin(SKU.product)
+        # Join Set table for full-text search vector fields
+        .outerjoin(Product.set)
     )
 
     # Only apply the filter if query is provided
@@ -90,9 +93,7 @@ async def get_transactions(
                 ),
                 "A",
             )
-            product_ts_vector = func.setweight(
-                func.to_tsvector("english", func.coalesce(Product.name, "")), "B"
-            )
+            product_ts_vector = create_product_set_fts_vector()
 
             # Combine the vectors
             combined_ts_vector = counterparty_ts_vector.op("||")(product_ts_vector)
