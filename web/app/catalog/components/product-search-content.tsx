@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ProductCard } from "@/components/product-card";
 import { useProductSearch } from "@/app/catalog/api";
-import { useCatalogs } from "@/app/inventory/api";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -11,56 +11,66 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ProductCard } from "@/components/product-card";
+
+// Basic type based on usage in this component
+type Catalog = {
+  id: string;
+  display_name: string;
+};
 
 interface ProductSearchContentProps {
+  search: string;
+  selectedCatalog: string | null;
+  // Props needed to show search controls for refinement
   query: string;
   onQueryChange: (q: string) => void;
-  debouncedQuery: string;
+  catalogs: Catalog[];
+  onCatalogChange: (catalogId: string | null) => void;
   onSearchSubmit: () => void;
 }
 
+// Consider renaming to SearchResultsContent for clarity
 export default function ProductSearchContent({
+  search,
+  selectedCatalog,
   query,
   onQueryChange,
-  debouncedQuery,
+  catalogs,
+  onCatalogChange,
   onSearchSubmit,
 }: ProductSearchContentProps) {
-  const [selectedCatalog, setSelectedCatalog] = useState<string | null>(null);
-
-  const { data: catalogData } = useCatalogs();
-  const catalogs = catalogData?.catalogs ?? [];
-
   const {
     data: searchData,
     error,
     isLoading,
-  } = useProductSearch(debouncedQuery, selectedCatalog);
+  } = useProductSearch(search, selectedCatalog);
   const products = searchData?.results ?? [];
 
+  // Prevent form submission behavior if wrapped in a form
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSearchSubmit();
+    }
+  };
+
   return (
-    <>
-      {/* Search and filter controls */}
+    <div className="space-y-6">
+      {/* Search and filter controls - Kept for refinement */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0">
         <Input
-          placeholder="Search products..."
-          value={query}
+          type="search"
+          placeholder="Refine search..."
+          value={query} // Controlled by parent CatalogPage
           onChange={(e) => onQueryChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              onSearchSubmit();
-            }
-          }}
+          onKeyDown={handleKeyDown}
           className="flex-1"
         />
         <Select
           value={selectedCatalog ?? "all"}
-          onValueChange={(val) =>
-            setSelectedCatalog(val === "all" ? null : val)
-          }
+          onValueChange={(val) => onCatalogChange(val === "all" ? null : val)}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Catalogs" />
           </SelectTrigger>
           <SelectContent>
@@ -76,9 +86,8 @@ export default function ProductSearchContent({
 
       {/* Error state */}
       {error && (
-        <div className="text-red-600">
-          Failed to load products.{" "}
-          <button onClick={onSearchSubmit}>Retry</button>
+        <div className="text-red-600 text-center py-10">
+          Failed to load products.
         </div>
       )}
 
@@ -91,21 +100,22 @@ export default function ProductSearchContent({
         </div>
       )}
 
-      {/* Empty state */}
-      {!isLoading && products.length === 0 && (
-        <div className="text-center text-muted-foreground">
-          No products found{debouncedQuery ? ` for "${debouncedQuery}"` : ""}.
+      {/* Empty Search Results State */}
+      {!isLoading && !error && search && products.length === 0 && (
+        <div className="text-center text-muted-foreground py-20">
+          <h2 className="text-xl font-semibold mb-2">No products found</h2>
+          <p>Your search for "{search}" did not match any products.</p>
         </div>
       )}
 
       {/* Results grid */}
-      {!isLoading && products.length > 0 && (
+      {!isLoading && !error && products.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
