@@ -84,44 +84,7 @@ const TransactionEditFormSchema = TransactionUpdateRequestSchema.extend({
 type LineItemEdit = z.infer<typeof LineItemEditSchema>;
 type TransactionEditForm = z.infer<typeof TransactionEditFormSchema>;
 
-// First, let's define separate components for header and content skeletons
-function TransactionDetailsSkeletonHeader() {
-  return (
-    <CardHeader className="flex flex-row justify-between">
-      <div>
-        <Skeleton className="h-8 w-[300px]" /> {/* Amount + transaction type */}
-      </div>
-      <Skeleton className="h-9 w-24" /> {/* Edit button */}
-    </CardHeader>
-  );
-}
-
-function TransactionDetailsSkeletonContent() {
-  return (
-    <CardContent>
-      <div className="space-y-6">
-        {/* Form fields grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className={i === 5 ? "pb-4" : ""}>
-              <Skeleton className="h-4 w-24 mb-2" /> {/* Label */}
-              <Skeleton className="h-10 w-full" /> {/* Input */}
-            </div>
-          ))}
-        </div>
-
-        {/* Total amount */}
-        <div>
-          <Skeleton className="h-4 w-24 mb-2" /> {/* Label */}
-          <Skeleton className="h-8 w-32" /> {/* Amount */}
-        </div>
-
-        <Separator />
-      </div>
-    </CardContent>
-  );
-}
-
+// First, let's define loading components for various parts
 const ImageLoading = () => <Skeleton className="h-16 w-16 rounded-md" />;
 const ProductLoading = () => (
   <>
@@ -130,6 +93,18 @@ const ProductLoading = () => (
   </>
 );
 const DefaultLoading = () => <Skeleton className="h-4 w-24" />;
+const InputLoading = () => (
+  <div>
+    <Skeleton className="h-4 w-24 mb-2" />
+    <Skeleton className="h-10 w-full" />
+  </div>
+);
+const TextLoading = () => (
+  <>
+    <Skeleton className="h-4 w-24 mb-2" />
+    <Skeleton className="h-6 w-3/4 mt-2" />
+  </>
+);
 
 export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
   const {
@@ -372,7 +347,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
         },
       },
     ],
-    [isEditing, form.control],
+    [isEditing, form.control, transaction?.currency],
   );
 
   const handleSaveChanges = async () => {
@@ -510,6 +485,9 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     }
   };
 
+  // Determine loading state
+  const isLoadingState = isLoading || (!transaction && !error);
+
   // Early return for error states
   if (error) {
     return (
@@ -519,17 +497,6 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
           <AlertDescription>
             Failed to load transaction details. Please try again later.
           </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  if (!isLoading && !transaction) {
-    return (
-      <div className="space-y-4">
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Transaction not found.</AlertDescription>
         </Alert>
       </div>
     );
@@ -552,84 +519,78 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
 
   return (
     <div className="space-y-4">
-      {/* Page header and form content without outer Card */}
-      {/* Header - either skeleton or actual content */}
-      {!transaction ? (
-        <TransactionDetailsSkeletonHeader />
-      ) : (
-        <div className="flex flex-row justify-between">
+      {/* Page header */}
+      <div className="flex flex-row justify-between items-center">
+        {isLoadingState ? (
+          <Skeleton className="h-8 w-[400px]" />
+        ) : (
           <CardTitle>
-            {transaction.type === "PURCHASE"
+            {transaction?.type === "PURCHASE"
               ? `${Intl.NumberFormat("en-US", {
                   style: "currency",
                   currency: currency,
                 }).format(
                   totalAmount,
-                )} purchase from ${transaction.counterparty_name}`
+                )} purchase from ${transaction!.counterparty_name}`
               : `${Intl.NumberFormat("en-US", {
                   style: "currency",
                   currency: currency,
                 }).format(
                   totalAmount,
-                )} sale to ${transaction.counterparty_name}`}
+                )} sale to ${transaction!.counterparty_name}`}
           </CardTitle>
-          {isEditing ? (
-            <div className="space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsEditing(false);
-                  form.reset();
-                }}
-                disabled={isMutating || isCalculating}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={form.handleSubmit(handleSaveChanges)}
-                type="submit"
-                disabled={isMutating || isCalculating}
-              >
-                {isMutating ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
-          ) : (
+        )}
+        {isLoadingState ? (
+          <Skeleton className="h-9 w-24" />
+        ) : isEditing ? (
+          <div className="space-x-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsEditing(true)}
+              onClick={() => {
+                setIsEditing(false);
+                form.reset();
+              }}
+              disabled={isMutating || isCalculating}
             >
-              Edit Details
+              Cancel
             </Button>
-          )}
-        </div>
-      )}
-
-      {/* Main content - either skeleton with loading DataTable or full form with DataTable */}
-      {!transaction ? (
-        <>
-          <TransactionDetailsSkeletonContent />
-          <div className="pt-0">
-            <DataTable columns={lineItemColumns} data={[]} loading={true} />
+            <Button
+              size="sm"
+              onClick={form.handleSubmit(handleSaveChanges)}
+              type="submit"
+              disabled={isMutating || isCalculating}
+            >
+              {isMutating ? "Saving..." : "Save Changes"}
+            </Button>
           </div>
-        </>
-      ) : (
-        <div>
-          <Form {...form}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Basic Information */}
-              <Card className="h-full">
-                <CardHeader>
-                  <CardTitle>Basic Information</CardTitle>
-                  <CardDescription>
-                    Overview of this transaction
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Date, Counterparty, Comment fields */}
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditing(true)}
+          >
+            Edit Details
+          </Button>
+        )}
+      </div>
+
+      {/* Main content */}
+      <div>
+        <Form {...form}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Basic Information Card */}
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Basic Information</CardTitle>
+                <CardDescription>Overview of this transaction</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Date */}
+                  {isLoadingState ? (
+                    <InputLoading />
+                  ) : (
                     <FormField
                       control={form.control}
                       name="date"
@@ -656,7 +617,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                           ) : (
                             <div className="mt-2">
                               {format(
-                                new Date(transaction.date),
+                                new Date(transaction!.date),
                                 "MMMM d, yyyy",
                               )}
                             </div>
@@ -664,6 +625,11 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                         </FormItem>
                       )}
                     />
+                  )}
+                  {/* Counterparty Name */}
+                  {isLoadingState ? (
+                    <InputLoading />
+                  ) : (
                     <FormField
                       control={form.control}
                       name="counterparty_name"
@@ -679,12 +645,17 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                             </>
                           ) : (
                             <div className="mt-2">
-                              {transaction.counterparty_name}
+                              {transaction!.counterparty_name}
                             </div>
                           )}
                         </FormItem>
                       )}
                     />
+                  )}
+                  {/* Comment */}
+                  {isLoadingState ? (
+                    <InputLoading />
+                  ) : (
                     <FormField
                       control={form.control}
                       name="comment"
@@ -705,9 +676,9 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                             </>
                           ) : (
                             <div className="mt-2">
-                              {transaction.comment ? (
+                              {transaction!.comment ? (
                                 <span className="whitespace-pre-wrap max-w-[300px] block truncate">
-                                  {transaction.comment}
+                                  {transaction!.comment}
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground italic">
@@ -719,20 +690,25 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                         </FormItem>
                       )}
                     />
-                  </div>
-                </CardContent>
-              </Card>
-              {/* Order Details */}
-              <Card className="h-full">
-                <CardHeader>
-                  <CardTitle>Order Details</CardTitle>
-                  <CardDescription>
-                    Financial breakdown of this transaction
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Platform select, Platform Order ID, Shipping Cost, Tax Amount fields */}
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Order Details Card */}
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Order Details</CardTitle>
+                <CardDescription>
+                  Financial breakdown of this transaction
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Platform select */}
+                  {isLoadingState ? (
+                    <InputLoading />
+                  ) : (
                     <FormFieldPlatformSelect
                       control={form.control}
                       name="platform_id"
@@ -740,33 +716,50 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                       isEditing={isEditing}
                       displayValue={transaction?.platform?.name}
                     />
-                    {isEditing && selectedPlatformId && (
-                      <FormField
-                        control={form.control}
-                        name="platform_order_id"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Order ID</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                value={field.value ?? ""}
-                                placeholder="Order ID"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                    {!isEditing && transaction.platform_order_id && (
-                      <div>
-                        <div className="text-sm font-medium mb-2">Order ID</div>
-                        <div className="mt-2">
-                          {transaction.platform_order_id}
+                  )}
+                  {/* Platform Order ID */}
+                  {isLoadingState ? (
+                    (isEditing && selectedPlatformId) ||
+                    (!isEditing && transaction?.platform_order_id) ? (
+                      <InputLoading />
+                    ) : null
+                  ) : (
+                    <>
+                      {isEditing && selectedPlatformId && (
+                        <FormField
+                          control={form.control}
+                          name="platform_order_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Order ID</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  value={field.value ?? ""}
+                                  placeholder="Order ID"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      {!isEditing && transaction?.platform_order_id && (
+                        <div>
+                          <div className="text-sm font-medium mb-2">
+                            Order ID
+                          </div>
+                          <div className="mt-2">
+                            {transaction.platform_order_id}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </>
+                  )}
+                  {/* Shipping Cost */}
+                  {isLoadingState ? (
+                    <InputLoading />
+                  ) : (
                     <FormField
                       control={form.control}
                       name="shipping_cost_amount"
@@ -788,13 +781,18 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                             <div className="mt-2">
                               {Intl.NumberFormat("en-US", {
                                 style: "currency",
-                                currency: transaction.currency,
-                              }).format(transaction.shipping_cost_amount)}
+                                currency: transaction!.currency,
+                              }).format(transaction!.shipping_cost_amount)}
                             </div>
                           )}
                         </FormItem>
                       )}
                     />
+                  )}
+                  {/* Tax Amount */}
+                  {isLoadingState ? (
+                    <InputLoading />
+                  ) : (
                     <FormField
                       control={form.control}
                       name="tax_amount"
@@ -816,40 +814,41 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                             <div className="mt-2">
                               {Intl.NumberFormat("en-US", {
                                 style: "currency",
-                                currency: transaction.currency,
-                              }).format(transaction.tax_amount)}
+                                currency: transaction!.currency,
+                              }).format(transaction!.tax_amount)}
                             </div>
                           )}
                         </FormItem>
                       )}
                     />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            {/* Line Items Section */}
-            <div className="flex justify-between items-center mt-4 mb-4">
-              {isEditing && (
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          {/* Line Items Section */}
+          <div className="flex justify-between items-center mt-4 mb-4">
+            {isEditing && !isLoadingState && (
+              <>
                 <SelectProductDialog onSelect={onProductSelected} />
-              )}
-              {isEditing && (
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={handleRedistributePrices}
+                  disabled={isCalculating}
                 >
-                  Redistribute Prices
+                  {isCalculating ? "Redistributing..." : "Redistribute Prices"}
                 </Button>
-              )}
-            </div>
-            <DataTable
-              columns={lineItemColumns}
-              data={fields}
-              loading={isLoading}
-            />
-          </Form>
-        </div>
-      )}
+              </>
+            )}
+          </div>
+          <DataTable
+            columns={lineItemColumns}
+            data={fields}
+            loading={isLoadingState}
+          />
+        </Form>
+      </div>
     </div>
   );
 
