@@ -2,13 +2,11 @@ import uuid
 from datetime import datetime
 from typing import List, Any
 
-from sqlalchemy import ForeignKey, func, UniqueConstraint, DateTime
+from sqlalchemy import ForeignKey, UniqueConstraint, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing_extensions import Optional
 from uuid_extensions import uuid7
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy import String
 
 from core.models.base import Base
 from core.services.schemas.schema import ProductType
@@ -71,22 +69,6 @@ class Product(Base):
     @property
     def tcgplayer_url(self) -> str:
         return f"www.tcgplayer.com/product/{self.tcgplayer_id}"
-
-    @hybrid_property
-    def rarity(self) -> Optional[str]:
-        if isinstance(self.data, list):
-            for item in self.data:
-                # Ensure item is a dictionary and matches "name": "Rarity"
-                if isinstance(item, dict) and item.get("name") == "Rarity":
-                    return item.get("value")  # Return the "value" if found
-        return None  # Return None if no match is found
-
-    @rarity.expression
-    def rarity(cls):
-        # Find the first element in the data array where name = 'Rarity' and return its value
-        return func.jsonb_path_query_first(
-            cls.data, '$ ? (@.name == "Rarity").value'
-        ).cast(String)
 
 
 class SKU(Base):

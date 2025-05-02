@@ -55,18 +55,35 @@ export const SKUBaseResponseSchema = z.object({
 });
 
 // ProductWithSetAndSKUsResponseSchema
-export const ProductWithSetAndSKUsResponseSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  tcgplayer_url: z.string(),
-  image_url: z.string(),
-  product_type: ProductTypeSchema,
-  // data is an array of objects that can have any string key -> string value
-  data: z.array(z.record(z.string())),
-  rarity: z.string().nullable(), // can be null or string
-  set: SetBaseResponseSchema,
-  skus: z.array(SKUBaseResponseSchema),
-});
+export const ProductWithSetAndSKUsResponseSchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string(),
+    tcgplayer_url: z.string(),
+    image_url: z.string(),
+    product_type: ProductTypeSchema,
+    // data is an array of objects that can have any string key -> string value
+    data: z.array(z.record(z.string())),
+    set: SetBaseResponseSchema,
+    skus: z.array(SKUBaseResponseSchema),
+  })
+  .transform((product) => {
+    const rawRarity = product.data.find(
+      (item) => item.name === "Rarity",
+    )?.value;
+    const rawNumber = product.data.find(
+      (item) => item.name === "Number",
+    )?.value;
+    return {
+      ...product,
+      // Derive and sanitize rarity: treat missing or "None" as null
+      rarity:
+        rawRarity === undefined || rawRarity === "None" ? null : rawRarity,
+      // Derive and sanitize number: treat missing or "None" as null
+      number:
+        rawNumber === undefined || rawNumber === "None" ? null : rawNumber,
+    };
+  });
 
 // SKUWithProductResponseSchema
 export const SKUWithProductResponseSchema = SKUBaseResponseSchema.extend({

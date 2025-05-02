@@ -36,7 +36,6 @@ class ProductBaseResponseSchema(ORMModel):
     image_url: str
     product_type: ProductType
     data: list[dict[str, str]]
-    rarity: str | None
 
 
 class SetBaseResponseSchema(ORMModel):
