@@ -22,6 +22,7 @@ import { useInventoryCatalogs } from "./api";
 import { InventoryMetricCard } from "@/components/inventory-metric-card";
 import { useInventoryMetrics } from "./api";
 import { InventoryHistoryGraph } from "./inventory-history-graph";
+import { SearchInput } from "@/components/search-input";
 
 const ImageLoading = () => <Skeleton className="h-16 w-16 rounded-md" />;
 const ProductLoading = () => (
@@ -249,14 +250,6 @@ export function InventoryTable() {
     );
   }
 
-  const filterProps = {
-    placeholder: "Search by name, set, rarity...",
-    // Change inputValue to initialValue
-    initialValue: initialQuery,
-    // Remove onInputChange
-    onFilterSubmit: handleFilterSubmit,
-  };
-
   return (
     <div className="space-y-4">
       {/* Aggregate Metric Cards */}
@@ -309,12 +302,19 @@ export function InventoryTable() {
         )}
       </div>
 
+      {/* Search filter input under tabs */}
+      <SearchInput
+        placeholder="Search by name, set, rarity..."
+        initialValue={initialQuery}
+        onSubmit={handleFilterSubmit}
+        className="w-full max-w-md"
+      />
+
       {/* DataTable is now rendered unconditionally */}
       <DataTable
         columns={columns}
         data={data?.inventory_items ?? []}
         loading={isLoading}
-        filterProps={filterProps} // Pass filter props
         onRowClick={(row) => router.push(`/inventory/${row.original.sku.id}`)}
       />
     </div>

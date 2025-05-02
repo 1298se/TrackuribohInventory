@@ -1,4 +1,3 @@
-import { useTransactions, useDeleteTransactions } from "./api";
 import { DataTable } from "../../components/data-table";
 import { TransactionResponse } from "./schemas";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,8 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SKUDisplay } from "@/components/sku-display";
 import { ProductImage } from "@/components/ui/product-image";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { RowSelectionState } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 
@@ -193,60 +191,35 @@ const columns: Column<TransactionResponse, any>[] = [
   },
 ];
 
-export function TransactionTable() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+// Add props interface
+export interface TransactionTableProps {
+  transactions: TransactionResponse[];
+  loading: boolean;
+  onRowClick: (id: string) => void;
+  onDeleteSelected: (ids: string[]) => void | Promise<void>;
+}
 
-  // Get initial query from URL or default to empty string
-  const initialQuery = searchParams.get("q") || "";
-
+export function TransactionTable({
+  transactions,
+  loading,
+  onRowClick,
+  onDeleteSelected,
+}: TransactionTableProps) {
   // State for row selection remains the same
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({}); //manage your own row selection state
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
-  // Fetch data based on the query *from the URL*
-  const { data, isLoading, mutate } = useTransactions(initialQuery);
-  const deleteMutation = useDeleteTransactions();
-
-  // Handler to update URL when search is submitted
-  const handleSearchSubmit = useCallback(
-    (query: string) => {
-      const current = new URLSearchParams(Array.from(searchParams.entries())); // Create mutable copy
-
-      if (!query) {
-        current.delete("q");
-      } else {
-        current.set("q", query);
-      }
-
-      const search = current.toString();
-      const queryStr = search ? `?${search}` : "";
-
-      // Use replace to avoid adding multiple search entries to browser history
-      router.replace(`${pathname}${queryStr}`);
-
-      // We don't need to manually call mutate() here,
-      // because useTransactions depends on initialQuery, which will change
-      // when searchParams changes after router.replace, triggering a refetch.
-    },
-    [router, searchParams, pathname],
-  );
+  // Use controlled props
+  const data = { transactions };
+  const isLoading = loading;
 
   // handler to bulk delete the selected transactions using rowSelection state
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     const selectedIds = Object.keys(rowSelection).filter(
       (key) => rowSelection[key],
     );
     if (selectedIds.length === 0) return;
-    try {
-      await deleteMutation.trigger(selectedIds);
-      // refetch transactions after deletion - keep this mutate call
-      mutate();
-      // clear the current selection
-      setRowSelection({});
-    } catch (error) {
-      console.error("Failed to delete selected transactions", error);
-    }
+    onDeleteSelected(selectedIds);
+    setRowSelection({});
   };
 
   // Compute the count of selected rows from rowSelection
@@ -266,7 +239,7 @@ export function TransactionTable() {
       </div>
       <DataTable
         columns={columns}
-        data={data?.transactions ?? []}
+        data={transactions}
         loading={isLoading}
         rowSelectionProps={{
           enableRowSelection: true,
@@ -274,14 +247,7 @@ export function TransactionTable() {
           onRowSelectionStateChange: setRowSelection,
         }}
         getRowId={(row) => row.id}
-        onRowClick={(row) => router.push(`/transactions/${row.original.id}`)}
-        filterProps={{
-          placeholder: "Search by counterparty or product name...",
-          // Pass initialValue instead of inputValue and onInputChange
-          initialValue: initialQuery,
-          // Keep onFilterSubmit
-          onFilterSubmit: handleSearchSubmit,
-        }}
+        onRowClick={(row) => onRowClick(row.original.id)}
       />
     </div>
   );

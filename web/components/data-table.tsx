@@ -6,7 +6,7 @@ import {
   Row,
   RowSelectionState,
   OnChangeFn,
-} from "@tanstack/react-table"
+} from "@tanstack/react-table";
 
 import {
   Table,
@@ -15,53 +15,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 
-import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
-import { SearchInput } from "./search-input"
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { SearchInput } from "./search-input";
 
 export type Column<TData, TValue> = ColumnDef<TData, TValue> & {
   loading?: React.ComponentType;
-}
+};
 
 interface DataTableProps<TData, TValue> {
-  columns: Column<TData, TValue>[]
-  data: TData[]
-  rowSelectionProps?: RowSelectionProps<TData>
-  loading?: boolean
-  onRowClick?: (row: Row<TData>) => void
-  getRowId?: (row: TData) => string
-  filterProps?: FilterProps
+  columns: Column<TData, TValue>[];
+  data: TData[];
+  rowSelectionProps?: RowSelectionProps<TData>;
+  loading?: boolean;
+  onRowClick?: (row: Row<TData>) => void;
+  getRowId?: (row: TData) => string;
 }
 
 interface RowSelectionProps<TData> {
-  enableRowSelection?: boolean
-  rowSelectionState?: RowSelectionState,
-  onRowSelectionStateChange?: OnChangeFn<RowSelectionState>
-}
-
-/**
- * Props for configuring the filtering behavior of the DataTable
- */
-interface FilterProps {
-  /** 
-   * Customizes the placeholder text in the search input field.
-   * @default "Filter..."
-   */
-  placeholder?: string;
-  
-  /** 
-   * The initial value of the filter input. This is used to initialize the internal state.
-   */
-  initialValue?: string;
-  
-  /** 
-   * Callback function triggered when the filter is submitted (e.g., Enter key press).
-   * This is where you should implement your server-side filtering logic.
-   * @param query The current filter query string
-   */
-  onFilterSubmit?: (query: string) => void;
+  enableRowSelection?: boolean;
+  rowSelectionState?: RowSelectionState;
+  onRowSelectionStateChange?: OnChangeFn<RowSelectionState>;
 }
 
 export function DataTable<TData, TValue>({
@@ -71,7 +47,6 @@ export function DataTable<TData, TValue>({
   loading = false,
   onRowClick,
   getRowId,
-  filterProps,
 }: DataTableProps<TData, TValue>) {
   // Set up table with manual filtering
   const table = useReactTable({
@@ -86,17 +61,10 @@ export function DataTable<TData, TValue>({
     getRowId: getRowId,
     // Enable manual filtering for server-side filtering
     manualFiltering: true,
-  })
+  });
 
   return (
     <div className="w-full h-full">
-      {filterProps && (
-        <SearchInput
-          placeholder={filterProps.placeholder || "Filter..."}
-          initialValue={filterProps.initialValue}
-          onSubmit={filterProps.onFilterSubmit}
-        />
-      )}
       <div className="rounded-md border overflow-auto">
         <Table>
           <TableHeader>
@@ -108,7 +76,7 @@ export function DataTable<TData, TValue>({
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                   </TableHead>
                 ))}
@@ -135,21 +103,27 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   {...(rowSelectionProps?.enableRowSelection
-                      ? { "data-state": row.getIsSelected() && "selected" }
-                      : {})}
+                    ? { "data-state": row.getIsSelected() && "selected" }
+                    : {})}
                   className={cn(onRowClick && "cursor-pointer hover:bg-muted")}
                   onClick={() => onRowClick?.(row)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>
@@ -158,5 +132,5 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
     </div>
-  )
+  );
 }
