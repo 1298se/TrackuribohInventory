@@ -6,7 +6,7 @@ import {
   InventoryItemResponse,
 } from "../schemas";
 import { DataTable } from "@/components/data-table";
-import { type ColumnDef } from "@tanstack/react-table";
+import { type ColumnDef, type Row } from "@tanstack/react-table";
 import { format } from "date-fns";
 import {
   Card,
@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 import { useSkuMarketData } from "../../catalog/api";
+import { useRouter } from "next/navigation";
 
 interface InventoryItemDetailsProps {
   inventoryItemId: string;
@@ -98,6 +99,7 @@ const transactionColumns: ColumnDef<InventorySKUTransactionLineItem>[] = [
 export function InventoryItemDetails({
   inventoryItemId,
 }: InventoryItemDetailsProps) {
+  const router = useRouter();
   const {
     data: inventoryItem,
     isLoading: itemLoading,
@@ -108,6 +110,12 @@ export function InventoryItemDetails({
     isLoading: transactionsLoading,
     error: transactionsError,
   } = useInventoryItemTransactions(inventoryItemId);
+  const handleTransactionRowClick = (
+    row: Row<InventorySKUTransactionLineItem>,
+  ) => {
+    const transactionId = row.original.transaction_id;
+    router.push(`/transactions/${transactionId}`);
+  };
   const {
     data: marketData,
     isLoading: marketLoading,
@@ -282,7 +290,7 @@ export function InventoryItemDetails({
             columns={transactionColumns}
             data={transactionsData?.items ?? []}
             loading={itemLoading || transactionsLoading}
-            // TODO: Add pagination/filtering if needed
+            onRowClick={handleTransactionRowClick}
           />
           {/* TODO: Add Listing History Table here */}
           {/* TODO: Add Audit Trail Table here */}
