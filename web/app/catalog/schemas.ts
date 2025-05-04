@@ -17,76 +17,67 @@ export const ProductTypeSchema = z.nativeEnum(PRODUCT_TYPES);
  * 2) Basic Schemas (used by others)
  * ----------------------------------------------------- */
 
-// ConditionResponseSchema
-export const ConditionResponseSchema = z.object({
-  name: z.string(),
-  abbreviation: z.string(),
-});
+// Base Schemas (matching backend ORMModels/BaseModel)
+export const UUIDSchema = z.string().uuid();
 
-// PrintingResponseSchema
 export const PrintingResponseSchema = z.object({
+  id: UUIDSchema,
   name: z.string(),
 });
 
-// LanguageResponseSchema
 export const LanguageResponseSchema = z.object({
+  id: UUIDSchema,
   name: z.string(),
   abbreviation: z.string(),
 });
+
+export const ConditionResponseSchema = z.object({
+  id: UUIDSchema,
+  name: z.string(),
+  abbreviation: z.string(),
+});
+
+export const SetBaseResponseSchema = z.object({
+  id: UUIDSchema,
+  name: z.string(),
+  code: z.string(),
+  release_date: z.string().datetime(), // Or z.date() if transformed
+});
+
+export const SKUBaseSchema = z.object({
+  id: UUIDSchema,
+  condition: ConditionResponseSchema,
+  printing: PrintingResponseSchema,
+  language: LanguageResponseSchema,
+});
+export type SkuBase = z.infer<typeof SKUBaseSchema>;
+
+export const ProductBaseResponseSchema = z.object({
+  id: UUIDSchema,
+  name: z.string(),
+  tcgplayer_url: z.string(),
+  image_url: z.string(),
+  product_type: z.enum(["Cards", "Sealed Products"]), // Assuming enum values
+  data: z.array(z.record(z.string())), // Generic list of dicts
+  rarity: z.string().nullable(),
+  number: z.string().nullable(),
+});
+
+export const ProductWithSetAndSKUsResponseSchema =
+  ProductBaseResponseSchema.extend({
+    set: SetBaseResponseSchema,
+    skus: z.array(SKUBaseSchema),
+  });
+export type ProductWithSetAndSKUs = z.infer<
+  typeof ProductWithSetAndSKUsResponseSchema
+>;
 
 /* -----------------------------------------------------
  * 3) Product, SKU, and Set Schemas
  * ----------------------------------------------------- */
 
-// SetBaseResponseSchema
-export const SetBaseResponseSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  code: z.string(),
-  release_date: z.string(),
-});
-
-// SKUBaseResponseSchema
-export const SKUBaseResponseSchema = z.object({
-  id: z.string().uuid(),
-  condition: ConditionResponseSchema,
-  printing: PrintingResponseSchema,
-  language: LanguageResponseSchema,
-});
-
-// ProductWithSetAndSKUsResponseSchema
-export const ProductWithSetAndSKUsResponseSchema = z
-  .object({
-    id: z.string().uuid(),
-    name: z.string(),
-    tcgplayer_url: z.string(),
-    image_url: z.string(),
-    product_type: ProductTypeSchema,
-    // data is an array of objects that can have any string key -> string value
-    data: z.array(z.record(z.string())),
-    set: SetBaseResponseSchema,
-    skus: z.array(SKUBaseResponseSchema),
-  })
-  .transform((product) => {
-    const rawRarity = product.data.find(
-      (item) => item.name === "Rarity",
-    )?.value;
-    const rawNumber = product.data.find(
-      (item) => item.name === "Number",
-    )?.value;
-    return {
-      ...product,
-      // Derive and sanitize rarity: treat missing or "None" as null
-      rarity:
-        rawRarity === undefined || rawRarity === "None" ? null : rawRarity,
-      // Derive and sanitize number: treat missing or "None" as null
-      number:
-        rawNumber === undefined || rawNumber === "None" ? null : rawNumber,
-    };
-  });
-
 // SKUWithProductResponseSchema
-export const SKUWithProductResponseSchema = SKUBaseResponseSchema.extend({
+export const SKUWithProductResponseSchema = SKUBaseSchema.extend({
   product: ProductWithSetAndSKUsResponseSchema,
 });
 
@@ -101,7 +92,7 @@ export type ConditionResponse = z.infer<typeof ConditionResponseSchema>;
 export type PrintingResponse = z.infer<typeof PrintingResponseSchema>;
 export type LanguageResponse = z.infer<typeof LanguageResponseSchema>;
 export type SetBaseResponse = z.infer<typeof SetBaseResponseSchema>;
-export type SKUBaseResponse = z.infer<typeof SKUBaseResponseSchema>;
+export type SKUBaseResponse = z.infer<typeof SKUBaseSchema>;
 export type ProductWithSetAndSKUsResponse = z.infer<
   typeof ProductWithSetAndSKUsResponseSchema
 >;
@@ -128,31 +119,41 @@ export type CatalogsResponse = z.infer<typeof CatalogsResponseSchema>;
 /* -----------------------------------------------------
  * 6) Market Data Schemas
  * ----------------------------------------------------- */
-// Summary metrics (stubbed for initial depth-only view)
+// Market Data Schemas
 export const MarketDataSummarySchema = z.object({
-  current_lowest_listing_price: z.number().nullable(),
-  median_sale_price_30_days: z.number().nullable(),
-  avg_sale_price_last_7_days: z.number().nullable(),
-  sale_count_last_7_days: z.number().nullable(),
-  liquidity_ratio: z.number().nullable(),
-  price_volatility_30_days: z.number().nullable(),
-  price_spread_percent: z.number().nullable(),
-  time_to_sell_estimate_days: z.number().nullable(),
+  current_lowest_listing_price: z.number().nullable().optional(),
+  median_sale_price_30_days: z.number().nullable().optional(),
+  avg_sale_price_last_7_days: z.number().nullable().optional(),
+  sale_count_last_7_days: z.number().nullable().optional(),
+  liquidity_ratio: z.number().nullable().optional(),
+  price_volatility_30_days: z.number().nullable().optional(),
+  price_spread_percent: z.number().nullable().optional(),
+  time_to_sell_estimate_days: z.number().nullable().optional(),
 });
 export type MarketDataSummary = z.infer<typeof MarketDataSummarySchema>;
 
-// Depth level entry
-export const DepthLevelSchema = z.object({
+export const CumulativeDepthLevelSchema = z.object({
   price: z.number(),
-  listing_count: z.number(),
+  cumulative_count: z.number(), // Use snake_case from backend
 });
-export type DepthLevel = z.infer<typeof DepthLevelSchema>;
+export type CumulativeDepthLevel = z.infer<typeof CumulativeDepthLevelSchema>;
 
-// Full market data for SKU
 export const SKUMarketDataSchema = z.object({
   summary: MarketDataSummarySchema,
-  depth_levels: z.array(DepthLevelSchema),
-  listings: z.array(z.any()), // stub for future
-  sales: z.array(z.any()), // stub for future
+  cumulative_depth_levels: z.array(CumulativeDepthLevelSchema),
+  listings: z.array(z.any()),
+  sales: z.array(z.any()),
 });
 export type SKUMarketData = z.infer<typeof SKUMarketDataSchema>;
+
+export const SKUMarketDataItemSchema = z.object({
+  marketplace: z.string(),
+  sku: SKUBaseSchema,
+  market_data: SKUMarketDataSchema,
+});
+export type SKUMarketDataItem = z.infer<typeof SKUMarketDataItemSchema>;
+
+export const ProductMarketSchema = z.object({
+  market_data_items: z.array(SKUMarketDataItemSchema),
+});
+export type ProductMarketData = z.infer<typeof ProductMarketSchema>;

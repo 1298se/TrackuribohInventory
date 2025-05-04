@@ -64,6 +64,7 @@ import {
   ProductWithSetAndSKUsResponse,
   SKUWithProductResponseSchema,
 } from "@/app/catalog/schemas";
+import { formatSKU } from "@/app/catalog/utils";
 
 interface TransactionDetailsProps {
   transactionId: string;
@@ -223,8 +224,11 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                         <SelectContent>
                           {originalSku.product.skus.map((sku) => (
                             <SelectItem key={sku.id} value={sku.id}>
-                              {sku.condition.name} · {sku.printing.name} ·{" "}
-                              {sku.language.name}
+                              {formatSKU(
+                                sku.condition,
+                                sku.printing,
+                                sku.language,
+                              )}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -239,8 +243,11 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
           // In view mode, show only SKU variant details (without repeating product)
           return (
             <div className="text-sm font-medium">
-              {originalSku.condition.name} · {originalSku.printing.name} ·{" "}
-              {originalSku.language.name}
+              {formatSKU(
+                originalSku.condition,
+                originalSku.printing,
+                originalSku.language,
+              )}
             </div>
           );
         },

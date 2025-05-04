@@ -1,5 +1,5 @@
-import { SKUWithProductResponse } from "@/app/inventory/schemas";
-import { z } from "zod";
+import { SKUWithProductResponse } from "@/app/catalog/schemas";
+import { formatSKU } from "@/app/catalog/utils";
 
 interface SKUDisplayProps {
   sku: SKUWithProductResponse;
@@ -12,8 +12,8 @@ export function SKUDisplay({ sku }: SKUDisplayProps) {
       <div className="text-sm text-muted-foreground">
         <div>{sku.product.set.name}</div>
         <div>
-          {sku.product.rarity} • {sku.condition.name} • {sku.printing.name} •{" "}
-          {sku.language.name}
+          {sku.product.rarity && `${sku.product.rarity} • `}
+          {formatSKU(sku.condition, sku.printing, sku.language)}
         </div>
       </div>
     </div>

@@ -1,8 +1,8 @@
-from typing import Optional, Any
+from typing import Optional, Any, List, Dict
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field, computed_field
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
@@ -35,7 +35,27 @@ class ProductBaseResponseSchema(ORMModel):
     tcgplayer_url: str
     image_url: str
     product_type: ProductType
-    data: list[dict[str, str]]
+    data: List[Dict[str, str]]
+
+    # Computed field for Rarity
+    @computed_field
+    @property
+    def rarity(self) -> Optional[str]:
+        for item in self.data:
+            if item.get("name") == "Rarity":
+                value = item.get("value")
+                return None if value is None or value.lower() == "none" else value
+        return None
+
+    # Computed field for Number
+    @computed_field
+    @property
+    def number(self) -> Optional[str]:
+        for item in self.data:
+            if item.get("name") == "Number":
+                value = item.get("value")
+                return None if value is None or value.lower() == "none" else value
+        return None
 
 
 class SetBaseResponseSchema(ORMModel):
@@ -136,17 +156,36 @@ class MarketDataSummary(BaseModel):
     time_to_sell_estimate_days: Optional[float] = None
 
 
-class DepthLevel(BaseModel):
-    """Amount of listings available at a given price level."""
+class CumulativeDepthLevelResponseSchema(BaseModel):
+    """Cumulative amount of listings available up to a given price level."""
 
     price: float
-    listing_count: int
+    cumulative_count: int
 
 
-class SKUMarketDataSchema(BaseModel):
-    """Full market data response for a product, optionally scoped to a SKU variant."""
+class SKUMarketDataResponseSchema(BaseModel):
+    """Market data for a single SKU, independent of source."""
 
     summary: MarketDataSummary
-    depth_levels: list[DepthLevel]
-    listings: list[Any]  # historical listings data (stub)
-    sales: list[Any]  # historical sales data (stub)
+    cumulative_depth_levels: list[
+        CumulativeDepthLevelResponseSchema
+    ]  # Precomputed cumulative depth
+    listings: list[Any] = Field(
+        default=[], description="Historical listings data (stub)"
+    )
+    sales: list[Any] = Field(default=[], description="Historical sales data (stub)")
+
+
+class SKUMarketDataItemResponseSchema(BaseModel):
+    """Represents market data for a specific SKU from a specific marketplace."""
+
+    marketplace: str = Field(
+        ..., description="Source marketplace (e.g., 'TCGPlayer', 'eBay')"
+    )
+    sku: SKUBaseResponseSchema  # Details of the specific SKU variant
+    market_data: SKUMarketDataResponseSchema  # The actual market data (depth, summary)
+
+
+class MarketDataResponseSchema(BaseModel):
+    # Field name reflects it contains items, each specifying its SKU and marketplace
+    market_data_items: List[SKUMarketDataItemResponseSchema]

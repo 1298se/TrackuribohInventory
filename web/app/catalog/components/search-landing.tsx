@@ -52,7 +52,7 @@ export default function SearchLanding({
       </p>
 
       {/* Group search input and select */}
-      <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-2xl">
+      <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-4xl">
         <Input
           type="search" // Use type=search for better semantics/mobile UI
           placeholder="Search by card name, set, or game..."

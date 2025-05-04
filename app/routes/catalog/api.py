@@ -1,7 +1,7 @@
-from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+import uuid
 
 from app.routes.catalog.schemas import (
     CatalogsResponseSchema,
@@ -9,21 +9,16 @@ from app.routes.catalog.schemas import (
     ProductWithSetAndSKUsResponseSchema,
     ProductSearchResponseSchema,
     ProductTypesResponseSchema,
-    SKUMarketDataSchema,
-    DepthLevel,
-    MarketDataSummary,
+    MarketDataResponseSchema,
+    SKUMarketDataItemResponseSchema,
 )
 from core.database import get_db_session
-from core.models.catalog import Product
+from core.models.catalog import SKU, Product
 from core.models.catalog import Catalog
 from core.models.catalog import Set
-from core.models.catalog import SKU
 from core.services.schemas.schema import ProductType
 from core.dao.catalog import build_product_search_query
-from core.services.tcgplayer_listing_service import (
-    get_product_active_listings,
-    CardRequestData,
-)
+from core.services import market_data_service
 
 router = APIRouter(
     prefix="/catalog",
@@ -91,47 +86,56 @@ def get_product_types(session: Session = Depends(get_db_session)):
 
 
 @router.get(
-    "/sku/{sku_id}/market-data",
-    response_model=SKUMarketDataSchema,
-    summary="Get market-depth data for a SKU variant",
+    "/product/{product_id}/market-data",
+    response_model=MarketDataResponseSchema,
+    summary="Get market data for all Near Mint/Unopened SKUs of a Product",
 )
-async def get_sku_market_data(
-    sku_id: str,
-    days: int = 30,
-    resolution: str = "daily",
+async def get_product_market_data(
+    product_id: uuid.UUID,
     session: Session = Depends(get_db_session),
 ):
     """
-    Return market-depth (price + shipping) data for a specific SKU variant.
+    Return market data for each **Near Mint or Unopened** SKU
+    associated with the product.
     """
-    # 1. Load SKU and its variant filters
+    # Call the refactored service function from the new service module
+    market_data_list = await market_data_service.get_market_data_for_product(
+        session=session, product_id=product_id
+    )
+    return MarketDataResponseSchema(market_data_items=market_data_list)
+
+
+@router.get(
+    "/sku/{sku_id}/market-data",
+    response_model=MarketDataResponseSchema,
+    summary="Get market-depth data for a SKU variant",
+)
+async def get_sku_market_data(
+    # Change sku_id type hint to UUID
+    sku_id: uuid.UUID,
+    # Remove unused days/resolution params if service doesn't use them
+    # days: int = 30,
+    # resolution: str = "daily",
+    session: Session = Depends(get_db_session),
+):
+    """
+    Return market data for a specific SKU variant.
+    Now calls the dedicated service function.
+    """
+    # Simply call the service function
+    # Error handling (like 404) is now handled within the service function
+    market_data = await market_data_service.get_market_data_for_sku(
+        session=session, sku_id=sku_id
+    )
+
+    # Create a SKUMarketDataItemResponseSchema from the raw market data
     sku = session.get(SKU, sku_id)
     if not sku:
-        raise HTTPException(status_code=404, detail="SKU not found")
-    request_data = CardRequestData(
-        product_id=sku.product.tcgplayer_id,
-        printings=[sku.printing.name],
-        conditions=[sku.condition.name],
+        raise HTTPException(status_code=404, detail=f"SKU not found: {sku_id}")
+
+    # Return a list with the market data from TCGPlayer
+    market_data_item = SKUMarketDataItemResponseSchema(
+        marketplace="TCGPlayer", sku=sku, market_data=market_data
     )
 
-    # 2. Fetch raw listing events (ask-only)
-    listing_events = await get_product_active_listings(request_data)
-
-    # 3. Inline market depth aggregation (price + shippingPrice)
-    depth_map: dict[float, int] = defaultdict(int)
-    for listing in listing_events:
-        total_price = float(listing["price"]) + float(listing.get("shippingPrice", 0))
-        depth_map[total_price] += int(listing.get("quantity", 0))
-    depth_levels = [
-        DepthLevel(price=p, listing_count=c) for p, c in sorted(depth_map.items())
-    ]
-
-    # 4. Stubbed summary data for now
-    summary = MarketDataSummary()
-
-    return SKUMarketDataSchema(
-        summary=summary,
-        depth_levels=depth_levels,
-        listings=[],  # future time-series data
-        sales=[],  # future time-series data
-    )
+    return MarketDataResponseSchema(market_data_items=[market_data_item])

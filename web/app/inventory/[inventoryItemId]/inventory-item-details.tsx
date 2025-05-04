@@ -25,8 +25,19 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
-import { useSkuMarketData } from "../../catalog/api";
+import { useSkuMarketData } from "@/app/catalog/api";
 import { useRouter } from "next/navigation";
+import { MarketDepthChart } from "@/components/market-depth-chart";
+import { SKUMarketDataItem, SkuBase } from "@/app/catalog/schemas";
+import { useMemo, useState } from "react";
+import { formatSKU } from "@/app/catalog/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface InventoryItemDetailsProps {
   inventoryItemId: string;
@@ -116,74 +127,92 @@ export function InventoryItemDetails({
     const transactionId = row.original.transaction_id;
     router.push(`/transactions/${transactionId}`);
   };
+
+  // Updated to handle multiple marketplace data
   const {
-    data: marketData,
+    data: marketDataItems,
     isLoading: marketLoading,
     error: marketError,
-  } = useSkuMarketData(inventoryItemId, 30, "daily");
+  } = useSkuMarketData(inventoryItem?.sku.id || null);
+
+  // Add state for selected marketplace
+  const [selectedMarketplace, setSelectedMarketplace] = useState<string | null>(
+    null,
+  );
 
   if (itemError) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>Failed to load item details.</AlertDescription>
-      </Alert>
-    );
+    return <div>Error loading inventory item: {itemError.message}</div>;
   }
   if (transactionsError) {
     console.error("Transaction History Error:", transactionsError);
   }
 
-  const quantity = !itemLoading && inventoryItem ? inventoryItem.quantity : 0;
-  const avgCostPerUnit =
-    !itemLoading && inventoryItem
-      ? (inventoryItem.average_cost_per_item?.amount ?? 0)
-      : 0;
-  const marketPricePerUnit =
-    !itemLoading && inventoryItem
-      ? inventoryItem.lowest_listing_price?.amount
-      : undefined;
+  const quantity = inventoryItem ? inventoryItem.quantity : 0;
+  const avgCostPerUnit = inventoryItem?.average_cost_per_item?.amount ?? 0;
+  const marketPricePerUnit = inventoryItem?.lowest_listing_price?.amount;
   const currency =
-    !itemLoading && inventoryItem
-      ? (inventoryItem.average_cost_per_item?.currency ??
-        inventoryItem.lowest_listing_price?.currency ??
-        "USD")
-      : "USD";
-
+    inventoryItem?.average_cost_per_item?.currency ??
+    inventoryItem?.lowest_listing_price?.currency ??
+    "USD";
   const totalAcquisitionCost = avgCostPerUnit * quantity;
   const totalMarketValue =
     marketPricePerUnit !== undefined ? marketPricePerUnit * quantity : null;
   const totalProfitLoss =
     totalMarketValue !== null ? totalMarketValue - totalAcquisitionCost : null;
-
   const profitPercentage =
     totalProfitLoss !== null && totalAcquisitionCost > 0
       ? (totalProfitLoss / totalAcquisitionCost) * 100
       : null;
-
   const formattedPercentage =
     profitPercentage !== null
       ? `${profitPercentage >= 0 ? "+" : ""}${profitPercentage.toFixed(1)}%`
       : null;
 
-  // Prepare cumulative depth data: aggregate listing_count up to each price point
-  const depthData = marketData?.depth_levels ?? [];
-  const cumulativeData = depthData.reduce(
-    (acc: Array<{ price: number; cumulativeCount: number }>, lvl) => {
-      const prevTotal =
-        acc.length > 0 ? acc[acc.length - 1].cumulativeCount : 0;
-      acc.push({
-        price: lvl.price,
-        cumulativeCount: prevTotal + lvl.listing_count,
-      });
-      return acc;
-    },
-    [],
-  );
+  // Generate a list of unique marketplaces from the market data
+  const marketplaceOptions = useMemo(() => {
+    if (!marketDataItems?.length) return [];
+    return Array.from(new Set(marketDataItems.map((item) => item.marketplace)));
+  }, [marketDataItems]);
 
-  if (!itemLoading && !inventoryItem) {
+  // Get the market data for the selected marketplace or fall back to first available
+  const selectedMarketData = useMemo(() => {
+    if (!marketDataItems?.length) return null;
+
+    // If no marketplace is selected yet or selection invalid, use the first one
+    const effectiveMarketplace =
+      selectedMarketplace || marketDataItems[0]?.marketplace;
+
+    // Auto-select first marketplace when options change
+    if (!selectedMarketplace && effectiveMarketplace) {
+      setSelectedMarketplace(effectiveMarketplace);
+    }
+
+    // Find the matching market data item
     return (
-      <Alert>
+      marketDataItems.find((item) => item.marketplace === effectiveMarketplace)
+        ?.market_data || null
+    );
+  }, [marketDataItems, selectedMarketplace]);
+
+  // Compute chart data from the selected market data
+  const chartData = useMemo(() => {
+    if (!selectedMarketData?.cumulative_depth_levels?.length) return [];
+
+    return selectedMarketData.cumulative_depth_levels.map(
+      ({ price, cumulative_count }) => ({
+        price,
+        cumulativeCount: cumulative_count,
+      }),
+    );
+  }, [selectedMarketData]);
+
+  if (itemLoading) {
+    return <div>Loading inventory details...</div>;
+  }
+
+  if (!inventoryItem) {
+    return (
+      <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>Inventory item not found.</AlertDescription>
       </Alert>
@@ -226,13 +255,11 @@ export function InventoryItemDetails({
                       {inventoryItem!.sku.product.rarity}
                     </div>
                     <div className="pt-0.5 text-xs">
-                      {[
-                        inventoryItem!.sku.condition?.name,
-                        inventoryItem!.sku.printing?.name,
-                        inventoryItem!.sku.language?.name,
-                      ]
-                        .filter(Boolean)
-                        .join(" • ")}
+                      {formatSKU(
+                        inventoryItem!.sku.condition || { name: "" },
+                        inventoryItem!.sku.printing || { name: "" },
+                        inventoryItem!.sku.language || { name: "" },
+                      )}
                     </div>
                   </div>
                   {/* Quantity could also go here if needed */}
@@ -298,68 +325,56 @@ export function InventoryItemDetails({
         <TabsContent value="market" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Market Depth</CardTitle>
-              <CardDescription>
-                Displays the cumulative number of active listings at each price
-                level, helping you gauge supply and pricing.
-              </CardDescription>
+              <div className="flex flex-row justify-between items-center">
+                <div>
+                  <CardTitle>Market Depth</CardTitle>
+                  <CardDescription>
+                    Cumulative active listings by price for this specific SKU.
+                  </CardDescription>
+                </div>
+                {marketplaceOptions.length > 1 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Marketplace:
+                    </span>
+                    <Select
+                      value={selectedMarketplace || undefined}
+                      onValueChange={(value) => setSelectedMarketplace(value)}
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue placeholder="Select marketplace" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {marketplaceOptions.map((marketplace) => (
+                          <SelectItem key={marketplace} value={marketplace}>
+                            {marketplace}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {marketError && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Failed to load market depth.
+                    Failed to load market depth. {marketError.message}
                   </AlertDescription>
                 </Alert>
               )}
               {marketLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : (
-                <ChartContainer
-                  id="market-depth"
-                  config={{
-                    price: { label: "Price", color: "#3B82F6" },
-                    cumulativeCount: {
-                      label: "Cumulative Count",
-                      color: "#3B82F6",
-                    },
-                  }}
-                  className="h-[300px] w-full"
-                >
-                  <AreaChart
-                    layout="horizontal"
-                    data={cumulativeData}
-                    margin={{ top: 10, right: 30, left: 60, bottom: 0 }}
-                  >
-                    <XAxis
-                      dataKey="cumulativeCount"
-                      type="number"
-                      domain={[0, "dataMax"]}
-                    />
-                    <YAxis
-                      dataKey="price"
-                      type="number"
-                      domain={["dataMin", "dataMax"]}
-                      tickFormatter={(value) => formatCurrency(value, currency)}
-                    />
-                    <Tooltip
-                      formatter={(value: number, name: string) =>
-                        name === "cumulativeCount"
-                          ? value
-                          : formatCurrency(value, currency)
-                      }
-                      labelFormatter={(label: number) => label}
-                    />
-                    <Area
-                      type="stepAfter"
-                      dataKey="price"
-                      stroke="#3B82F6"
-                      fill="rgba(59,130,246,0.3)"
-                      dot={{ r: 2, fill: "#3B82F6" }}
-                    />
-                  </AreaChart>
-                </ChartContainer>
+                <MarketDepthChart
+                  isLoading={marketLoading}
+                  data={chartData}
+                  currency={
+                    inventoryItem?.average_cost_per_item?.currency ?? "USD"
+                  }
+                />
               )}
             </CardContent>
           </Card>
