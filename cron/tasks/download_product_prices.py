@@ -8,12 +8,12 @@ from core.models.price import SKUPriceSnapshot
 from core.models.price import SKUPriceSnapshotJob
 from core.models.catalog import Condition
 from core.models.catalog import Language
-from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
+from core.services.tcgplayer_catalog_service import tcgplayer_service_context
 from core.utils.workers import process_task_queue
 
 
 async def download_sku_pricing_data(job_id: int, skus: list[SKU]):
-    async with TCGPlayerCatalogService() as service:
+    async with tcgplayer_service_context() as service:
         with SessionLocal() as session, session.begin():
             print(f"updating skus: {[sku.id for sku in skus]}")
             sku_prices_response = await service.get_sku_prices(

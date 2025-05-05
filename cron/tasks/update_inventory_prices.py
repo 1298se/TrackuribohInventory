@@ -4,7 +4,7 @@ import asyncio
 from core.dao.inventory import query_inventory_items
 from core.dao.prices import update_latest_sku_prices
 from core.database import SessionLocal
-from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
+from core.services.tcgplayer_catalog_service import tcgplayer_service_context
 
 PARTITION_SIZE = 200  # Process results in chunks
 
@@ -12,7 +12,7 @@ PARTITION_SIZE = 200  # Process results in chunks
 async def update_inventory_price_data():
     """Main task function to update latest prices for SKUs currently in inventory."""
     print("Starting inventory SKU price update job...")
-    async with TCGPlayerCatalogService() as service:
+    async with tcgplayer_service_context() as service:
         with SessionLocal() as session:
             all_sku_ids = [
                 sku.id

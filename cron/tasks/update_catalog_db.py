@@ -19,7 +19,10 @@ from core.services.schemas.schema import (
     TCGPlayerProductType,
     map_tcgplayer_product_type_to_product_type,
 )
-from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
+from core.services.tcgplayer_catalog_service import (
+    TCGPlayerCatalogService,
+    tcgplayer_service_context,
+)
 from core.utils.workers import process_task_queue
 
 # Configure logging
@@ -331,7 +334,7 @@ async def update_card_database():
     """Update the entire card database by fetching all catalogs and their sets from TCGPlayer."""
     logger.info("Starting update of card database")
     try:
-        async with TCGPlayerCatalogService() as service:
+        async with tcgplayer_service_context() as service:
             with SessionLocal() as session, session.begin():
                 catalog_response = await service.get_catalogs(list(SUPPORTED_CATALOGS))
                 logger.info(f"Retrieved {len(catalog_response.results)} catalogs")
