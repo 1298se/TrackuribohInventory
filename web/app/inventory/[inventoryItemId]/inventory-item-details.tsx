@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 interface InventoryItemDetailsProps {
   inventoryItemId: string;
@@ -221,86 +222,68 @@ export function InventoryItemDetails({
 
   return (
     <div className="space-y-6">
-      {/* Combined Overview Section */}
-      <div className="flex flex-col lg:flex-row gap-3">
-        {/* Column 1: Item Identification Card */}
-        <Card className="lg:w-1/3 flex-shrink-0">
-          <CardContent className="pt-4">
-            {itemLoading ? (
-              <div className="flex flex-col items-center gap-2">
-                <Skeleton className="h-32 w-24 rounded-md" />
-                <div className="space-y-1 w-full text-center">
-                  <Skeleton className="h-5 w-3/4 mx-auto" />
-                  <Skeleton className="h-4 w-1/2 mx-auto" />
-                  <Skeleton className="h-4 w-1/4 mx-auto" />
-                  <Skeleton className="h-4 w-3/4 mx-auto" />
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <ProductImage
-                  src={inventoryItem!.sku.product.image_url}
-                  alt={inventoryItem!.sku.product.name}
-                  containerClassName="h-32 w-auto max-w-[8rem] rounded-md overflow-hidden"
-                />
-                <div className="space-y-1 text-center">
-                  <h1 className="text-lg font-semibold leading-tight">
-                    {inventoryItem!.sku.product.name}
-                  </h1>
-                  <div className="text-sm text-muted-foreground">
-                    <div className="text-base font-medium text-foreground">
-                      {inventoryItem!.sku.product.set.name}
-                    </div>
-                    <div className="pt-0.5">
-                      {inventoryItem!.sku.product.rarity}
-                    </div>
-                    <div className="pt-0.5 text-xs">
-                      {formatSKU(
-                        inventoryItem!.sku.condition || { name: "" },
-                        inventoryItem!.sku.printing || { name: "" },
-                        inventoryItem!.sku.language || { name: "" },
-                      )}
-                    </div>
-                  </div>
-                  {/* Quantity could also go here if needed */}
-                  {/* <p className="text-sm font-medium pt-2">Quantity: {quantity}</p> */}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Column 2: Financial Snapshot Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-grow">
-          <MetricCard
-            isLoading={itemLoading}
-            title="Quantity In Stock"
-            value={quantity}
-            subtitle="Units"
-          />
-          <MetricCard
-            isLoading={itemLoading}
-            title="Total Cost"
-            value={formatCurrency(totalAcquisitionCost, currency)}
-            subtitle={`Avg. ${formatCurrency(avgCostPerUnit, currency)} /unit`}
-          />
-          <MetricCard
-            isLoading={itemLoading}
-            title="Total Market Value"
-            value={formatCurrency(totalMarketValue, currency)}
-            subtitle={
-              marketPricePerUnit !== undefined
-                ? `${formatCurrency(marketPricePerUnit, currency)} /unit market price`
-                : "Market price unavailable"
-            }
-          />
-          <MetricCard
-            isLoading={itemLoading}
-            title="Unrealized Profit"
-            value={formatCurrency(totalProfitLoss, currency)}
-            subtitle={formattedPercentage ?? "Cost basis zero"}
+      {/* Top-level Product details header */}
+      <div className="flex w-full items-start gap-4">
+        <div className="flex-shrink-0">
+          <ProductImage
+            src={inventoryItem.sku.product.image_url}
+            alt={inventoryItem.sku.product.name}
+            containerClassName="h-24 w-auto max-w-[6rem] rounded-md overflow-hidden"
           />
         </div>
+        <div className="flex flex-col items-start gap-2">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold">
+              {inventoryItem.sku.product.name}
+            </h1>
+            <Badge>{inventoryItem.sku.printing?.name || "Standard"}</Badge>
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {inventoryItem.sku.product.set.name}
+            {inventoryItem.sku.product.number
+              ? ` (${inventoryItem.sku.product.number})`
+              : ""}
+          </span>
+          <div className="text-sm text-muted-foreground">
+            {formatSKU(
+              inventoryItem.sku.condition || { name: "" },
+              inventoryItem.sku.printing || { name: "" },
+              inventoryItem.sku.language || { name: "" },
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Financial Metrics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+        <MetricCard
+          isLoading={itemLoading}
+          title="Quantity In Stock"
+          value={quantity}
+          subtitle="Units"
+        />
+        <MetricCard
+          isLoading={itemLoading}
+          title="Total Cost"
+          value={formatCurrency(totalAcquisitionCost, currency)}
+          subtitle={`Avg. ${formatCurrency(avgCostPerUnit, currency)} /unit`}
+        />
+        <MetricCard
+          isLoading={itemLoading}
+          title="Total Market Value"
+          value={formatCurrency(totalMarketValue, currency)}
+          subtitle={
+            marketPricePerUnit !== undefined
+              ? `${formatCurrency(marketPricePerUnit, currency)} /unit market price`
+              : "Market price unavailable"
+          }
+        />
+        <MetricCard
+          isLoading={itemLoading}
+          title="Unrealized Profit"
+          value={formatCurrency(totalProfitLoss, currency)}
+          subtitle={formattedPercentage ?? "Cost basis zero"}
+        />
       </div>
 
       {/* Detailed Information Tabs */}
