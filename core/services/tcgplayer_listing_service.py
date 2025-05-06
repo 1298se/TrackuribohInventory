@@ -3,6 +3,7 @@ from types import MappingProxyType
 from typing import List, TypedDict, Any
 
 import aiohttp
+from pydantic import BaseModel
 
 
 # TypedDicts for TCGPlayer listing and sales service
@@ -137,6 +138,63 @@ def get_sales_request_payload(
     }
 
 
+# Define Pydantic schemas for TCGPlayer listings API response
+class AggregationItemSchema(BaseModel):
+    value: Any
+    count: float
+
+
+class AggregationsSchema(BaseModel):
+    condition: List[AggregationItemSchema]
+    quantity: List[AggregationItemSchema]
+    language: List[AggregationItemSchema]
+    printing: List[AggregationItemSchema]
+
+
+class ListingSchema(BaseModel):
+    directProduct: bool
+    goldSeller: bool
+    listingId: float
+    channelId: float
+    conditionId: float
+    verifiedSeller: bool
+    directInventory: float
+    rankedShippingPrice: float
+    productId: float
+    printing: str
+    languageAbbreviation: str
+    sellerName: str
+    forwardFreight: bool
+    sellerShippingPrice: float
+    language: str
+    shippingPrice: float
+    condition: str
+    languageId: float
+    score: float
+    directSeller: bool
+    productConditionId: float
+    sellerId: str
+    listingType: str
+    sellerRating: float
+    sellerSales: str
+    quantity: float
+    sellerKey: str
+    price: float
+    customData: Any
+
+
+class PageSchema(BaseModel):
+    totalResults: int
+    resultId: str
+    aggregations: AggregationsSchema
+    results: List[ListingSchema]
+
+
+class TCGPlayerListingsResponseSchema(BaseModel):
+    errors: List[str]
+    results: List[PageSchema]
+
+
 async def get_product_active_listings(
     request: CardRequestData,
 ) -> list[SKUListingResponse]:
@@ -157,15 +215,16 @@ async def get_product_active_listings(
 
             async with session.post(url, json=payload) as response:
                 response.raise_for_status()
-                data = await response.json()
+                raw = await response.json()
+            # Validate and parse raw API response
+            parsed = TCGPlayerListingsResponseSchema.parse_obj(raw)
+            page = parsed.results[0]
+            total_listings = page.totalResults
+            results = page.results
 
-            listing_data = data["results"][0]
-            total_listings = listing_data["totalResults"]
-            results = listing_data["results"]
-
-            # Avoid duplicates due to pagination
-            for result in results:
-                listings[result["listingId"]] = result
+            # Convert each ListingSchema into a dict for downstream processing
+            for listing in results:
+                listings[listing.listingId] = listing.dict()
 
             cur_offset += len(results)
             if cur_offset >= total_listings:
