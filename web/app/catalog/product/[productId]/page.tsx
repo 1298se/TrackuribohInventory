@@ -13,7 +13,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { UUID } from "crypto";
-import { ProductImage } from "@/components/ui/product-image";
 import { MarketDepthChart } from "@/components/market-depth-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -25,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { SKUMarketDataItem, CumulativeDepthLevel } from "@/app/catalog/schemas";
 import { formatSKU } from "@/app/catalog/utils";
+import { ProductHeader } from "@/components/product-header";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -163,29 +163,14 @@ export default function ProductDetailPage() {
   // Render
   return (
     <div className="container mx-auto p-4 space-y-6">
-      {/* Product Identification Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col items-center gap-4 md:flex-row md:items-start">
-            <ProductImage
-              src={product.image_url}
-              alt={product.name}
-              containerClassName="h-48 w-auto max-w-[12rem] rounded-md overflow-hidden flex-shrink-0"
-            />
-            <div className="space-y-2 text-center md:text-left">
-              <h1 className="text-2xl font-semibold leading-tight">
-                {product.name}
-              </h1>
-              <div className="text-lg text-muted-foreground">
-                <div className="text-xl font-medium text-foreground">
-                  {product.set.name}
-                </div>
-                {product.rarity && <div className="pt-1">{product.rarity}</div>}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Product Header */}
+      <ProductHeader
+        imageUrl={product.image_url}
+        name={product.name}
+        badgeContent={product.rarity || undefined}
+        setName={product.set.name}
+        setNumber={product.number}
+      />
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 gap-6">

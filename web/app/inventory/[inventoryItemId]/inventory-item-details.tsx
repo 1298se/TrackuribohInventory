@@ -18,8 +18,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { SKUDisplay } from "@/components/sku-display";
-import { ProductImage } from "@/components/ui/product-image";
 import { cn } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { ProductHeader } from "@/components/product-header";
 
 interface InventoryItemDetailsProps {
   inventoryItemId: string;
@@ -222,37 +220,23 @@ export function InventoryItemDetails({
 
   return (
     <div className="space-y-6">
-      {/* Top-level Product details header */}
-      <div className="flex w-full items-start gap-4">
-        <div className="flex-shrink-0">
-          <ProductImage
-            src={inventoryItem.sku.product.image_url}
-            alt={inventoryItem.sku.product.name}
-            containerClassName="h-24 w-auto max-w-[6rem] rounded-md overflow-hidden"
-          />
-        </div>
-        <div className="flex flex-col items-start gap-2">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold">
-              {inventoryItem.sku.product.name}
-            </h1>
-            <Badge>{inventoryItem.sku.printing?.name || "Standard"}</Badge>
-          </div>
-          <span className="text-sm text-muted-foreground">
-            {inventoryItem.sku.product.set.name}
-            {inventoryItem.sku.product.number
-              ? ` (${inventoryItem.sku.product.number})`
-              : ""}
-          </span>
-          <div className="text-sm text-muted-foreground">
-            {formatSKU(
-              inventoryItem.sku.condition || { name: "" },
-              inventoryItem.sku.printing || { name: "" },
-              inventoryItem.sku.language || { name: "" },
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Product Header */}
+      <ProductHeader
+        imageUrl={inventoryItem.sku.product.image_url}
+        name={inventoryItem.sku.product.name}
+        badgeContent={
+          inventoryItem.sku.product.rarity === null
+            ? undefined
+            : inventoryItem.sku.product.rarity
+        }
+        setName={inventoryItem.sku.product.set.name}
+        setNumber={inventoryItem.sku.product.number}
+        details={formatSKU(
+          inventoryItem.sku.condition || { name: "" },
+          inventoryItem.sku.printing || { name: "" },
+          inventoryItem.sku.language || { name: "" },
+        )}
+      />
 
       {/* Financial Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
