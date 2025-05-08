@@ -76,12 +76,13 @@ export default function ProductDetailPage() {
   // Initialize or update SKU selection
   const [selectedSku, setSelectedSku] = useState<string>("");
   useEffect(() => {
-    if (skus.length > 1 && selectedSku !== "aggregated") {
+    // Set default SKU when the list changes (on marketplace change)
+    if (skus.length > 1) {
       setSelectedSku("aggregated");
     } else if (skus.length === 1) {
       setSelectedSku(skus[0].id);
     }
-  }, [skus, selectedSku]);
+  }, [skus]);
 
   // Compute depth levels based on selection
   const displayedDepthLevels = useMemo(() => {
@@ -192,7 +193,7 @@ export default function ProductDetailPage() {
                       value={selectedMarketplace}
                       onValueChange={setSelectedMarketplace}
                     >
-                      <SelectTrigger className="w-[180px]">
+                      <SelectTrigger className="w-[240px]">
                         <SelectValue placeholder="Select marketplace" />
                       </SelectTrigger>
                       <SelectContent>
@@ -209,7 +210,7 @@ export default function ProductDetailPage() {
                   <div className="flex items-center gap-2">
                     <label className="text-sm font-medium">SKU:</label>
                     <Select value={selectedSku} onValueChange={setSelectedSku}>
-                      <SelectTrigger className="w-[180px]">
+                      <SelectTrigger className="w-[240px]">
                         <SelectValue placeholder="Select SKU" />
                       </SelectTrigger>
                       <SelectContent>
@@ -218,15 +219,17 @@ export default function ProductDetailPage() {
                             All Variants
                           </SelectItem>
                         )}
-                        {skus.map((sku) => (
-                          <SelectItem key={sku.id} value={sku.id}>
-                            {formatSKU(
-                              sku.condition,
-                              sku.printing,
-                              sku.language,
-                            )}
-                          </SelectItem>
-                        ))}
+                        {skus.map((sku) => {
+                          return (
+                            <SelectItem key={sku.id} value={sku.id}>
+                              {formatSKU(
+                                sku.condition,
+                                sku.printing,
+                                sku.language,
+                              )}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>

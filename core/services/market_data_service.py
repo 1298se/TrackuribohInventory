@@ -4,9 +4,9 @@ from typing import List, Dict, Any
 
 from fastapi import HTTPException  # Import HTTPException for error handling
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, select
+from sqlalchemy import select
 
-from core.models.catalog import SKU, Condition  # Import necessary models
+from core.models.catalog import SKU  # Import necessary models
 from core.services.tcgplayer_listing_service import (
     get_product_active_listings,
     CardRequestData,
@@ -21,6 +21,40 @@ from app.routes.catalog.schemas import (
 )
 
 
+def calculate_cumulative_depth_levels(
+    listing_events: List[Dict[str, Any]],
+) -> List[CumulativeDepthLevelResponseSchema]:
+    """
+    Helper function to calculate cumulative depth levels from a list of listing events.
+    """
+    depth_map: Dict[float, int] = defaultdict(int)
+    for listing in listing_events:
+        try:
+            price = float(listing["price"])
+            shipping_price = float(listing.get("shippingPrice", 0.0) or 0.0)
+            quantity = int(listing.get("quantity", 0) or 0)
+
+            if quantity > 0:
+                total_price = round(price + shipping_price, 2)
+                depth_map[total_price] += quantity
+        except (TypeError, ValueError, KeyError) as e:
+            print(f"Skipping listing due to data issue: {listing}, error: {e}")
+            continue
+
+    # Calculate cumulative depth levels
+    cumulative_depth_levels = []
+    current_cumulative_count = 0
+    for price in sorted(depth_map.keys()):
+        current_cumulative_count += depth_map[price]
+        cumulative_depth_levels.append(
+            CumulativeDepthLevelResponseSchema(
+                price=price, cumulative_count=current_cumulative_count
+            )
+        )
+
+    return cumulative_depth_levels
+
+
 async def get_market_data_for_sku(
     session: Session, sku_id: uuid.UUID
 ) -> SKUMarketDataResponseSchema:
@@ -29,13 +63,12 @@ async def get_market_data_for_sku(
     Raises HTTPException if SKU not found.
     """
     # 1. Load SKU with required relations for request_data
-    # Use joinedload for related objects needed immediately
     sku = session.execute(
         select(SKU)
         .options(
-            joinedload(SKU.product, innerjoin=True),  # Need product.tcgplayer_id
-            joinedload(SKU.printing, innerjoin=True),  # Need printing.name
-            joinedload(SKU.condition, innerjoin=True),  # Need condition.name
+            joinedload(SKU.product, innerjoin=True),
+            joinedload(SKU.printing, innerjoin=True),
+            joinedload(SKU.condition, innerjoin=True),
         )
         .where(SKU.id == sku_id)
     ).scalar_one_or_none()
@@ -43,134 +76,113 @@ async def get_market_data_for_sku(
     if not sku:
         raise HTTPException(status_code=404, detail=f"SKU not found: {sku_id}")
 
-    # Ensure related objects are loaded (should be due to joinedload)
     if not all([sku.product, sku.printing, sku.condition]):
-        # This case should ideally not happen with innerjoin=True
         raise HTTPException(
             status_code=500,
             detail=f"Failed to load required SKU relations for {sku_id}",
         )
 
-    # 2. Prepare request for TCGPlayer service
+    # 2. Prepare request and fetch data
     request_data = CardRequestData(
         product_id=sku.product.tcgplayer_id,
         printings=[sku.printing.name],
         conditions=[sku.condition.name],
     )
 
-    # 3. Fetch raw listing events
-    listing_events: List[Dict[str, Any]] = []
-    cumulative_depth_levels: List[CumulativeDepthLevelResponseSchema] = []
+    # 3. Create response with default empty data
+    cumulative_depth_levels = []
+
     try:
-        listing_events = await get_product_active_listings(request_data)
+        # Fetch listings and calculate depth
+        listings = await get_product_active_listings(request_data)
+        cumulative_depth_levels = calculate_cumulative_depth_levels(listings)
     except Exception as e:
-        # Log the error, but maybe return stubbed data instead of raising 500?
-        # For now, re-raise or handle as internal server error potential?
         print(f"Error fetching TCGPlayer listings for SKU {sku_id}: {e}")
-        # Returning empty depth for now on TCGPlayer error
-        cumulative_depth_levels = []
-        # Alternative: raise HTTPException(status_code=503, detail="Failed to fetch market listings")
+        # Continue with empty depth levels
 
-    else:
-        # 4. Aggregate depth (only if fetch was successful)
-        depth_map: Dict[float, int] = defaultdict(int)
-        for listing in listing_events:
-            try:
-                price = float(listing["price"])
-                shipping_price = float(listing.get("shippingPrice", 0.0) or 0.0)
-                quantity = int(listing.get("quantity", 0) or 0)
-
-                if quantity > 0:
-                    total_price = round(price + shipping_price, 2)
-                    depth_map[total_price] += quantity
-            except (TypeError, ValueError, KeyError) as e:
-                print(
-                    f"Skipping listing for SKU {sku_id} due to data issue: {listing}, error: {e}"
-                )
-                continue
-        # Calculate cumulative depth levels directly
-        current_cumulative_count = 0
-        for price in sorted(depth_map.keys()):
-            current_cumulative_count += depth_map[price]
-            cumulative_depth_levels.append(
-                CumulativeDepthLevelResponseSchema(
-                    price=price, cumulative_count=current_cumulative_count
-                )
-            )
-
-    # 6. Stubbed summary data
-    summary = MarketDataSummary()
-
-    # 7. Package into SKUMarketDataSchema
-    sku_market_data = SKUMarketDataResponseSchema(
-        summary=summary,
+    # 4. Package into response schema
+    return SKUMarketDataResponseSchema(
+        summary=MarketDataSummary(),
         cumulative_depth_levels=cumulative_depth_levels,
-        listings=[],  # future time-series data
-        sales=[],  # future time-series data
+        listings=[],
+        sales=[],
     )
-
-    return sku_market_data  # Return the data directly
 
 
 async def get_market_data_for_product(
     session: Session, product_id: uuid.UUID
 ) -> List[SKUMarketDataItemResponseSchema]:
     """
-    Fetches market data for each Near Mint SKU of a product, structured per marketplace.
+    Fetches market data for each SKU of a product, structured per marketplace.
+    Makes a single API call for all SKUs to improve performance.
     Returns a list of SKUMarketDataItemSchema objects.
     """
-    # 1. Load Product and related Near Mint SKU objects (including relations needed for SKUBaseResponseSchema)
-    # This query needs to fetch the actual SKU objects, not just IDs, to return in the final schema.
-    near_mint_skus_query = (
+    # 1. Load Product and related SKU objects
+    skus = session.scalars(
         select(SKU)
-        .join(SKU.condition)
         .options(
-            # Eager load relations needed for SKUBaseResponseSchema serialization
             joinedload(SKU.printing),
             joinedload(SKU.language),
-            joinedload(SKU.condition),  # Already joined, but ensure it's loaded
-            # We don't strictly need Product here as get_market_data_for_sku loads it again,
-            # but could optimize later if needed.
+            joinedload(SKU.condition),
+            joinedload(SKU.product),
         )
-        .where(
-            SKU.product_id == product_id,
-            or_(Condition.name == "Near Mint", Condition.name == "Unopened"),
-        )
-        .order_by(SKU.id)  # Consistent ordering
-    )
-    near_mint_skus: List[SKU] = session.scalars(near_mint_skus_query).all()
+        .where(SKU.product_id == product_id)
+        .order_by(SKU.id)
+    ).all()
 
-    if not near_mint_skus:
-        print(f"No Near Mint SKUs found for product: {product_id}")
+    if not skus:
+        print(f"No SKUs found for product: {product_id}")
         return []
 
-    results: List[SKUMarketDataItemResponseSchema] = []
+    # 2. Prepare for API request
+    tcgplayer_id = skus[0].product.tcgplayer_id
+    printings = list({sku.printing.name for sku in skus if sku.printing})
+    conditions = list({sku.condition.name for sku in skus if sku.condition})
 
-    # 2. Iterate through each Near Mint SKU object
-    for sku in near_mint_skus:
-        try:
-            # Call the SKU-specific service function to get the market data
-            sku_market_data = await get_market_data_for_sku(
-                session=session, sku_id=sku.id
-            )
+    results = []
+    all_listings = []
 
-            # Construct the item including marketplace identifier
-            market_data_item = SKUMarketDataItemResponseSchema(
-                marketplace="TCGPlayer",  # Hardcoded for now
-                sku=sku,  # Pass the full SKU object for serialization
-                market_data=sku_market_data,
-            )
-            results.append(market_data_item)
+    try:
+        # 3. Make single API call for all SKUs
+        request_data = CardRequestData(
+            product_id=tcgplayer_id,
+            printings=printings,
+            conditions=conditions,
+        )
+        all_listings = await get_product_active_listings(request_data)
 
-        except HTTPException as e:
-            print(
-                f"Skipping market data for SKU {sku.id} (Product {product_id}) due to error: {e.detail}"
-            )
-            continue
-        except Exception as e:
-            print(
-                f"Unexpected error getting market data for SKU {sku.id} (Product {product_id}): {e}"
-            )
-            continue
+        # 4. Process data for each SKU
+        for sku in skus:
+            try:
+                # Filter listings for this specific SKU
+                sku_listings = [
+                    listing
+                    for listing in all_listings
+                    if (
+                        listing.get("printing") == sku.printing.name
+                        and listing.get("condition") == sku.condition.name
+                    )
+                ]
+
+                # Create market data for this SKU
+                market_data_item = SKUMarketDataItemResponseSchema(
+                    marketplace="TCGPlayer",
+                    sku=sku,
+                    market_data=SKUMarketDataResponseSchema(
+                        summary=MarketDataSummary(),
+                        cumulative_depth_levels=calculate_cumulative_depth_levels(
+                            sku_listings
+                        ),
+                        listings=[],
+                        sales=[],
+                    ),
+                )
+                results.append(market_data_item)
+            except Exception as e:
+                print(f"Error processing SKU {sku.id}: {e}")
+                continue
+    except Exception as e:
+        print(f"Error fetching listings for product {product_id}: {e}")
+        # Return empty results list on API error
 
     return results

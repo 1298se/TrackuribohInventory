@@ -16,5 +16,5 @@ export function formatSKU(
   printing: PrintingResponse | { name: string },
   language: LanguageResponse | { name: string },
 ): string {
-  return `${condition.name} · ${printing.name} · ${language.name}`;
+  return `${condition.name} · ${printing.name}`;
 }
