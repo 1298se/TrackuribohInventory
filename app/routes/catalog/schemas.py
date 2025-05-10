@@ -1,4 +1,4 @@
-from typing import Optional, Any, List, Dict
+from typing import Optional, List, Dict
 import uuid
 from datetime import datetime
 
@@ -143,19 +143,6 @@ class ProductSearchRequestParams(BaseModel):
 
 
 # Schemas for Market Data endpoint
-class MarketDataSummary(BaseModel):
-    """High-level summary metrics for product market data, currently stubbed."""
-
-    current_lowest_listing_price: Optional[float] = None
-    median_sale_price_30_days: Optional[float] = None
-    avg_sale_price_last_7_days: Optional[float] = None
-    sale_count_last_7_days: Optional[int] = None
-    liquidity_ratio: Optional[float] = None
-    price_volatility_30_days: Optional[float] = None
-    price_spread_percent: Optional[float] = None
-    time_to_sell_estimate_days: Optional[float] = None
-
-
 class CumulativeDepthLevelResponseSchema(BaseModel):
     """Cumulative amount of listings available up to a given price level."""
 
@@ -164,16 +151,15 @@ class CumulativeDepthLevelResponseSchema(BaseModel):
 
 
 class SKUMarketDataResponseSchema(BaseModel):
-    """Market data for a single SKU, independent of source."""
+    """Market data for a single SKU in one marketplace."""
 
-    summary: MarketDataSummary
+    total_listings: int
+    total_quantity: int
+    sales_velocity: float
+    days_of_inventory: Optional[float]
     cumulative_depth_levels: list[
         CumulativeDepthLevelResponseSchema
     ]  # Precomputed cumulative depth
-    listings: list[Any] = Field(
-        default=[], description="Historical listings data (stub)"
-    )
-    sales: list[Any] = Field(default=[], description="Historical sales data (stub)")
 
 
 class SKUMarketDataItemResponseSchema(BaseModel):
@@ -187,5 +173,6 @@ class SKUMarketDataItemResponseSchema(BaseModel):
 
 
 class MarketDataResponseSchema(BaseModel):
-    # Field name reflects it contains items, each specifying its SKU and marketplace
+    """Response wrapper for market data items only."""
+
     market_data_items: List[SKUMarketDataItemResponseSchema]

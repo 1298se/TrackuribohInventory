@@ -31,7 +31,7 @@ export function MarketDepthChart({
 
   if (!data.length) {
     return (
-      <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+      <div className="flex items-center justify-center h-[300px] w-full text-muted-foreground">
         No market depth data available.
       </div>
     );

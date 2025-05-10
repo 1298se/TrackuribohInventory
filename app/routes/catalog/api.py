@@ -10,10 +10,9 @@ from app.routes.catalog.schemas import (
     ProductSearchResponseSchema,
     ProductTypesResponseSchema,
     MarketDataResponseSchema,
-    SKUMarketDataItemResponseSchema,
 )
 from core.database import get_db_session
-from core.models.catalog import SKU, Product
+from core.models.catalog import Product
 from core.models.catalog import Catalog
 from core.models.catalog import Set
 from core.services.schemas.schema import ProductType
@@ -97,12 +96,14 @@ async def get_product_market_data(
     """
     Return market data for each **Near Mint or Unopened** SKU
     associated with the product.
+    Includes aggregated metrics like total listings, total quantity,
+    sales velocity, and estimated days of inventory.
     """
     # Call the refactored service function from the new service module
-    market_data_list = await market_data_service.get_market_data_for_product(
+    market_data = await market_data_service.get_market_data_for_product(
         session=session, product_id=product_id
     )
-    return MarketDataResponseSchema(market_data_items=market_data_list)
+    return MarketDataResponseSchema(**market_data)
 
 
 @router.get(
@@ -122,20 +123,8 @@ async def get_sku_market_data(
     Return market data for a specific SKU variant.
     Now calls the dedicated service function.
     """
-    # Simply call the service function
-    # Error handling (like 404) is now handled within the service function
+    # Delegate to service which returns a MarketDataResponse-like dict
     market_data = await market_data_service.get_market_data_for_sku(
         session=session, sku_id=sku_id
     )
-
-    # Create a SKUMarketDataItemResponseSchema from the raw market data
-    sku = session.get(SKU, sku_id)
-    if not sku:
-        raise HTTPException(status_code=404, detail=f"SKU not found: {sku_id}")
-
-    # Return a list with the market data from TCGPlayer
-    market_data_item = SKUMarketDataItemResponseSchema(
-        marketplace="TCGPlayer", sku=sku, market_data=market_data
-    )
-
-    return MarketDataResponseSchema(market_data_items=[market_data_item])
+    return MarketDataResponseSchema(**market_data)

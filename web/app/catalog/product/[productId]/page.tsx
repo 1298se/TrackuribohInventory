@@ -2,7 +2,15 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { UUID } from "crypto";
+
+// Hooks
 import { useProductDetail, useProductMarketData } from "@/app/catalog/api";
+
+// UI Components
+import { ProductHeader } from "@/components/product-header";
+import { MetricCard } from "@/components/ui/metric-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
   CardContent,
@@ -10,47 +18,46 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { UUID } from "crypto";
-import { MarketDepthChart } from "@/components/market-depth-chart";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { SKUMarketDataItem, CumulativeDepthLevel } from "@/app/catalog/schemas";
+
+// Utils
 import { formatSKU } from "@/app/catalog/utils";
-import { ProductHeader } from "@/components/product-header";
+import { MarketDepthChart } from "@/components/market-depth-chart";
+import { MarketDepthWithMetrics } from "@/components/MarketDepthWithMetrics";
+import { SKUMarketDataItem } from "@/app/catalog/schemas";
 
 export default function ProductDetailPage() {
   const params = useParams();
-  const productId = params.productId as UUID | undefined;
+  const productId = params.productId as string as UUID;
 
-  // Fetch product details and pre-aggregated market depth
+  // Existing data fetching
   const {
     product,
     isLoading: productLoading,
     error: productError,
   } = useProductDetail(productId);
+
   const {
-    data: productMarketData,
+    data: marketDataItems,
     isLoading: marketLoading,
     error: marketError,
   } = useProductMarketData(productId);
 
-  // Controlled component state for marketplace and SKU filtering
-  const marketDataItems: SKUMarketDataItem[] =
-    productMarketData?.market_data_items || [];
+  // SKU and Marketplace selection state
   const marketplaces = useMemo(
     () => Array.from(new Set(marketDataItems.map((i) => i.marketplace))),
     [marketDataItems],
   );
 
-  // Initialize marketplace selection
   const [selectedMarketplace, setSelectedMarketplace] = useState<string>("");
   useEffect(() => {
     if (
@@ -61,35 +68,43 @@ export default function ProductDetailPage() {
     }
   }, [marketplaces, selectedMarketplace]);
 
-  // Filter items by selected marketplace
   const itemsForMarketplace = useMemo(
     () => marketDataItems.filter((i) => i.marketplace === selectedMarketplace),
     [marketDataItems, selectedMarketplace],
   );
 
-  // Get available SKUs for selected marketplace
-  const skus = useMemo(
+  const skusForMarketplace = useMemo(
     () => itemsForMarketplace.map((i) => i.sku),
     [itemsForMarketplace],
   );
 
-  // Initialize or update SKU selection
-  const [selectedSku, setSelectedSku] = useState<string>("");
+  // Default to "aggregated" or first SKU
+  const [selectedSkuId, setSelectedSkuId] = useState<string>("aggregated");
   useEffect(() => {
-    // Set default SKU when the list changes (on marketplace change)
-    if (skus.length > 1) {
-      setSelectedSku("aggregated");
-    } else if (skus.length === 1) {
-      setSelectedSku(skus[0].id);
+    if (skusForMarketplace.length > 0) {
+      if (
+        (skusForMarketplace.length > 1 && selectedSkuId === "") ||
+        (!skusForMarketplace.find((s) => s.id === selectedSkuId) &&
+          selectedSkuId !== "aggregated")
+      ) {
+        setSelectedSkuId("aggregated"); // Default to aggregated if multiple SKUs
+      } else if (
+        skusForMarketplace.length === 1 &&
+        selectedSkuId !== skusForMarketplace[0].id
+      ) {
+        setSelectedSkuId(skusForMarketplace[0].id); // Default to the single SKU's ID
+      }
+    } else if (selectedSkuId !== "aggregated") {
+      setSelectedSkuId("aggregated"); // Reset if no SKUs for marketplace
     }
-  }, [skus]);
+  }, [skusForMarketplace, selectedSkuId]);
 
-  // Compute depth levels based on selection
+  // Compute depth levels based on selection (using the existing logic)
   const displayedDepthLevels = useMemo(() => {
     if (!itemsForMarketplace.length) return [];
 
     // For "All Variants" option, aggregate data
-    if (skus.length > 1 && selectedSku === "aggregated") {
+    if (skusForMarketplace.length > 1 && selectedSkuId === "aggregated") {
       // Store non-cumulative quantity at each price point
       const rawMap = new Map<number, number>();
 
@@ -116,12 +131,13 @@ export default function ProductDetailPage() {
 
     // For single SKU selection
     const target =
-      skus.length > 1
-        ? itemsForMarketplace.find((i) => i.sku.id === selectedSku)
+      skusForMarketplace.length > 1
+        ? itemsForMarketplace.find((i) => i.sku.id === selectedSkuId)
         : itemsForMarketplace[0];
 
     return target?.market_data.cumulative_depth_levels || [];
-  }, [itemsForMarketplace, selectedSku, skus]);
+  }, [itemsForMarketplace, selectedSkuId, skusForMarketplace]);
+
   const chartData = useMemo(
     () =>
       displayedDepthLevels.map(({ price, cumulative_count }) => ({
@@ -131,37 +147,63 @@ export default function ProductDetailPage() {
     [displayedDepthLevels],
   );
 
-  // Loading & Error Handling
-  if (productLoading) {
+  // Compute summary metrics for the selected marketplace/SKU or aggregated across SKUs
+  const selectedMetrics = useMemo(() => {
+    if (!itemsForMarketplace.length) return null;
+    if (selectedSkuId === "aggregated") {
+      const total_listings = itemsForMarketplace.reduce(
+        (sum, i) => sum + i.market_data.total_listings,
+        0,
+      );
+      const total_quantity = itemsForMarketplace.reduce(
+        (sum, i) => sum + i.market_data.total_quantity,
+        0,
+      );
+      const sales_velocity = itemsForMarketplace.reduce(
+        (sum, i) => sum + i.market_data.sales_velocity,
+        0,
+      );
+      const days_of_inventory =
+        sales_velocity > 0
+          ? parseFloat((total_quantity / sales_velocity).toFixed(1))
+          : null;
+      return {
+        total_listings,
+        total_quantity,
+        sales_velocity,
+        days_of_inventory,
+      };
+    }
+    const item = itemsForMarketplace.find((i) => i.sku.id === selectedSkuId);
+    return item?.market_data ?? null;
+  }, [itemsForMarketplace, selectedSkuId]);
+
+  // Basic loading and error handling for product details
+  if (productLoading)
     return (
       <div className="container mx-auto p-4">Loading Product Details...</div>
     );
-  }
-
-  if (productError) {
+  if (productError)
     return (
       <div className="container mx-auto p-4">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Failed to load product details. {productError.message}
+            Failed to load product details: {productError.message}
           </AlertDescription>
         </Alert>
       </div>
     );
-  }
-
-  if (!product) {
+  if (!product)
     return (
       <div className="container mx-auto p-4">
-        <Alert variant="default">
+        <Alert>
           <AlertDescription>Product not found.</AlertDescription>
         </Alert>
       </div>
     );
-  }
 
-  // Render
+  // Main page structure
   return (
     <div className="container mx-auto p-4 space-y-6">
       {/* Product Header */}
@@ -173,83 +215,53 @@ export default function ProductDetailPage() {
         setNumber={product.number}
       />
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 gap-6">
-        {/* Market Depth Chart */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle>Market Depth</CardTitle>
-                <CardDescription>
-                  Near Mint listings from TCGPlayer.
-                </CardDescription>
-              </div>
-              <div className="flex flex-col gap-2 items-end">
-                {marketDataItems.length > 0 && !marketError && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium">Marketplace:</label>
-                    <Select
-                      value={selectedMarketplace}
-                      onValueChange={setSelectedMarketplace}
-                    >
-                      <SelectTrigger className="w-[240px]">
-                        <SelectValue placeholder="Select marketplace" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {marketplaces.map((m) => (
-                          <SelectItem key={m} value={m}>
-                            {m}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {skus.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium">SKU:</label>
-                    <Select value={selectedSku} onValueChange={setSelectedSku}>
-                      <SelectTrigger className="w-[240px]">
-                        <SelectValue placeholder="Select SKU" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {skus.length > 1 && (
-                          <SelectItem value="aggregated">
-                            All Variants
-                          </SelectItem>
-                        )}
-                        {skus.map((sku) => {
-                          return (
-                            <SelectItem key={sku.id} value={sku.id}>
-                              {formatSKU(
-                                sku.condition,
-                                sku.printing,
-                                sku.language,
-                              )}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-4">
-            {marketError && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Failed to load market data. {marketError.message}
-                </AlertDescription>
-              </Alert>
-            )}
-            <MarketDepthChart isLoading={marketLoading} data={chartData} />
-          </CardContent>
-        </Card>
-      </div>
+      {/* Tabbed Interface */}
+      <Tabs defaultValue="market" className="w-full">
+        <div className="flex justify-center">
+          <TabsList>
+            <TabsTrigger value="market">Market Data</TabsTrigger>
+            <TabsTrigger value="similar">Similar Products</TabsTrigger>
+            <TabsTrigger value="details">Details</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="market" className="mt-4">
+          {/* Market Depth Chart */}
+          <MarketDepthWithMetrics
+            data={marketDataItems}
+            isLoading={marketLoading}
+            error={marketError}
+          />
+        </TabsContent>
+
+        <TabsContent value="similar" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Similar Products</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Details about similar products will be displayed here. (Future
+                Implementation)
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="details" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Additional Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Other product-specific details will be displayed here. (Future
+                Implementation)
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -120,18 +120,6 @@ export type CatalogsResponse = z.infer<typeof CatalogsResponseSchema>;
  * 6) Market Data Schemas
  * ----------------------------------------------------- */
 // Market Data Schemas
-export const MarketDataSummarySchema = z.object({
-  current_lowest_listing_price: z.number().nullable().optional(),
-  median_sale_price_30_days: z.number().nullable().optional(),
-  avg_sale_price_last_7_days: z.number().nullable().optional(),
-  sale_count_last_7_days: z.number().nullable().optional(),
-  liquidity_ratio: z.number().nullable().optional(),
-  price_volatility_30_days: z.number().nullable().optional(),
-  price_spread_percent: z.number().nullable().optional(),
-  time_to_sell_estimate_days: z.number().nullable().optional(),
-});
-export type MarketDataSummary = z.infer<typeof MarketDataSummarySchema>;
-
 export const CumulativeDepthLevelSchema = z.object({
   price: z.number(),
   cumulative_count: z.number(), // Use snake_case from backend
@@ -139,10 +127,11 @@ export const CumulativeDepthLevelSchema = z.object({
 export type CumulativeDepthLevel = z.infer<typeof CumulativeDepthLevelSchema>;
 
 export const SKUMarketDataSchema = z.object({
-  summary: MarketDataSummarySchema,
+  total_listings: z.number(),
+  total_quantity: z.number(),
+  sales_velocity: z.number(),
+  days_of_inventory: z.number().nullable().optional(),
   cumulative_depth_levels: z.array(CumulativeDepthLevelSchema),
-  listings: z.array(z.any()),
-  sales: z.array(z.any()),
 });
 export type SKUMarketData = z.infer<typeof SKUMarketDataSchema>;
 
@@ -153,7 +142,8 @@ export const SKUMarketDataItemSchema = z.object({
 });
 export type SKUMarketDataItem = z.infer<typeof SKUMarketDataItemSchema>;
 
-export const ProductMarketSchema = z.object({
+// Rename to match backend MarketDataResponseSchema
+export const MarketDataResponseSchema = z.object({
   market_data_items: z.array(SKUMarketDataItemSchema),
 });
-export type ProductMarketData = z.infer<typeof ProductMarketSchema>;
+export type MarketDataResponse = z.infer<typeof MarketDataResponseSchema>;

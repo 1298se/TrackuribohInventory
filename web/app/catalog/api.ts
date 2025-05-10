@@ -2,23 +2,17 @@ import { fetcher, HTTPMethod, API_URL } from "../api/fetcher";
 import useSWR from "swr";
 import { z } from "zod";
 import {
-  SKUMarketData,
-  SKUMarketDataSchema,
   ProductSearchResponse,
   ProductSearchResponseSchema,
   ProductWithSetAndSKUsResponseSchema,
-  ProductMarketSchema,
-  ProductMarketData,
   SKUMarketDataItem,
-  ProductMarketSchema as SKUMarketDataItemsSchema,
+  MarketDataResponseSchema,
+  MarketDataResponse,
 } from "./schemas";
 import { UUID } from "crypto";
 
 // Define the type inferred from the schema
 type ProductDetailType = z.infer<typeof ProductWithSetAndSKUsResponseSchema>;
-
-// Infer the ProductMarketData type from the schema
-type ProductMarketDataType = z.infer<typeof ProductMarketSchema>;
 
 /**
  * Hook to fetch market depth and stubbed summary for a specific SKU.
@@ -42,9 +36,8 @@ export function useSkuMarketData(
       if (!path) throw new Error("SKU ID required");
       return fetcher({
         url: `${API_URL}${path}`,
-        // params: query, // Removed if backend doesn't use them
         method: HTTPMethod.GET,
-        schema: SKUMarketDataItemsSchema, // Expect list of market data items
+        schema: MarketDataResponseSchema,
       });
     },
   );
@@ -122,31 +115,31 @@ export function useProductDetail(productId: UUID | undefined) {
 }
 
 /**
- * Fetches market data for all Near Mint SKUs of a specific product.
+ * Hook to fetch market data for all Near Mint SKUs of a specific product.
+ * Returns an array of SKUMarketDataItem (no wrapper).
  * @param productId - The ID of the product to fetch market data for.
- * @returns SWR response with product market data, error, and loading state.
  */
 export function useProductMarketData(productId: UUID | undefined) {
   // Key for SWR: path string or null if productId is undefined
   const key: string | null = productId
-    ? `/catalog/product/${productId}/market-data` // Updated endpoint path
+    ? `/catalog/product/${productId}/market-data` // Updated endpoint
     : null;
 
   const { data, error, isValidating } = useSWR<
-    ProductMarketDataType, // Use the inferred type
+    MarketDataResponse,
     Error,
-    string | null // Explicitly type the key for useSWR
+    string | null
   >(key, (path) => {
     if (!path) throw new Error("Product ID is required for market data");
     return fetcher({
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
-      schema: ProductMarketSchema, // Validate response against this schema
+      schema: MarketDataResponseSchema,
     });
   });
 
   return {
-    data, // Structure: { market_data_items: [...] }
+    data: data?.market_data_items || [],
     error,
     isLoading: isValidating,
   };

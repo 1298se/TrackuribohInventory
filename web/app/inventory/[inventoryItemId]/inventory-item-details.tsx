@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ProductHeader } from "@/components/product-header";
+import { MarketDepthWithMetrics } from "@/components/MarketDepthWithMetrics";
 
 interface InventoryItemDetailsProps {
   inventoryItemId: string;
@@ -290,61 +291,12 @@ export function InventoryItemDetails({
           {/* TODO: Add Audit Trail Table here */}
         </TabsContent>
         <TabsContent value="market" className="mt-4">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-row justify-between items-center">
-                <div>
-                  <CardTitle>Market Depth</CardTitle>
-                  <CardDescription>
-                    Cumulative active listings by price for this specific SKU.
-                  </CardDescription>
-                </div>
-                {marketplaceOptions.length > 1 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      Marketplace:
-                    </span>
-                    <Select
-                      value={selectedMarketplace || undefined}
-                      onValueChange={(value) => setSelectedMarketplace(value)}
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue placeholder="Select marketplace" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {marketplaceOptions.map((marketplace) => (
-                          <SelectItem key={marketplace} value={marketplace}>
-                            {marketplace}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {marketError && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Failed to load market depth. {marketError.message}
-                  </AlertDescription>
-                </Alert>
-              )}
-              {marketLoading ? (
-                <Skeleton className="h-64 w-full" />
-              ) : (
-                <MarketDepthChart
-                  isLoading={marketLoading}
-                  data={chartData}
-                  currency={
-                    inventoryItem?.average_cost_per_item?.currency ?? "USD"
-                  }
-                />
-              )}
-            </CardContent>
-          </Card>
+          <MarketDepthWithMetrics
+            data={marketDataItems}
+            isLoading={marketLoading}
+            error={marketError}
+            currency={inventoryItem?.average_cost_per_item?.currency ?? "USD"}
+          />
         </TabsContent>
         <TabsContent value="details" className="mt-4">
           <Card>

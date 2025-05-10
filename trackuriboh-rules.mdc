@@ -183,6 +183,9 @@ export type InventoryResponse = z.infer<typeof InventoryResponseSchema>
 3. Use PascalCase for classes and types in both languages
 4. Backend endpoint paths should use kebab-case
 
+5. Use kebab-case for frontend file names (TypeScript/TSX, CSS, hooks, components), e.g., `product-card.tsx`, `use-debounce.ts`
+6. Follow Alembic's default migration file naming: `<revisionID>_<description>.py`, e.g., `6702d39d0232_create_inventory_snapshot_table.py`
+
 ## Documentation
 
 1. Include docstrings for all Python functions

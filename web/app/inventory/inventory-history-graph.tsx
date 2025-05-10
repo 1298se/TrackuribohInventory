@@ -139,6 +139,9 @@ export function InventoryHistoryGraph({
                   }
                   axisLine={true}
                   tickLine={true}
+                  domain={["auto", "auto"]}
+                  tickCount={6}
+                  allowDecimals={false}
                 />
               </AreaChart>
             </ChartContainer>
@@ -208,6 +211,9 @@ export function InventoryHistoryGraph({
                 }
                 axisLine={false}
                 tickLine={false}
+                domain={["auto", "auto"]}
+                tickCount={6}
+                allowDecimals={false}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Area

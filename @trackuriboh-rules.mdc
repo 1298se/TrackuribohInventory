@@ -1,6 +1,0 @@
-## Version Control
-
-1. Commit messages should be clear and descriptive
-2. Include the affected module in commit messages when possible
-3. **Do not use standard commit prefixes** (e.g., `feat:`, `fix:`, `chore:`). Focus on clarity and the module name.
-4. Group related changes in a single commit 

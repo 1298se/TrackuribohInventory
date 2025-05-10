@@ -6,17 +6,26 @@ import aiohttp
 from pydantic import BaseModel
 
 
-# TypedDicts for TCGPlayer listing and sales service
-class CardRequestData(TypedDict):
-    """Payload for TCGPlayer listing and sales requests."""
+class CardListingRequestData(TypedDict):
+    """Payload for TCGPlayer listing requests."""
 
     product_id: int
     printings: List[str]
     conditions: List[str]
+    languages: List[str]
 
 
-class CardSaleResponse(TypedDict):
-    """Individual sale record from TCGPlayer sales API."""
+class CardSaleRequestData(TypedDict):
+    """Payload for TCGPlayer sales requests."""
+
+    product_id: int
+    printings: List[int]
+    conditions: List[int]
+    languages: List[int]
+
+
+class CardSaleResponse(BaseModel):
+    """Individual sale record from TCGPlayer sales API, with parsed orderDate."""
 
     condition: str
     variant: str
@@ -27,10 +36,10 @@ class CardSaleResponse(TypedDict):
     customListingId: str
     purchasePrice: float
     shippingPrice: float
-    orderDate: str
+    orderDate: datetime
 
 
-class CardSalesResponse(TypedDict):
+class CardSalesResponse(BaseModel):
     """Full response from TCGPlayer sales API."""
 
     previousPage: str
@@ -40,7 +49,7 @@ class CardSalesResponse(TypedDict):
     data: List[CardSaleResponse]
 
 
-class SKUListingResponse(TypedDict):
+class SKUListingResponse(BaseModel):
     """Individual listing item from TCGPlayer listings API."""
 
     directProduct: bool
@@ -126,7 +135,11 @@ def get_product_active_listings_request_payload(
 
 
 def get_sales_request_payload(
-    count: int, offset: int, printings: List[str], conditions: List[str]
+    count: int,
+    offset: int,
+    printings: List[str],
+    conditions: List[str],
+    languages: List[str],
 ):
     return {
         "listingType": "ListingWithoutPhotos",
@@ -135,6 +148,7 @@ def get_sales_request_payload(
         "variants": printings,
         "time": datetime.now().timestamp() * 1000,
         "conditions": conditions,
+        "languages": languages,
     }
 
 
@@ -196,11 +210,11 @@ class TCGPlayerListingsResponseSchema(BaseModel):
 
 
 async def get_product_active_listings(
-    request: CardRequestData,
+    request: CardListingRequestData,
 ) -> list[SKUListingResponse]:
     """Fetch all active listings for a product using aiohttp asynchronously."""
     product_id = request["product_id"]
-    listings: dict[float, Any] = {}
+    listings: dict[float, SKUListingResponse] = {}
     url = BASE_LISTINGS_URL % product_id
     cur_offset = 0
 
@@ -222,9 +236,10 @@ async def get_product_active_listings(
             total_listings = page.totalResults
             results = page.results
 
-            # Convert each ListingSchema into a dict for downstream processing
+            # Convert each ListingSchema into a Pydantic SKUListingResponse
             for listing in results:
-                listings[listing.listingId] = listing.dict()
+                instance = SKUListingResponse.parse_obj(listing.dict())
+                listings[listing.listingId] = instance
 
             cur_offset += len(results)
             if cur_offset >= total_listings:
@@ -234,37 +249,37 @@ async def get_product_active_listings(
 
 
 async def get_sales(
-    request: CardRequestData, time_delta: timedelta
+    request: CardSaleRequestData, time_delta: timedelta
 ) -> list[CardSaleResponse]:
     """Fetch recent sales for a product within time_delta using aiohttp asynchronously."""
     sales: list[CardSaleResponse] = []
-    product_id = request["product_id"]
-    url = BASE_SALES_URL % product_id
+    url = BASE_SALES_URL % request["product_id"]
 
     async with aiohttp.ClientSession(headers=BASE_HEADERS) as session:
         while True:
             payload = get_sales_request_payload(
                 count=25,
                 offset=len(sales),
-                conditions=request["conditions"],
                 printings=request["printings"],
+                conditions=request["conditions"],
+                languages=request["languages"],
             )
 
             async with session.post(url, json=payload) as response:
                 response.raise_for_status()
-                data: CardSalesResponse = await response.json()
+                raw = await response.json()
+            # Parse with Pydantic to convert orderDate to datetime
+            parsed = CardSalesResponse.parse_obj(raw)
 
             has_new_sales = True
-            for sale_response in data["data"]:
-                order_dt = CardSaleResponse.parse_response_order_date(
-                    sale_response["orderDate"]
-                )
-                if order_dt >= datetime.now(timezone.utc) - time_delta:
-                    sales.append(sale_response)
+            for sale in parsed.data:
+                # sale.orderDate is already a datetime
+                if sale.orderDate >= datetime.now(timezone.utc) - time_delta:
+                    sales.append(sale)
                 else:
                     has_new_sales = False
 
-            if not data.get("nextPage") or not has_new_sales:
+            if not parsed.nextPage or not has_new_sales:
                 break
 
     return sales
