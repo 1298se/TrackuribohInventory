@@ -168,7 +168,6 @@ async def create_transaction(
     try:
         # Start a transaction explicitly
         with session.begin():
-            # Use the service function to create the transaction
             transaction = await create_transaction_service(
                 request, catalog_service, session
             )
@@ -221,7 +220,8 @@ async def update_transaction(
         # Step 2: Update basic transaction properties (Simplified: Always assign)
         transaction.date = request.date
         transaction.counterparty_name = request.counterparty_name
-        transaction.comment = request.comment
+        # Normalize blank comment to null
+        transaction.comment = request.comment or None
         transaction.currency = request.currency
         transaction.platform_id = request.platform_id
         transaction.platform_order_id = request.platform_order_id

@@ -38,7 +38,7 @@ async def create_transaction_service(
         date=request.date,
         type=request.type,
         counterparty_name=request.counterparty_name,
-        comment=request.comment,
+        comment=request.comment or None,
         currency=request.currency,
         shipping_cost_amount=request.shipping_cost_amount,
         tax_amount=request.tax_amount,
