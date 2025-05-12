@@ -64,6 +64,17 @@ const transactionColumns: ColumnDef<InventorySKUTransactionLineItem>[] = [
     },
   },
   {
+    accessorKey: "counterparty_name",
+    header: "Counterparty",
+    cell: ({ row }) => {
+      return (
+        row.getValue("counterparty_name") || (
+          <span className="text-muted-foreground italic">N/A</span>
+        )
+      );
+    },
+  },
+  {
     accessorKey: "transaction_type",
     header: "Type",
     cell: ({ row }) => {
@@ -92,17 +103,6 @@ const transactionColumns: ColumnDef<InventorySKUTransactionLineItem>[] = [
         unitPrice?.currency ?? "USD",
       );
       return <div className="tabular-nums">{formatted}</div>;
-    },
-  },
-  {
-    accessorKey: "platform_name",
-    header: "Platform",
-    cell: ({ row }) => {
-      return (
-        row.getValue("platform_name") || (
-          <span className="text-muted-foreground italic">N/A</span>
-        )
-      );
     },
   },
 ];

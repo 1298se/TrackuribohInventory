@@ -78,11 +78,11 @@ export type InventoryItemUpdateRequest = z.infer<
 
 export const InventorySKUTransactionLineItemSchema = z.object({
   transaction_id: z.string().uuid(),
+  counterparty_name: z.string(),
   transaction_date: z.string().datetime(), // Assuming datetime comes as string
   transaction_type: TransactionTypeSchema,
   quantity: z.number().int(),
   unit_price: MoneySchema,
-  platform_name: z.string().nullable(),
 });
 
 export const InventorySKUTransactionsResponseSchema = z.object({

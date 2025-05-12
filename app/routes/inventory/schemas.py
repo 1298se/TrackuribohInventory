@@ -21,11 +21,11 @@ class InventoryResponseSchema(BaseModel):
 # Schemas for SKU Transaction History
 class InventorySKUTransactionLineItemSchema(ORMModel):
     transaction_id: UUID
+    counterparty_name: str
     transaction_date: datetime
     transaction_type: TransactionType
     quantity: int
     unit_price: MoneySchema
-    platform_name: str | None = None  # Mapped in the endpoint logic
 
 
 class InventorySKUTransactionsResponseSchema(BaseModel):

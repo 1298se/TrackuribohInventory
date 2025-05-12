@@ -28,7 +28,7 @@ from app.routes.utils import MoneySchema
 from core.database import get_db_session
 from core.models.catalog import SKU, Catalog, Product, Set
 from core.models.price import SKULatestPriceData
-from core.models.transaction import Transaction, LineItem, Platform, TransactionType
+from core.models.transaction import Transaction, LineItem, TransactionType
 from core.inventory.inventory import build_inventory_query
 from core.services.inventory_service import get_inventory_metrics, get_inventory_history
 
@@ -241,45 +241,35 @@ def get_sku_transaction_history(
 
     # Query selecting specific columns using explicit joins
     query = (
-        select(
-            Transaction.id.label("transaction_id"),
-            Transaction.date.label("transaction_date"),
-            Transaction.type.label("transaction_type"),
-            LineItem.quantity,
-            LineItem.unit_price_amount,
-            Transaction.currency.label("currency"),
-            Platform.name.label("platform_name"),
-        )
-        .select_from(LineItem)  # Start from LineItem
+        select(LineItem)
         .join(
             Transaction, LineItem.transaction_id == Transaction.id
         )  # Join Transaction explicitly
-        .outerjoin(
-            Platform, Transaction.platform_id == Platform.id
-        )  # Outer join Platform explicitly
+        .options(
+            joinedload(LineItem.transaction)
+        )  # Eager load the transaction relationship
         .where(LineItem.sku_id == sku_id)
         .order_by(desc(Transaction.date))
     )
 
     # Execute query to get row mappings (dictionary-like objects)
-    results: list[SKUTransactionHistoryRow] = session.execute(query).mappings().all()
+    results = session.execute(query).scalars().all()
     total = len(results)
 
     # Map results to the response schema
     history_items = []
-    for row in results:
+    for line_item in results:
         history_items.append(
             InventorySKUTransactionLineItemSchema(
-                transaction_id=row["transaction_id"],
-                transaction_date=row["transaction_date"],
-                transaction_type=row["transaction_type"],
-                quantity=row["quantity"],
+                transaction_id=line_item.transaction_id,
+                counterparty_name=line_item.transaction.counterparty_name,
+                transaction_date=line_item.transaction.date,
+                transaction_type=line_item.transaction.type,
+                quantity=line_item.quantity,
                 unit_price=MoneySchema(
-                    amount=row["unit_price_amount"], currency=row["currency"]
+                    amount=line_item.unit_price_amount,
+                    currency=line_item.transaction.currency,
                 ),
-                platform_name=row[
-                    "platform_name"
-                ],  # Will be None if no platform due to outer join
             )
         )
 
