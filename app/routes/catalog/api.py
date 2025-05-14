@@ -91,6 +91,7 @@ def get_product_types(session: Session = Depends(get_db_session)):
 )
 async def get_product_market_data(
     product_id: uuid.UUID,
+    sales_lookback_days: int = 30,
     session: Session = Depends(get_db_session),
 ):
     """
@@ -101,7 +102,9 @@ async def get_product_market_data(
     """
     # Call the refactored service function from the new service module
     market_data = await market_data_service.get_market_data_for_product(
-        session=session, product_id=product_id
+        session=session,
+        product_id=product_id,
+        sales_lookback_days=sales_lookback_days,
     )
     return MarketDataResponseSchema(**market_data)
 
@@ -112,11 +115,8 @@ async def get_product_market_data(
     summary="Get market-depth data for a SKU variant",
 )
 async def get_sku_market_data(
-    # Change sku_id type hint to UUID
     sku_id: uuid.UUID,
-    # Remove unused days/resolution params if service doesn't use them
-    # days: int = 30,
-    # resolution: str = "daily",
+    sales_lookback_days: int = 30,
     session: Session = Depends(get_db_session),
 ):
     """
@@ -125,6 +125,8 @@ async def get_sku_market_data(
     """
     # Delegate to service which returns a MarketDataResponse-like dict
     market_data = await market_data_service.get_market_data_for_sku(
-        session=session, sku_id=sku_id
+        session=session,
+        sku_id=sku_id,
+        sales_lookback_days=sales_lookback_days,
     )
     return MarketDataResponseSchema(**market_data)

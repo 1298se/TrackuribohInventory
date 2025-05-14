@@ -32,7 +32,7 @@ import {
 // Utils
 import { formatSKU } from "@/app/catalog/utils";
 import { MarketDepthChart } from "@/components/market-depth-chart";
-import { MarketDepthWithMetrics } from "@/components/MarketDepthWithMetrics";
+import { MarketDepthWithMetrics } from "@/components/market-depth-chart-with-metrics";
 import { SKUMarketDataItem } from "@/app/catalog/schemas";
 
 export default function ProductDetailPage() {
@@ -46,11 +46,14 @@ export default function ProductDetailPage() {
     error: productError,
   } = useProductDetail(productId);
 
+  // State for sales lookback days
+  const [salesLookbackDays, setSalesLookbackDays] = useState<number>(30);
+
   const {
     data: marketDataItems,
     isLoading: marketLoading,
     error: marketError,
-  } = useProductMarketData(productId);
+  } = useProductMarketData(productId, salesLookbackDays);
 
   // SKU and Marketplace selection state
   const marketplaces = useMemo(
@@ -231,6 +234,8 @@ export default function ProductDetailPage() {
             data={marketDataItems}
             isLoading={marketLoading}
             error={marketError}
+            salesLookbackDays={salesLookbackDays}
+            onSalesLookbackDaysChange={setSalesLookbackDays}
           />
         </TabsContent>
 

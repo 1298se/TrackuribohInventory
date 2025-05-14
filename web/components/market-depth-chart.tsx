@@ -1,11 +1,11 @@
 "use client";
 
-import { AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface MarketDepthChartProps {
-  data?: { price: number; cumulativeCount: number }[];
+  listingsCumulativeDepth: { price: number; cumulativeCount: number }[];
+  salesCumulativeDepth: { price: number; cumulativeCount: number }[];
   isLoading: boolean;
   currency?: string;
 }
@@ -21,63 +21,104 @@ function formatCurrency(
 }
 
 export function MarketDepthChart({
-  data = [],
+  listingsCumulativeDepth = [],
+  salesCumulativeDepth = [],
   isLoading,
   currency = "USD",
 }: MarketDepthChartProps) {
-  if (isLoading) {
-    return <Skeleton className="h-[300px] w-full" />;
-  }
+  // Merge series by price, but use null for missing sales data
+  const prices = Array.from(
+    new Set([
+      ...listingsCumulativeDepth.map((d) => d.price),
+      ...salesCumulativeDepth.map((d) => d.price),
+    ]),
+  ).sort((a, b) => a - b);
 
-  if (!data.length) {
-    return (
-      <div className="flex items-center justify-center h-[300px] w-full text-muted-foreground">
-        No market depth data available.
-      </div>
-    );
-  }
+  const listingMap: Record<number, number> = Object.fromEntries(
+    listingsCumulativeDepth.map((d) => [d.price, d.cumulativeCount]),
+  );
+
+  const salesMap: Record<number, number> = Object.fromEntries(
+    salesCumulativeDepth.map((d) => [d.price, d.cumulativeCount]),
+  );
+
+  const mergedData = prices.map((price) => ({
+    price,
+    listingCumulativeCount: listingMap[price],
+    // Use undefined for missing sales points so Recharts doesn't draw them
+    salesCumulativeCount:
+      salesCumulativeDepth.length > 0 ? salesMap[price] : undefined,
+  }));
 
   return (
     <ChartContainer
       id="market-depth-chart"
-      config={{
-        price: { label: "Price", color: "#3B82F6" },
-        cumulativeCount: { label: "Cumulative Count", color: "#3B82F6" },
-      }}
       className="h-[300px] w-full"
+      config={{
+        listingCumulativeCount: { label: "Listings", color: "#3B82F6" },
+        salesCumulativeCount: { label: "Sales", color: "#F97316" },
+      }}
     >
-      <AreaChart
-        layout="horizontal"
-        data={data}
-        margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
-      >
-        <XAxis
-          dataKey="cumulativeCount"
-          type="number"
-          domain={[0, "dataMax"]}
-          allowDecimals={false}
-          tickFormatter={(value) => String(value)}
-        />
-        <YAxis
-          dataKey="price"
-          type="number"
-          domain={["dataMin", "dataMax"]}
-          tickFormatter={(val) => formatCurrency(val, currency)}
-        />
-        <Tooltip
-          formatter={(value: number, name: string) =>
-            name === "cumulativeCount" ? value : formatCurrency(value, currency)
-          }
-          labelFormatter={(label) => label}
-        />
-        <Area
-          type="stepAfter"
-          dataKey="price"
-          stroke="#3B82F6"
-          fill="rgba(59,130,246,0.3)"
-          dot={{ r: 2, fill: "#3B82F6" }}
-        />
-      </AreaChart>
+      {isLoading ? (
+        <div className="flex h-full w-full items-center justify-center">
+          <div className="animate-pulse text-muted-foreground">
+            Loading market depth...
+          </div>
+        </div>
+      ) : !listingsCumulativeDepth.length && !salesCumulativeDepth.length ? (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+          No market depth data available.
+        </div>
+      ) : (
+        <AreaChart
+          data={mergedData}
+          margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
+        >
+          <XAxis
+            dataKey="price"
+            type="number"
+            domain={["dataMin", "dataMax"]}
+            tickFormatter={(val) => formatCurrency(val, currency)}
+          />
+          <YAxis
+            type="number"
+            domain={[0, "dataMax"]}
+            tickFormatter={(val) => String(val)}
+          />
+          <Tooltip
+            labelFormatter={(label: number) =>
+              `Price: ${formatCurrency(label, currency)}`
+            }
+            formatter={(value: number, name: string) => [
+              value,
+              name === "listingCumulativeCount" ? "Listings" : "Sales",
+            ]}
+          />
+          <Legend />
+          <Area
+            type="stepAfter"
+            dataKey="listingCumulativeCount"
+            name="Listings"
+            stroke="#3B82F6"
+            fill="#3B82F6"
+            fillOpacity={0.4}
+            connectNulls
+            style={{ mixBlendMode: "multiply" }}
+            dot={{ r: 2, fill: "#3B82F6" }}
+          />
+          <Area
+            type="stepAfter"
+            dataKey="salesCumulativeCount"
+            name="Sales"
+            stroke="#F97316"
+            fill="#F97316"
+            fillOpacity={0.4}
+            style={{ mixBlendMode: "multiply" }}
+            connectNulls
+            dot={{ r: 2, fill: "#F97316" }}
+          />
+        </AreaChart>
+      )}
     </ChartContainer>
   );
 }

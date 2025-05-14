@@ -29,15 +29,8 @@ import { MarketDepthChart } from "@/components/market-depth-chart";
 import { SKUMarketDataItem, SkuBase } from "@/app/catalog/schemas";
 import { useMemo, useState } from "react";
 import { formatSKU } from "@/app/catalog/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ProductHeader } from "@/components/product-header";
-import { MarketDepthWithMetrics } from "@/components/MarketDepthWithMetrics";
+import { MarketDepthWithMetrics } from "@/components/market-depth-chart-with-metrics";
 
 interface InventoryItemDetailsProps {
   inventoryItemId: string;
@@ -128,12 +121,14 @@ export function InventoryItemDetails({
     router.push(`/transactions/${transactionId}`);
   };
 
+  // State for sales lookback days
+  const [salesLookbackDays, setSalesLookbackDays] = useState<number>(30);
   // Updated to handle multiple marketplace data
   const {
     data: marketDataItems,
     isLoading: marketLoading,
     error: marketError,
-  } = useSkuMarketData(inventoryItem?.sku.id || null);
+  } = useSkuMarketData(inventoryItem?.sku.id || null, salesLookbackDays);
 
   // Add state for selected marketplace
   const [selectedMarketplace, setSelectedMarketplace] = useState<string | null>(
@@ -296,6 +291,8 @@ export function InventoryItemDetails({
             isLoading={marketLoading}
             error={marketError}
             currency={inventoryItem?.average_cost_per_item?.currency ?? "USD"}
+            salesLookbackDays={salesLookbackDays}
+            onSalesLookbackDaysChange={setSalesLookbackDays}
           />
         </TabsContent>
         <TabsContent value="details" className="mt-4">

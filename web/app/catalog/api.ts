@@ -20,11 +20,12 @@ type ProductDetailType = z.infer<typeof ProductWithSetAndSKUsResponseSchema>;
  */
 export function useSkuMarketData(
   skuId: string | null,
-  // days: number = 30, // Params removed if not used by backend
-  // resolution: "daily" | "weekly" = "daily",
+  salesLookbackDays: number = 30,
 ) {
   // Key for SWR: [path, params]
-  const key: string | null = skuId ? `/catalog/sku/${skuId}/market-data` : null;
+  const key: string | null = skuId
+    ? `/catalog/sku/${skuId}/market-data?sales_lookback_days=${salesLookbackDays}`
+    : null;
 
   const {
     data,
@@ -119,10 +120,13 @@ export function useProductDetail(productId: UUID | undefined) {
  * Returns an array of SKUMarketDataItem (no wrapper).
  * @param productId - The ID of the product to fetch market data for.
  */
-export function useProductMarketData(productId: UUID | undefined) {
+export function useProductMarketData(
+  productId: UUID | undefined,
+  salesLookbackDays: number = 30,
+) {
   // Key for SWR: path string or null if productId is undefined
   const key: string | null = productId
-    ? `/catalog/product/${productId}/market-data` // Updated endpoint
+    ? `/catalog/product/${productId}/market-data?sales_lookback_days=${salesLookbackDays}` // Updated endpoint with sales_lookback_days
     : null;
 
   const { data, error, isValidating } = useSWR<

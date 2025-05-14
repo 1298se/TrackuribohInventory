@@ -7,6 +7,10 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MarketDepthChart } from "@/components/market-depth-chart";
+import { formatSKU } from "@/app/catalog/utils";
 import {
   Select,
   SelectTrigger,
@@ -14,16 +18,15 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MarketDepthChart } from "@/components/market-depth-chart";
-import { formatSKU } from "@/app/catalog/utils";
+import { TimeRangeToggle } from "@/components/ui/time-range-toggle";
 
 interface Props {
   data: SKUMarketDataItem[];
   isLoading: boolean;
   error?: Error;
   currency?: string;
+  salesLookbackDays?: number;
+  onSalesLookbackDaysChange?: (days: number) => void;
 }
 
 export function MarketDepthWithMetrics({
@@ -31,6 +34,8 @@ export function MarketDepthWithMetrics({
   isLoading,
   error,
   currency = "USD",
+  salesLookbackDays,
+  onSalesLookbackDaysChange,
 }: Props) {
   const marketplaces = useMemo(
     () => Array.from(new Set(data.map((i) => i.marketplace))),
@@ -88,13 +93,53 @@ export function MarketDepthWithMetrics({
     return target?.market_data.cumulative_depth_levels || [];
   }, [itemsForMarketplace, skusForMarketplace, selectedSkuId]);
 
-  const chartData = useMemo(
+  const displayedSalesLevels = useMemo<
+    { price: number; cumulative_count: number }[]
+  >(() => {
+    if (!itemsForMarketplace.length) return [];
+    if (skusForMarketplace.length > 1 && selectedSkuId === "aggregated") {
+      const rawMap = new Map<number, number>();
+      itemsForMarketplace.forEach(({ market_data }) => {
+        let prev = 0;
+        market_data.cumulative_sales_depth_levels.forEach(
+          ({ price, cumulative_count }) => {
+            const delta = cumulative_count - prev;
+            rawMap.set(price, (rawMap.get(price) || 0) + delta);
+            prev = cumulative_count;
+          },
+        );
+      });
+      const sorted = Array.from(rawMap.keys()).sort((a, b) => a - b);
+      let cum = 0;
+      return sorted.map((p) => {
+        cum += rawMap.get(p)!;
+        return { price: p, cumulative_count: cum };
+      });
+    }
+    const target =
+      skusForMarketplace.length > 1
+        ? itemsForMarketplace.find((i) => i.sku.id === selectedSkuId)
+        : itemsForMarketplace[0];
+    return target?.market_data.cumulative_sales_depth_levels || [];
+  }, [itemsForMarketplace, skusForMarketplace, selectedSkuId]);
+
+  const listingChartData = useMemo<
+    { price: number; cumulativeCount: number }[]
+  >(
     () =>
       displayedDepthLevels.map(({ price, cumulative_count }) => ({
         price,
         cumulativeCount: cumulative_count,
       })),
     [displayedDepthLevels],
+  );
+  const salesChartData = useMemo<{ price: number; cumulativeCount: number }[]>(
+    () =>
+      displayedSalesLevels.map(({ price, cumulative_count }) => ({
+        price,
+        cumulativeCount: cumulative_count,
+      })),
+    [displayedSalesLevels],
   );
 
   const selectedMetrics = useMemo(() => {
@@ -142,6 +187,12 @@ export function MarketDepthWithMetrics({
             </CardDescription>
           </div>
           <div className="flex items-center space-x-4 mt-4 sm:mt-0">
+            {onSalesLookbackDaysChange && salesLookbackDays != null && (
+              <TimeRangeToggle
+                value={salesLookbackDays}
+                onChange={onSalesLookbackDaysChange}
+              />
+            )}
             <div className="flex items-center space-x-2">
               <label
                 htmlFor="marketplace-select"
@@ -196,15 +247,12 @@ export function MarketDepthWithMetrics({
         )}
         <div className="flex w-full items-start gap-6">
           <div className="flex grow shrink-0 basis-0 flex-col items-start gap-4">
-            {isLoading ? (
-              <Skeleton className="h-[300px] w-full" />
-            ) : (
-              <MarketDepthChart
-                data={chartData}
-                isLoading={isLoading}
-                currency={currency}
-              />
-            )}
+            <MarketDepthChart
+              listingsCumulativeDepth={listingChartData}
+              salesCumulativeDepth={salesChartData}
+              isLoading={isLoading}
+              currency={currency}
+            />
           </div>
           <div className="flex w-64 flex-none flex-col items-start gap-4">
             <div className="flex w-full flex-col items-start gap-2">
@@ -239,7 +287,7 @@ export function MarketDepthWithMetrics({
                 <Skeleton className="h-6 w-24" />
               ) : (
                 <span className="text-xl font-semibold">
-                  {selectedMetrics?.sales_velocity}
+                  {selectedMetrics?.sales_velocity} /day
                 </span>
               )}
             </div>

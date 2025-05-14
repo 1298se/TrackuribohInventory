@@ -150,6 +150,14 @@ class CumulativeDepthLevelResponseSchema(BaseModel):
     cumulative_count: int
 
 
+# Add schema for cumulative sales depth levels
+class SaleCumulativeDepthLevelResponseSchema(BaseModel):
+    """Cumulative amount of sales up to a given price level."""
+
+    price: float
+    cumulative_count: int
+
+
 class SKUMarketDataResponseSchema(BaseModel):
     """Market data for a single SKU in one marketplace."""
 
@@ -160,6 +168,8 @@ class SKUMarketDataResponseSchema(BaseModel):
     cumulative_depth_levels: list[
         CumulativeDepthLevelResponseSchema
     ]  # Precomputed cumulative depth
+    # Add cumulative sales depth levels to the response
+    cumulative_sales_depth_levels: list[SaleCumulativeDepthLevelResponseSchema]
 
 
 class SKUMarketDataItemResponseSchema(BaseModel):

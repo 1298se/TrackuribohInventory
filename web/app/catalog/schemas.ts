@@ -126,12 +126,22 @@ export const CumulativeDepthLevelSchema = z.object({
 });
 export type CumulativeDepthLevel = z.infer<typeof CumulativeDepthLevelSchema>;
 
+// Schema for cumulative sales depth levels
+export const SaleCumulativeDepthLevelSchema = z.object({
+  price: z.number(),
+  cumulative_count: z.number(),
+});
+export type SaleCumulativeDepthLevel = z.infer<
+  typeof SaleCumulativeDepthLevelSchema
+>;
+
 export const SKUMarketDataSchema = z.object({
   total_listings: z.number(),
   total_quantity: z.number(),
   sales_velocity: z.number(),
   days_of_inventory: z.number().nullable().optional(),
   cumulative_depth_levels: z.array(CumulativeDepthLevelSchema),
+  cumulative_sales_depth_levels: z.array(SaleCumulativeDepthLevelSchema),
 });
 export type SKUMarketData = z.infer<typeof SKUMarketDataSchema>;
 

@@ -8,11 +8,14 @@ from core.environment import Env, get_environment
 from core.models.base import Base
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
-DATABASE_POOL_SIZE = 100
+DATABASE_POOL_SIZE = 10
+MAX_OVERFLOW = 5
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_size=DATABASE_POOL_SIZE,
+    max_overflow=MAX_OVERFLOW,
+    pool_pre_ping=True,
     pool_timeout=120,
     echo=get_environment().env == Env.DEBUG,
 )
