@@ -117,6 +117,23 @@ async def update_set(
                         "set_id": current_set_id,
                         "product_type": product_type,
                         "data": product.extended_data,
+                        "rarity": next(
+                            (
+                                item.get("value")
+                                for item in product.extended_data
+                                if item.get("name") == "Rarity"
+                            ),
+                            None,
+                        ),
+                        "number": next(
+                            (
+                                item.get("value")
+                                for item in product.extended_data
+                                if item.get("name") == "Number"
+                            ),
+                            None,
+                        ),
+                        "set_name": tcgplayer_set.name,
                     }
                     for product in sets_response.results
                 ]

@@ -2,7 +2,7 @@ from typing import Optional, List, Dict
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator, Field, computed_field
+from pydantic import BaseModel, field_validator, Field
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
@@ -36,26 +36,8 @@ class ProductBaseResponseSchema(ORMModel):
     image_url: str
     product_type: ProductType
     data: List[Dict[str, str]]
-
-    # Computed field for Rarity
-    @computed_field
-    @property
-    def rarity(self) -> Optional[str]:
-        for item in self.data:
-            if item.get("name") == "Rarity":
-                value = item.get("value")
-                return None if value is None or value.lower() == "none" else value
-        return None
-
-    # Computed field for Number
-    @computed_field
-    @property
-    def number(self) -> Optional[str]:
-        for item in self.data:
-            if item.get("name") == "Number":
-                value = item.get("value")
-                return None if value is None or value.lower() == "none" else value
-        return None
+    rarity: Optional[str] = None
+    number: Optional[str] = None
 
 
 class SetBaseResponseSchema(ORMModel):

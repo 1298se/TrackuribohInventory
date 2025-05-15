@@ -54,7 +54,8 @@ def build_product_search_query(query_text: str, prefix: bool = False):
     else:
         ts_query = create_ts_query(query_text)
 
-    vector = create_product_set_fts_vector()
+    # Use the persisted search_vector column for faster full-text search
+    vector = Product.search_vector
     stmt = (
         select(Product)
         .join(Product.set)

@@ -2,8 +2,8 @@ import uuid
 from datetime import datetime
 from typing import List, Any
 
-from sqlalchemy import ForeignKey, UniqueConstraint, DateTime
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import ForeignKey, UniqueConstraint, DateTime, String, Computed, Index
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from typing_extensions import Optional
 from uuid_extensions import uuid7
@@ -65,6 +65,22 @@ class Product(Base):
     skus: Mapped[List["SKU"]] = relationship(back_populates="product")
     product_type: Mapped[ProductType]
     data: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+
+    # New columns for performance-backed full-text search
+    rarity: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    number: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    set_name: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    search_vector: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('english', coalesce(name, '') || ' ' || coalesce(rarity, '') || ' ' || coalesce(number, '') || ' ' || coalesce(set_name, ''))",
+            persisted=True,
+        ),
+    )
+    __table_args__ = (
+        # GIN index for fast full-text search on the persisted search_vector
+        Index("ix_product_search_vector", "search_vector", postgresql_using="gin"),
+    )
 
     @property
     def tcgplayer_url(self) -> str:
