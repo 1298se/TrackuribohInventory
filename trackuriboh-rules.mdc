@@ -1,3 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
 # Project MDC (Markdown Configuration) Rules
 
 ## Project Structure
@@ -235,5 +240,17 @@ aws ecs run-task \
   --region us-east-2
 ``` 
 
-Prompt for following specifications:
+### Prompts
+#### Implementing
 Let's start with the implementation. Please follow the outlined steps in {spec} very closely. Please do not make any assumptions, and ask clarifying questions when needed
+
+#### Spec + Implementation
+We are going to work on showing product price history to users. Please keep asking me questions to clearly define the feature and the implementation.
+
+Please write up a spec in the .tmp directory.
+
+Some initial thoughts I have are:
+
+1. SKU pricing data will come from @tcgplayer_catalog_service.py . This function handles bulk SKU queries, although it uses a GET fetch with parameters, so the number of SKUs passed in a query is limited.
+2. Ideally, we would want to store a snapshot of SKU pricing data for every SKU in our database. However, there are way too many (643300 total SKUs).
+3. Most SKUs are not important (i.e. Moderately played, heavily played, damaged conditions).

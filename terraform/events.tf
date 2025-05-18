@@ -95,6 +95,38 @@ resource "aws_cloudwatch_event_target" "ecs_snapshot_inventory_target" {
   }
 }
 
+# --- SKU Price History Snapshot Schedule (Phase 1) ---
+resource "aws_cloudwatch_event_rule" "snapshot_sku_price_history_schedule" {
+  name                = "${var.project_name}-snapshot-sku-price-history-rule"
+  description         = "Triggers the SKU price history snapshot task daily"
+  schedule_expression = var.snapshot_sku_price_history_schedule_expression
+
+  tags = {
+    Name      = "${var.project_name}-snapshot-sku-price-history-rule"
+    ManagedBy = "Terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "ecs_snapshot_sku_price_history_target" {
+  rule      = aws_cloudwatch_event_rule.snapshot_sku_price_history_schedule.name
+  arn       = aws_ecs_cluster.cron_cluster.arn
+  role_arn  = aws_iam_role.event_bridge_role.arn
+  target_id = "${var.project_name}-snapshot-sku-price-history-target"
+
+  ecs_target {
+    launch_type         = "FARGATE"
+    task_count          = 1
+    task_definition_arn = aws_ecs_task_definition.snapshot_sku_price_history_task.arn
+    platform_version    = "LATEST"
+
+    network_configuration {
+      subnets          = var.private_subnet_ids
+      security_groups  = var.task_security_group_ids
+      assign_public_ip = true
+    }
+  }
+}
+
 # --- IAM Role for EventBridge to start ECS tasks ---
 # EventBridge needs permissions to run tasks on ECS
 resource "aws_iam_role" "event_bridge_role" {
@@ -129,16 +161,14 @@ resource "aws_iam_policy" "event_bridge_policy" {
       {
         Effect   = "Allow",
         Action   = "ecs:RunTask",
-        # Updated Resource to include BOTH task definition ARNs
         Resource = [
-            aws_ecs_task_definition.update_catalog_task.arn,
-            aws_ecs_task_definition.update_inventory_prices_task.arn,
-            aws_ecs_task_definition.snapshot_inventory_task.arn
+          aws_ecs_task_definition.update_catalog_task.arn,
+          aws_ecs_task_definition.update_inventory_prices_task.arn,
+          aws_ecs_task_definition.snapshot_inventory_task.arn,
+          aws_ecs_task_definition.snapshot_sku_price_history_task.arn
         ],
         Condition = {
-          ArnEquals = {
-            "ecs:cluster" = aws_ecs_cluster.cron_cluster.arn
-          }
+          ArnEquals = {"ecs:cluster" = aws_ecs_cluster.cron_cluster.arn}
         }
       },
       {
@@ -148,11 +178,7 @@ resource "aws_iam_policy" "event_bridge_policy" {
           aws_iam_role.cron_task_role.arn,
           aws_iam_role.ecs_task_execution_role.arn
         ],
-        Condition = {
-          StringLike = {
-            "iam:PassedToService" = "ecs-tasks.amazonaws.com"
-          }
-        }
+        Condition = {StringLike = {"iam:PassedToService" = "ecs-tasks.amazonaws.com"}}
       }
     ]
   })

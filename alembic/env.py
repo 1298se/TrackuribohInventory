@@ -7,6 +7,10 @@ from core.database import engine
 from core.models.base import Base
 
 # Explicitly import all model modules here to ensure they are registered with Base.metadata
+import core.models.catalog  # noqa: F401
+import core.models.transaction  # noqa: F401
+import core.models.inventory_snapshot  # noqa: F401
+import core.models.price  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

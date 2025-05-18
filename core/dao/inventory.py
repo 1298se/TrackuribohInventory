@@ -56,7 +56,7 @@ def query_inventory_catalogs() -> Select:
     return catalogs_query
 
 
-def query_inventory_items() -> Select:
+def query_inventory_items() -> Select[InventoryQueryResultRow]:
     """
     Query inventory items with their quantities and prices. Doesn't include FTS.
 

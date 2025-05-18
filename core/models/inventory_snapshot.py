@@ -7,7 +7,7 @@ from uuid_extensions import uuid7
 from core.models.base import Base
 
 
-class InventoryDailySnapshot(Base):
+class InventorySnapshot(Base):
     """One row per catalogue per calendar date representing inventory valuation."""
 
     __tablename__ = "inventory_snapshot"

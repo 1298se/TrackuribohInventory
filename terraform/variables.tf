@@ -97,4 +97,10 @@ variable "image_tag" {
   description = "The Docker image tag to deploy (e.g., Git SHA or version number)"
   type        = string
   # No default value here, it must be provided via -var or a .tfvars file
+}
+
+variable "snapshot_sku_price_history_schedule_expression" {
+  description = "Cron expression for the SKU price history snapshot task schedule"
+  type        = string
+  default     = "cron(0 3 * * ? *)" # Runs at 03:00 UTC daily
 } 

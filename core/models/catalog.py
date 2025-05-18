@@ -107,15 +107,12 @@ class Condition(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
-    catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
     abbreviation: Mapped[str]
 
-    # Add unique constraint for catalog_id and tcgplayer_id combination
+    # Add unique constraint for tcgplayer_id
     __table_args__ = (
-        UniqueConstraint(
-            "catalog_id", "tcgplayer_id", name="uq_condition_catalog_id_tcgplayer_id"
-        ),
+        UniqueConstraint("tcgplayer_id", name="uq_condition_tcgplayer_id"),
     )
 
 
@@ -140,13 +137,10 @@ class Language(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
-    catalog_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{catalog_tablename}.id"))
     name: Mapped[str] = mapped_column(index=True)
     abbreviation: Mapped[str]
 
-    # Add unique constraint for catalog_id and tcgplayer_id combination
+    # Add unique constraint for tcgplayer_id
     __table_args__ = (
-        UniqueConstraint(
-            "catalog_id", "tcgplayer_id", name="uq_language_catalog_id_tcgplayer_id"
-        ),
+        UniqueConstraint("tcgplayer_id", name="uq_language_tcgplayer_id"),
     )

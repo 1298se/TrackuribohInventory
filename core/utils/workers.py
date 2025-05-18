@@ -12,7 +12,12 @@ async def process_task_queue(queue: asyncio.Queue, num_workers: int):
     for task in worker_tasks:
         task.cancel()
 
-    await asyncio.gather(*worker_tasks, return_exceptions=True)
+    # Wait for cancellation to finish, collecting results
+    results = await asyncio.gather(*worker_tasks, return_exceptions=True)
+    # Propagate any non-cancellation exceptions
+    errors = [r for r in results if isinstance(r, Exception)]
+    if errors:
+        raise errors[0]
 
 
 async def _worker(queue, name=None):
@@ -20,10 +25,7 @@ async def _worker(queue, name=None):
         # Get a "work item" out of the queue.
         task = await queue.get()
 
-        # Sleep for the "sleep_for" seconds.
-        await task
-
-        # Notify the queue that the "work item" has been processed.
-        queue.task_done()
-
-        print(f"{name} has completed task")
+        try:
+            await task
+        finally:
+            queue.task_done()

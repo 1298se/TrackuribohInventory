@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 from core.dao.inventory import query_inventory_catalogs
 from core.services.inventory_service import get_inventory_metrics
 from core.database import SessionLocal
-from core.models.inventory_snapshot import InventoryDailySnapshot
+from core.models.inventory_snapshot import InventorySnapshot
 
 # Configure logging
 logging.basicConfig(
@@ -46,7 +46,7 @@ def snapshot_inventory():
             )
 
             # Create and save snapshot
-            snapshot = InventoryDailySnapshot(
+            snapshot = InventorySnapshot(
                 snapshot_date=snapshot_date,
                 catalog_id=catalog.id,
                 total_cost=total_cost,
