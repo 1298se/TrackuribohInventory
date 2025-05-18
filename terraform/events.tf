@@ -16,6 +16,7 @@ resource "aws_cloudwatch_event_target" "ecs_catalog_task_target" { # Renamed tar
   rule      = aws_cloudwatch_event_rule.update_catalog_schedule.name
   arn       = aws_ecs_cluster.cron_cluster.arn
   role_arn  = aws_iam_role.event_bridge_role.arn
+  target_id = "${var.project_name}-update-catalog-target"
 
   ecs_target {
     task_count          = 1
