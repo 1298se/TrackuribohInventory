@@ -1,45 +1,13 @@
 # terraform/events.tf
 
-# --- Update Catalog Schedule ---
-resource "aws_cloudwatch_event_rule" "update_catalog_schedule" {
-  name                = "${var.project_name}-update-catalog-rule"
-  description         = "Triggers the update catalog task periodically"
-  schedule_expression = var.task_schedule_expression # Expecting this variable holds the daily schedule (e.g., "cron(0 8 * * ? *)")
-
-  tags = {
-    Name      = "${var.project_name}-update-catalog-rule"
-    ManagedBy = "Terraform"
-  }
-}
-
-resource "aws_cloudwatch_event_target" "ecs_catalog_task_target" { # Renamed target for clarity
-  rule      = aws_cloudwatch_event_rule.update_catalog_schedule.name
-  arn       = aws_ecs_cluster.cron_cluster.arn
-  role_arn  = aws_iam_role.event_bridge_role.arn
-  target_id = "${var.project_name}-update-catalog-target"
-
-  ecs_target {
-    task_count          = 1
-    task_definition_arn = aws_ecs_task_definition.update_catalog_task.arn
-    launch_type         = "FARGATE"
-    platform_version    = "LATEST"
-
-    network_configuration {
-      subnets          = var.private_subnet_ids
-      security_groups  = var.task_security_group_ids
-      assign_public_ip = true
-    }
-  }
-}
-
 # --- Update Inventory Schedule (Hourly) ---
 resource "aws_cloudwatch_event_rule" "update_inventory_schedule" {
-  name                = "${var.project_name}-update-inventory-rule"
-  description         = "Triggers the update inventory prices task hourly"
+  name                = "${var.project_name}-snapshot-inventory-sku-prices-rule"
+  description         = "Runs cron.tasks.snapshot_inventory_sku_prices every hour (top of the hour) to snapshot current inventory SKU prices"
   schedule_expression = "cron(0 * * * ? *)" # Runs at the start of every hour
 
   tags = {
-    Name      = "${var.project_name}-update-inventory-rule"
+    Name      = "${var.project_name}-snapshot-inventory-sku-prices-rule"
     ManagedBy = "Terraform"
   }
 }
@@ -48,44 +16,12 @@ resource "aws_cloudwatch_event_target" "ecs_inventory_task_target" {
   rule      = aws_cloudwatch_event_rule.update_inventory_schedule.name
   arn       = aws_ecs_cluster.cron_cluster.arn
   role_arn  = aws_iam_role.event_bridge_role.arn
-  target_id = "${var.project_name}-update-inventory-target"
+  target_id = "${var.project_name}-snapshot-inventory-sku-prices-target"
 
   ecs_target {
     launch_type         = "FARGATE"
     task_count          = 1
-    task_definition_arn = aws_ecs_task_definition.update_inventory_prices_task.arn
-    platform_version    = "LATEST"
-
-    network_configuration {
-      subnets          = var.private_subnet_ids
-      security_groups  = var.task_security_group_ids
-      assign_public_ip = true
-    }
-  }
-}
-
-# --- Snapshot Inventory Schedule (Daily) ---
-resource "aws_cloudwatch_event_rule" "snapshot_inventory_schedule" {
-  name                = "${var.project_name}-snapshot-inventory-rule"
-  description         = "Triggers the inventory snapshot task daily at 00:05 UTC"
-  schedule_expression = "cron(5 0 * * ? *)"  # Runs at 00:05 UTC daily
-
-  tags = {
-    Name      = "${var.project_name}-snapshot-inventory-rule"
-    ManagedBy = "Terraform"
-  }
-}
-
-resource "aws_cloudwatch_event_target" "ecs_snapshot_inventory_target" {
-  rule      = aws_cloudwatch_event_rule.snapshot_inventory_schedule.name
-  arn       = aws_ecs_cluster.cron_cluster.arn
-  role_arn  = aws_iam_role.event_bridge_role.arn
-  target_id = "${var.project_name}-snapshot-inventory-target"
-
-  ecs_target {
-    launch_type         = "FARGATE"
-    task_count          = 1
-    task_definition_arn = aws_ecs_task_definition.snapshot_inventory_task.arn
+    task_definition_arn = aws_ecs_task_definition.snapshot_inventory_sku_prices_task.arn
     platform_version    = "LATEST"
 
     network_configuration {
@@ -97,27 +33,59 @@ resource "aws_cloudwatch_event_target" "ecs_snapshot_inventory_target" {
 }
 
 # --- SKU Price History Snapshot Schedule (Phase 1) ---
-resource "aws_cloudwatch_event_rule" "snapshot_sku_price_history_schedule" {
-  name                = "${var.project_name}-snapshot-sku-price-history-rule"
-  description         = "Triggers the SKU price history snapshot task daily"
-  schedule_expression = var.snapshot_sku_price_history_schedule_expression
+resource "aws_cloudwatch_event_rule" "snapshot_product_sku_prices_schedule" {
+  name                = "${var.project_name}-snapshot-product-sku-prices-rule"
+  description         = "Runs cron.tasks.snapshot_product_sku_prices daily (03:00 UTC) to snapshot product SKU price data"
+  schedule_expression = var.snapshot_product_sku_prices_schedule_expression
 
   tags = {
-    Name      = "${var.project_name}-snapshot-sku-price-history-rule"
+    Name      = "${var.project_name}-snapshot-product-sku-prices-rule"
     ManagedBy = "Terraform"
   }
 }
 
-resource "aws_cloudwatch_event_target" "ecs_snapshot_sku_price_history_target" {
-  rule      = aws_cloudwatch_event_rule.snapshot_sku_price_history_schedule.name
+resource "aws_cloudwatch_event_target" "ecs_snapshot_product_sku_prices_target" {
+  rule      = aws_cloudwatch_event_rule.snapshot_product_sku_prices_schedule.name
   arn       = aws_ecs_cluster.cron_cluster.arn
   role_arn  = aws_iam_role.event_bridge_role.arn
-  target_id = "${var.project_name}-snapshot-sku-price-history-target"
+  target_id = "${var.project_name}-snapshot-product-sku-prices-target"
 
   ecs_target {
     launch_type         = "FARGATE"
     task_count          = 1
-    task_definition_arn = aws_ecs_task_definition.snapshot_sku_price_history_task.arn
+    task_definition_arn = aws_ecs_task_definition.snapshot_product_sku_prices_task.arn
+    platform_version    = "LATEST"
+
+    network_configuration {
+      subnets          = var.private_subnet_ids
+      security_groups  = var.task_security_group_ids
+      assign_public_ip = true
+    }
+  }
+}
+
+# --- Update Catalog DB Schedule ---
+resource "aws_cloudwatch_event_rule" "update_catalog_db_schedule" {
+  name                = "${var.project_name}-update-catalog-db-rule"
+  description         = "Runs cron.tasks.update_catalog_db daily (08:00 UTC) to update the product catalog in the database"
+  schedule_expression = var.task_schedule_expression
+
+  tags = {
+    Name      = "${var.project_name}-update-catalog-db-rule"
+    ManagedBy = "Terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "ecs_update_catalog_db_target" {
+  rule      = aws_cloudwatch_event_rule.update_catalog_db_schedule.name
+  arn       = aws_ecs_cluster.cron_cluster.arn
+  role_arn  = aws_iam_role.event_bridge_role.arn
+  target_id = "${var.project_name}-update-catalog-db-target"
+
+  ecs_target {
+    launch_type         = "FARGATE"
+    task_count          = 1
+    task_definition_arn = aws_ecs_task_definition.update_catalog_db_task.arn
     platform_version    = "LATEST"
 
     network_configuration {
@@ -163,10 +131,9 @@ resource "aws_iam_policy" "event_bridge_policy" {
         Effect   = "Allow",
         Action   = "ecs:RunTask",
         Resource = [
-          aws_ecs_task_definition.update_catalog_task.arn,
-          aws_ecs_task_definition.update_inventory_prices_task.arn,
-          aws_ecs_task_definition.snapshot_inventory_task.arn,
-          aws_ecs_task_definition.snapshot_sku_price_history_task.arn
+          aws_ecs_task_definition.snapshot_inventory_sku_prices_task.arn,
+          aws_ecs_task_definition.snapshot_product_sku_prices_task.arn,
+          aws_ecs_task_definition.update_catalog_db_task.arn
         ],
         Condition = {
           ArnEquals = {"ecs:cluster" = aws_ecs_cluster.cron_cluster.arn}

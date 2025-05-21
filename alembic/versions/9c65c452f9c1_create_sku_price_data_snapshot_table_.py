@@ -28,7 +28,7 @@ def upgrade() -> None:
         sa.Column("job_id", sa.Integer(), nullable=False),
         sa.Column(
             "lowest_listing_price_total",
-            sa.Numeric(precision=10, scale=2),
+            sa.Numeric(scale=2),
             nullable=False,
         ),
         sa.ForeignKeyConstraint(

@@ -235,7 +235,6 @@ async def fetch_catalog_mappings(
         condition_values = [
             {
                 "tcgplayer_id": condition_detail_response.tcgplayer_id,
-                "catalog_id": catalog.id,
                 "name": condition_detail_response.name,
                 "abbreviation": condition_detail_response.abbreviation,
             }
@@ -258,7 +257,6 @@ async def fetch_catalog_mappings(
         languages_values = [
             {
                 "tcgplayer_id": language_detail_response.tcgplayer_id,
-                "catalog_id": catalog.id,
                 "name": language_detail_response.name,
                 "abbreviation": language_detail_response.abbr,
             }

@@ -30,106 +30,9 @@ locals {
   image_uri = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/${var.ecr_repo_name}:${var.image_tag}"
 }
 
-# Define the ECS Task Definition
-resource "aws_ecs_task_definition" "update_catalog_task" {
-  family                   = "${var.project_name}-update-catalog"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.task_cpu
-  memory                   = var.task_memory
-  task_role_arn            = aws_iam_role.cron_task_role.arn
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-
-  # Define the container within the task
-  container_definitions = jsonencode([
-    {
-      name      = "${var.project_name}-update-catalog-container"
-      image     = local.image_uri
-      essential = true # Task fails if this container stops
-
-      # Explicitly define the command to run the catalog update script
-      # This matches the Dockerfile CMD but makes it explicit
-      command = ["python", "-m", "cron.tasks.update_catalog_db"]
-
-      # Configure logging to CloudWatch
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.cron_log_group.name
-          "awslogs-region"        = data.aws_region.current.name
-          "awslogs-stream-prefix" = "ecs" # Prefix for log streams within the group
-        }
-      }
-
-      # Inject secrets from Secrets Manager as environment variables
-      secrets = [
-        # Database Credentials
-        # The keys here (e.g., DB_USERNAME) MUST match the expected env var names
-        # in your application (core/environment.py uses lowercase implicitly via pydantic)
-        {
-          name      = "db_username" # Env var name in container
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::" # Key in secret JSON
-        },
-        {
-          name      = "db_password" # Env var name in container
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::" # Key in secret JSON
-        },
-        {
-          name      = "db_endpoint" # Env var name in container
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::" # Key in secret JSON
-        },
-        {
-          name      = "db_port" # Env var name in container
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::" # Key in secret JSON
-        },
-        {
-          name      = "db_name" # Env var name in container
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::" # Key in secret JSON
-        },
-        # TCGPlayer Credentials
-        {
-          name      = "tcgplayer_client_id" # Env var name in container
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::" # Key in secret JSON
-        },
-        {
-          name      = "tcgplayer_client_secret" # Env var name in container
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::" # Key in secret JSON
-        }
-        # Add other non-sensitive environment variables if needed
-        # {
-        #   name = "ENV"
-        #   value = "PROD" # Example
-        # },
-      ]
-
-      # Add other non-sensitive environment variables if needed using 'environment'
-      environment = [
-        {
-          name = "ENV" # Matches the expected variable name
-          value = "PROD" # Setting to PROD for deployed tasks
-        },
-        # Add any other non-secret environment variables here
-      ]
-
-      # Port mappings (not usually needed for a cron task unless it serves traffic briefly)
-      # portMappings = [
-      #   {
-      #     containerPort = 8000 # Example if the app listens on a port
-      #     hostPort      = 8000
-      #   }
-      # ]
-    }
-  ])
-
-  tags = {
-    Name      = "${var.project_name}-update-catalog-task-def"
-    ManagedBy = "Terraform"
-  }
-}
-
 # --- Define ECS Task Definition for Inventory Update ---
-resource "aws_ecs_task_definition" "update_inventory_prices_task" {
-  family                   = "${var.project_name}-update-inventory-prices"
+resource "aws_ecs_task_definition" "snapshot_inventory_sku_prices_task" {
+  family                   = "${var.project_name}-snapshot-inventory-sku-prices"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.task_cpu # Reusing variables, adjust if needed
@@ -139,12 +42,12 @@ resource "aws_ecs_task_definition" "update_inventory_prices_task" {
 
   container_definitions = jsonencode([
     {
-      name      = "${var.project_name}-update-inventory-container"
+      name      = "${var.project_name}-snapshot-inventory-sku-prices-container"
       image     = local.image_uri
       essential = true
 
       # Specify the command to run the inventory update script AS A MODULE
-      command = ["python", "-m", "cron.tasks.update_inventory_prices"]
+      command = ["python", "-m", "cron.tasks.snapshot_inventory_sku_prices"]
 
       logConfiguration = {
         logDriver = "awslogs"
@@ -198,89 +101,14 @@ resource "aws_ecs_task_definition" "update_inventory_prices_task" {
   ])
 
   tags = {
-    Name      = "${var.project_name}-update-inventory-prices-task-def"
-    ManagedBy = "Terraform"
-  }
-}
-
-# --- Define ECS Task Definition for Inventory Snapshots ---
-resource "aws_ecs_task_definition" "snapshot_inventory_task" {
-  family                   = "${var.project_name}-snapshot-inventory"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.task_cpu
-  memory                   = var.task_memory
-  task_role_arn            = aws_iam_role.cron_task_role.arn
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-
-  container_definitions = jsonencode([
-    {
-      name      = "${var.project_name}-snapshot-inventory-container"
-      image     = local.image_uri
-      essential = true
-
-      # Specify the command to run the snapshot script
-      command = ["python", "-m", "cron.tasks.snapshot_inventory"]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.cron_log_group.name
-          "awslogs-region"        = data.aws_region.current.name
-          "awslogs-stream-prefix" = "ecs-snapshot" # Prefix for easier log filtering
-        }
-      }
-
-      # Use the same secrets as other tasks
-      secrets = [
-        {
-          name      = "db_username"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
-        },
-        {
-          name      = "db_password"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
-        },
-        {
-          name      = "db_endpoint"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
-        },
-        {
-          name      = "db_port"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
-        },
-        {
-          name      = "db_name"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
-        },
-        {
-          name      = "tcgplayer_client_id"
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
-        },
-        {
-          name      = "tcgplayer_client_secret"
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
-        }
-      ]
-
-      environment = [
-        {
-          name = "ENV"
-          value = "PROD"
-        }
-      ]
-    }
-  ])
-
-  tags = {
-    Name      = "${var.project_name}-snapshot-inventory-task-def"
+    Name      = "${var.project_name}-snapshot-inventory-sku-prices-task-def"
     ManagedBy = "Terraform"
   }
 }
 
 # --- Define ECS Task Definition for SKU Price History Snapshot ---
-resource "aws_ecs_task_definition" "snapshot_sku_price_history_task" {
-  family                   = "${var.project_name}-snapshot-sku-price-history"
+resource "aws_ecs_task_definition" "snapshot_product_sku_prices_task" {
+  family                   = "${var.project_name}-snapshot-product-sku-prices"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.task_cpu
@@ -290,18 +118,18 @@ resource "aws_ecs_task_definition" "snapshot_sku_price_history_task" {
 
   container_definitions = jsonencode([
     {
-      name      = "${var.project_name}-snapshot-sku-price-history-container"
+      name      = "${var.project_name}-snapshot-product-sku-prices-container"
       image     = local.image_uri
       essential = true
 
-      command = ["python", "-m", "cron.tasks.snapshot_sku_price_history"]
+      command = ["python", "-m", "cron.tasks.snapshot_product_sku_prices"]
 
       logConfiguration = {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.cron_log_group.name
           "awslogs-region"        = data.aws_region.current.name
-          "awslogs-stream-prefix" = "ecs-sku-price-history"
+          "awslogs-stream-prefix" = "ecs-product-sku-prices"
         }
       }
 
@@ -346,7 +174,80 @@ resource "aws_ecs_task_definition" "snapshot_sku_price_history_task" {
   ])
 
   tags = {
-    Name      = "${var.project_name}-snapshot-sku-price-history-task-def"
+    Name      = "${var.project_name}-snapshot-product-sku-prices-task-def"
+    ManagedBy = "Terraform"
+  }
+}
+
+# --- Define ECS Task Definition for Update Catalog DB ---
+resource "aws_ecs_task_definition" "update_catalog_db_task" {
+  family                   = "${var.project_name}-update-catalog-db"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.task_cpu
+  memory                   = var.task_memory
+  task_role_arn            = aws_iam_role.cron_task_role.arn
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "${var.project_name}-update-catalog-db-container"
+      image     = local.image_uri
+      essential = true
+
+      command = ["python", "-m", "cron.tasks.update_catalog_db"]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.cron_log_group.name
+          "awslogs-region"        = data.aws_region.current.name
+          "awslogs-stream-prefix" = "ecs-update-catalog-db"
+        }
+      }
+
+      secrets = [
+        {
+          name      = "db_username"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
+        },
+        {
+          name      = "db_password"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "db_endpoint"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "db_port"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+        },
+        {
+          name      = "db_name"
+          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
+        },
+        {
+          name      = "tcgplayer_client_id"
+          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
+        },
+        {
+          name      = "tcgplayer_client_secret"
+          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+        }
+      ]
+
+      environment = [
+        {
+          name  = "ENV"
+          value = "PROD"
+        }
+      ]
+    }
+  ])
+
+  tags = {
+    Name      = "${var.project_name}-update-catalog-db-task-def"
     ManagedBy = "Terraform"
   }
 }
@@ -357,24 +258,19 @@ output "ecs_cluster_id" {
   value       = aws_ecs_cluster.cron_cluster.id
 }
 
-output "ecs_task_definition_arn" {
-  description = "ARN of the ECS Task Definition"
-  value       = aws_ecs_task_definition.update_catalog_task.arn
+output "ecs_task_definition_inventory_sku_prices_arn" {
+  description = "ARN of the Inventory SKU Prices Update ECS Task Definition"
+  value       = aws_ecs_task_definition.snapshot_inventory_sku_prices_task.arn
 }
 
-output "ecs_task_definition_inventory_prices_arn" {
-  description = "ARN of the Inventory Update ECS Task Definition"
-  value       = aws_ecs_task_definition.update_inventory_prices_task.arn
+output "ecs_task_definition_snapshot_product_sku_prices_arn" {
+  description = "ARN of the Product SKU Prices Snapshot ECS Task Definition"
+  value       = aws_ecs_task_definition.snapshot_product_sku_prices_task.arn
 }
 
-output "ecs_task_definition_snapshot_inventory_arn" {
-  description = "ARN of the Inventory Snapshot ECS Task Definition"
-  value       = aws_ecs_task_definition.snapshot_inventory_task.arn
-}
-
-output "ecs_task_definition_snapshot_sku_price_history_arn" {
-  description = "ARN of the SKU Price History Snapshot ECS Task Definition"
-  value       = aws_ecs_task_definition.snapshot_sku_price_history_task.arn
+output "ecs_task_definition_update_catalog_db_arn" {
+  description = "ARN of the Update Catalog DB ECS Task Definition"
+  value       = aws_ecs_task_definition.update_catalog_db_task.arn
 }
 
 output "cloudwatch_log_group_name" {

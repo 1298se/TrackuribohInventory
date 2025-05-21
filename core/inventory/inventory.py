@@ -14,9 +14,9 @@ def build_inventory_query(
     `get_inventory` in app.routes.inventory.api .
 
     The returned query starts from `query_inventory_items()` which already joins
-    SKU / SKULatestPriceData via a CTE.  We then apply optional catalogue or
-    full-text search filters, adding the same joins as the original endpoint so
-    that downstream callers can rely on identical row sets.
+    SKU with the latest price data via a subquery from price snapshots.  We then apply
+    optional catalogue or full-text search filters, adding the same joins as the original
+    endpoint so that downstream callers can rely on identical row sets.
     """
     inventory_query = query_inventory_items()
 

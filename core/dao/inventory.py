@@ -3,7 +3,7 @@ from typing import Optional, TypedDict
 from decimal import Decimal
 
 from core.models.catalog import SKU
-from core.models.price import SKULatestPriceData
+from core.dao.price import latest_price_subquery
 from core.models.catalog import Catalog
 from core.models.catalog import Set
 from core.models.catalog import Product
@@ -36,7 +36,7 @@ class InventoryQueryResultRow(TypedDict):
     sku: SKU
     total_quantity: int
     total_cost: Decimal
-    latest_price_data: Optional[SKULatestPriceData]
+    latest_price_data: Optional[dict]  # Contains lowest_listing_price_total
 
 
 def query_inventory_catalogs() -> Select:
@@ -65,16 +65,17 @@ def query_inventory_items() -> Select[InventoryQueryResultRow]:
         when executed
     """
     inventory_sku_quantity_cte = get_sku_cost_quantity_cte()
+    latest_price = latest_price_subquery()
 
     sql_query = (
         select(
             SKU,
             inventory_sku_quantity_cte.c.total_quantity,
             inventory_sku_quantity_cte.c.total_cost,
-            SKULatestPriceData,
+            latest_price.c.lowest_listing_price_total,
         )
         .join(inventory_sku_quantity_cte, SKU.id == inventory_sku_quantity_cte.c.sku_id)
-        .outerjoin(SKULatestPriceData, SKU.id == SKULatestPriceData.sku_id)
+        .outerjoin(latest_price, SKU.id == latest_price.c.sku_id)
     )
 
     return sql_query

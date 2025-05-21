@@ -99,8 +99,8 @@ variable "image_tag" {
   # No default value here, it must be provided via -var or a .tfvars file
 }
 
-variable "snapshot_sku_price_history_schedule_expression" {
-  description = "Cron expression for the SKU price history snapshot task schedule"
+variable "snapshot_product_sku_prices_schedule_expression" {
+  description = "Cron expression for the product SKU prices snapshot task schedule"
   type        = string
   default     = "cron(0 3 * * ? *)" # Runs at 03:00 UTC daily
 } 

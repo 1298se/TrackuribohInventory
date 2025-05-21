@@ -27,7 +27,7 @@ from app.routes.inventory.schemas import (
 from app.routes.utils import MoneySchema
 from core.database import get_db_session
 from core.models.catalog import SKU, Catalog, Product, Set
-from core.models.price import SKULatestPriceData
+from core.dao.price import latest_price_subquery
 from core.models.transaction import Transaction, LineItem, TransactionType
 from core.inventory.inventory import build_inventory_query
 from core.services.inventory_service import get_inventory_metrics, get_inventory_history
@@ -129,12 +129,17 @@ def get_inventory(
                 amount=total_cost / total_quantity, currency="USD"
             ),
             lowest_listing_price=MoneySchema(
-                amount=price_data.lowest_listing_price_amount, currency="USD"
+                amount=lowest_listing_price, currency="USD"
             )
-            if price_data and price_data.lowest_listing_price_amount
+            if lowest_listing_price is not None
             else None,
         )
-        for (sku, total_quantity, total_cost, price_data) in skus_with_quantity
+        for (
+            sku,
+            total_quantity,
+            total_cost,
+            lowest_listing_price,
+        ) in skus_with_quantity
     ]
 
     return InventoryResponseSchema(inventory_items=inventory_items)
@@ -156,16 +161,17 @@ def get_inventory_item_details(
     transaction line items with remaining quantities.
     """
     inventory_sku_quantity_cte = get_sku_cost_quantity_cte()
+    latest_price = latest_price_subquery()
 
     query = (
         select(
             SKU,
             inventory_sku_quantity_cte.c.total_quantity,
             inventory_sku_quantity_cte.c.total_cost,
-            SKULatestPriceData,
+            latest_price.c.lowest_listing_price_total,
         )
         .join(inventory_sku_quantity_cte, SKU.id == inventory_sku_quantity_cte.c.sku_id)
-        .outerjoin(SKULatestPriceData, SKU.id == SKULatestPriceData.sku_id)
+        .outerjoin(latest_price, SKU.id == latest_price.c.sku_id)
         .options(  # Eager load SKU's related data for the response schema
             joinedload(SKU.product).joinedload(Product.set),
             joinedload(SKU.condition),
@@ -182,7 +188,7 @@ def get_inventory_item_details(
             status_code=404, detail="Inventory item not found or quantity is zero"
         )
 
-    sku_obj, total_quantity, total_cost, latest_price_data = result
+    sku_obj, total_quantity, total_cost, lowest_listing_price_total = result
 
     # Ensure total_cost is treated as Decimal for calculation
     total_cost_decimal = total_cost if isinstance(total_cost, Decimal) else Decimal(0)
@@ -199,11 +205,10 @@ def get_inventory_item_details(
     # Construct MoneySchema for lowest listing price if available
     lowest_listing = (
         MoneySchema(
-            amount=latest_price_data.lowest_listing_price_amount,
-            currency="USD",  # Assuming USD as currency is not stored in SKULatestPriceData
+            amount=lowest_listing_price_total,
+            currency="USD",  # Assuming USD as currency
         )
-        if latest_price_data
-        and latest_price_data.lowest_listing_price_amount is not None
+        if lowest_listing_price_total is not None
         else None
     )
 

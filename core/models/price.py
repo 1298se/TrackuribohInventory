@@ -1,9 +1,9 @@
+import enum
 import uuid
-from datetime import datetime, UTC
+from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
-from sqlalchemy import ForeignKey, DateTime, Numeric
+from sqlalchemy import ForeignKey, DateTime, Numeric, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.models.base import Base
@@ -19,16 +19,9 @@ sku_price_data_snapshot_tablename = "sku_price_data_snapshot"
 # class SKULatestPriceData(Base): ... # Entire class removed
 
 
-class SKUPriceSnapshotJob(Base):
-    __tablename__ = sku_price_snapshot_job_tablename
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    start_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC)
-    )
-    end_time: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+class SnapshotSource(enum.Enum):
+    DAILY_HISTORY = "daily_history"
+    INVENTORY_UPDATE = "inventory_update"
 
 
 class SKUPriceDataSnapshot(Base):
@@ -40,11 +33,17 @@ class SKUPriceDataSnapshot(Base):
     snapshot_datetime: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True
     )
-    job_id: Mapped[int] = mapped_column(
-        ForeignKey(f"{sku_price_snapshot_job_tablename}.id"), nullable=False
-    )
     lowest_listing_price_total: Mapped[Decimal] = mapped_column(
         Numeric(10, 2), nullable=False
+    )
+
+    # Add composite index for efficient retrieval of latest price per SKU
+    __table_args__ = (
+        Index(
+            "ix_sku_price_snapshot_sku_id_dt_desc",
+            "sku_id",
+            snapshot_datetime.desc(),
+        ),
     )
 
     # Composite primary key is defined by setting primary_key=True on the respective columns.

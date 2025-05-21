@@ -47,7 +47,7 @@ def get_inventory_metrics(
         func.coalesce(
             func.sum(
                 inventory_subq.c.total_quantity
-                * inventory_subq.c.lowest_listing_price_amount
+                * inventory_subq.c.lowest_listing_price_total
             ),
             0,
         ).label("total_market_value"),
