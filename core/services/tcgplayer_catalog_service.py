@@ -141,6 +141,14 @@ class TCGPlayerCatalogService:
         }
 
         async with self.session.get(url, headers=headers, params=params) as response:
+            if response.status == 404:
+                return CatalogSetResponseSchema(
+                    total_items=0,
+                    success=True,
+                    errors=[],
+                    results=[],
+                )
+
             response.raise_for_status()
             return CatalogSetResponseSchema.model_validate(await response.json())
 
@@ -165,6 +173,14 @@ class TCGPlayerCatalogService:
         async with self.session.get(
             url, headers=headers, params=query_params
         ) as response:
+            if response.status == 404:
+                return ProductResponseSchema(
+                    total_items=0,
+                    success=True,
+                    errors=[],
+                    results=[],
+                )
+
             response.raise_for_status()
             return ProductResponseSchema.model_validate(await response.json())
 

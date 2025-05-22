@@ -8,7 +8,7 @@ from core.environment import Env, get_environment
 from core.models.base import Base
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
-DATABASE_POOL_SIZE = 10
+DATABASE_POOL_SIZE = 50
 MAX_OVERFLOW = 5
 
 engine = create_engine(
@@ -29,9 +29,17 @@ def upsert(model: Type[Base], values: list[dict], index_elements=None) -> Insert
 
     primary_keys = [col.name for col in inspector.primary_key]
 
+    # Exclude generated/computed columns (e.g., search_vector) from the update set
+    table_columns = inspect(model).columns
+    updatable_cols = {
+        c.name: c
+        for c in insert_stmt.excluded
+        if c.name not in primary_keys and not table_columns[c.name].computed
+    }
+
     return insert_stmt.on_conflict_do_update(
         index_elements=primary_keys if index_elements is None else index_elements,
-        set_={c.name: c for c in insert_stmt.excluded if c.name not in primary_keys},
+        set_=updatable_cols,
     )
 
 

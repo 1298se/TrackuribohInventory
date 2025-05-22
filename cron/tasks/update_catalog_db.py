@@ -340,9 +340,7 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
                     f"Skipping set {response_set.tcgplayer_id} - {response_set.name}"
                 )
 
-        # We do this because we have a maximum number of simultaneous connections we can make to the database.
-        # The number 20 was picked arbitrarily, but works quite well.
-        await process_task_queue(task_queue, num_workers=20)
+        await process_task_queue(task_queue)
 
 
 async def update_card_database():
