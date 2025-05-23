@@ -63,9 +63,16 @@ async def snapshot_inventory_sku_price_data():
                     await task_queue.put(_process_batch())
 
                 # 3. Process all tasks concurrently
-                results = await process_task_queue(task_queue)
+                successes, failures = await process_task_queue(task_queue)
 
-                inserted_snapshots = sum(results)
+                inserted_snapshots = sum(successes)
+
+                if failures:
+                    logger.error(
+                        "%s: %d batch tasks failed during execution.",
+                        JOB_NAME,
+                        len(failures),
+                    )
 
                 logger.info(
                     "%s: completed. SKUs targeted: %d, SKU price snapshots inserted: %d",

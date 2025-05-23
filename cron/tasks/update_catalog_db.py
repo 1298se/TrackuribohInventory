@@ -31,6 +31,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+JOB_NAME = "update_catalog_db"
+
 PAGINATION_SIZE = 100
 
 SUPPORTED_CATALOGS = frozenset(
@@ -340,7 +342,14 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
                     f"Skipping set {response_set.tcgplayer_id} - {response_set.name}"
                 )
 
-        await process_task_queue(task_queue)
+        successes, failures = await process_task_queue(task_queue)
+        if failures:
+            logger.error(
+                "%s: %d tasks failed during catalog update for catalog ID %s.",
+                JOB_NAME,  # Assuming JOB_NAME is defined in this module
+                len(failures),
+                catalog.id,
+            )
 
 
 async def update_card_database():

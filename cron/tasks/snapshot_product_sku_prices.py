@@ -91,16 +91,10 @@ async def process_sku_batch_for_history(
         logger.debug("Empty SKU batch — skipping")
         return 0
 
-    logger.info(f"Processing batch of {len(sku_batch_tcgplayer_ids)} SKUs.")
-
     async with tcgplayer_service_context() as service:
         with SessionLocal() as session:
             # Filter out any None values
             active_tcgplayer_ids = [tid for tid in sku_batch_tcgplayer_ids if tid]
-
-            if not active_tcgplayer_ids:
-                logger.debug("Batch contained only empty TCGPlayer IDs; skipping.")
-                return 0
 
             # Map external TCGPlayer IDs to internal UUIDs
             sku_id_rows = session.execute(
@@ -148,8 +142,15 @@ async def main():
                     batch_ids = market_indicator_tcgplayer_ids[i : i + SKU_BATCH_SIZE]
                     await task_queue.put(process_sku_batch_for_history(batch_ids))
 
-                results = await process_task_queue(task_queue)
-                inserted_snapshots = sum(results)
+                successes, failures = await process_task_queue(task_queue)
+                inserted_snapshots = sum(successes)
+
+                if failures:
+                    logger.error(
+                        "%s: %d batch tasks failed during execution.",
+                        JOB_NAME,
+                        len(failures),
+                    )
 
                 logger.info(
                     f"{JOB_NAME}: completed. SKUs targeted: {total_skus_targeted}, SKU price snapshots inserted: {inserted_snapshots}",
