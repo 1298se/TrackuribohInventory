@@ -39,10 +39,12 @@ class SKUPriceDataSnapshot(Base):
 
     # Add composite index for efficient retrieval of latest price per SKU
     __table_args__ = (
+        # Covering index that includes the price data to avoid table lookups
         Index(
-            "ix_sku_price_snapshot_sku_id_dt_desc",
+            "ix_sku_price_snapshot_covering",
             "sku_id",
             snapshot_datetime.desc(),
+            "lowest_listing_price_total",
         ),
     )
 

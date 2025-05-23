@@ -14,6 +14,11 @@ def latest_price_subquery():
     Returns a subquery with the most recent price snapshot per SKU.
     Uses PostgreSQL DISTINCT ON to efficiently retrieve the latest price.
 
+    This query is optimized by the covering index 'ix_sku_price_snapshot_covering'
+    which includes (sku_id, snapshot_datetime DESC, lowest_listing_price_total),
+    allowing PostgreSQL to satisfy the entire query from the index without
+    accessing the table data.
+
     Returns:
         A SQLAlchemy subquery that can be used in joins, containing:
         - sku_id: The SKU identifier
