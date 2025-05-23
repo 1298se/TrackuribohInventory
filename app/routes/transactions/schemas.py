@@ -160,3 +160,11 @@ class WeightedPriceCalculationResponseSchema(BaseModel):
 
 class BulkTransactionDeleteRequestSchema(BaseModel):
     transaction_ids: list[uuid.UUID]
+
+
+class TransactionMetricsResponseSchema(BaseModel):
+    total_revenue: MoneyAmountSchema
+    total_spent: MoneyAmountSchema
+    net_profit: MoneyAmountSchema
+    total_transactions: int
+    currency: str = "USD"

@@ -1,20 +1,22 @@
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { API_URL, fetcher, HTTPMethod, createMutation } from "../api/fetcher";
-import { 
-    TransactionCreateRequest, 
-    TransactionResponse, 
-    TransactionResponseSchema,
-    TransactionsResponse,
-    TransactionsResponseSchema,
-    BulkTransactionDeleteRequestSchema,
-    TransactionUpdateRequest,
-    PlatformResponse,
-    PlatformResponseSchema,
-    PlatformCreateRequest,
-    WeightedPriceCalculationRequest,
-    WeightedPriceCalculationResponse,
-    WeightedPriceCalculationResponseSchema
+import {
+  TransactionCreateRequest,
+  TransactionResponse,
+  TransactionResponseSchema,
+  TransactionsResponse,
+  TransactionsResponseSchema,
+  BulkTransactionDeleteRequestSchema,
+  TransactionUpdateRequest,
+  PlatformResponse,
+  PlatformResponseSchema,
+  PlatformCreateRequest,
+  WeightedPriceCalculationRequest,
+  WeightedPriceCalculationResponse,
+  WeightedPriceCalculationResponseSchema,
+  TransactionMetricsResponse,
+  TransactionMetricsResponseSchema,
 } from "./schemas";
 import { z } from "zod";
 import { ProductSearchResponse } from "../catalog/schemas";
@@ -22,124 +24,150 @@ import { MoneyAmountSchema } from "../schemas";
 
 // Create reusable mutation functions using our helper
 const createTransaction = createMutation<
-    TransactionCreateRequest,
-    typeof TransactionResponseSchema
+  TransactionCreateRequest,
+  typeof TransactionResponseSchema
 >("/transactions", HTTPMethod.POST, TransactionResponseSchema);
 
 const updateTransaction = createMutation<
-    TransactionUpdateRequest,
-    typeof TransactionResponseSchema
+  TransactionUpdateRequest,
+  typeof TransactionResponseSchema
 >("/transactions", HTTPMethod.PATCH, TransactionResponseSchema);
 
 const createPlatform = createMutation<
-    PlatformCreateRequest,
-    typeof PlatformResponseSchema
+  PlatformCreateRequest,
+  typeof PlatformResponseSchema
 >("/transactions/platforms", HTTPMethod.POST, PlatformResponseSchema);
 
 const calculateWeightedPrices = createMutation<
-    WeightedPriceCalculationRequest,
-    typeof WeightedPriceCalculationResponseSchema
->("/transactions/calculate-weighted-line-item-prices", HTTPMethod.POST, WeightedPriceCalculationResponseSchema);
+  WeightedPriceCalculationRequest,
+  typeof WeightedPriceCalculationResponseSchema
+>(
+  "/transactions/calculate-weighted-line-item-prices",
+  HTTPMethod.POST,
+  WeightedPriceCalculationResponseSchema,
+);
 
 // For DELETE, we create a specialized mutation function
-const deleteTransactionsRequest = async (_: string, { arg }: { arg: string[] }) => {
-    const payload = BulkTransactionDeleteRequestSchema.parse({ transaction_ids: arg });
-    
-    return fetcher({
-        url: `${API_URL}/transactions/bulk`,
-        method: HTTPMethod.POST,
-        body: payload,
-        schema: z.void()
-    });
+const deleteTransactionsRequest = async (
+  _: string,
+  { arg }: { arg: string[] },
+) => {
+  const payload = BulkTransactionDeleteRequestSchema.parse({
+    transaction_ids: arg,
+  });
+
+  return fetcher({
+    url: `${API_URL}/transactions/bulk`,
+    method: HTTPMethod.POST,
+    body: payload,
+    schema: z.void(),
+  });
 };
 
 // For GET requests, we use the standard fetcher
 export function useTransactions(query?: string) {
-    const params: { [key: string]: string } = {};
-    if (query) {
-        params.query = query;
-    }
+  const params: { [key: string]: string } = {};
+  if (query) {
+    params.query = query;
+  }
 
-    return useSWR(
-        ['/transactions', params],
-        ([path, params]) => fetcher({
-            url: `${API_URL}${path}`,
-            params,
-            method: HTTPMethod.GET,
-            schema: TransactionsResponseSchema
-        })
-    );
+  return useSWR(["/transactions", params], ([path, params]) =>
+    fetcher({
+      url: `${API_URL}${path}`,
+      params,
+      method: HTTPMethod.GET,
+      schema: TransactionsResponseSchema,
+    }),
+  );
 }
 
 export function useTransaction(id: string) {
-    return useSWR(
-        ['/transactions', id],
-        ([path, id]) => fetcher({ 
-            url: `${API_URL}${path}/${id}`, 
-            method: HTTPMethod.GET,
-            schema: TransactionResponseSchema
-        })
-    );
+  return useSWR(["/transactions", id], ([path, id]) =>
+    fetcher({
+      url: `${API_URL}${path}/${id}`,
+      method: HTTPMethod.GET,
+      schema: TransactionResponseSchema,
+    }),
+  );
 }
 
 export function usePlatforms() {
-    const PlatformArraySchema = z.array(PlatformResponseSchema);
+  const PlatformArraySchema = z.array(PlatformResponseSchema);
 
-    return useSWR(
-        '/transactions/platforms',
-        (path) => fetcher({
-            url: `${API_URL}${path}`,
-            method: HTTPMethod.GET,
-            schema: PlatformArraySchema
-        })
-    );
+  return useSWR("/transactions/platforms", (path) =>
+    fetcher({
+      url: `${API_URL}${path}`,
+      method: HTTPMethod.GET,
+      schema: PlatformArraySchema,
+    }),
+  );
 }
 
 // Export hooks using our mutation functions
 export function useCreateTransaction() {
-    return useSWRMutation<TransactionResponse, Error, string, TransactionCreateRequest>(
-        `${API_URL}/transactions`, 
-        createTransaction
-    );
+  return useSWRMutation<
+    TransactionResponse,
+    Error,
+    string,
+    TransactionCreateRequest
+  >(`${API_URL}/transactions`, createTransaction);
 }
 
 export function useUpdateTransaction() {
-    // Note: we need to add handling for path parameter in the trigger
-    return useSWRMutation<
-        TransactionResponse, 
-        Error, 
-        string, 
-        { id: string; data: TransactionUpdateRequest }
-    >(
-        `${API_URL}/transactions`,
-        async (_url: string, { arg }: { arg: { id: string; data: TransactionUpdateRequest } }) => {
-            return fetcher({
-                url: `${API_URL}/transactions/${arg.id}`,
-                method: HTTPMethod.PATCH,
-                body: arg.data,
-                schema: TransactionResponseSchema
-            });
-        }
-    );
+  // Note: we need to add handling for path parameter in the trigger
+  return useSWRMutation<
+    TransactionResponse,
+    Error,
+    string,
+    { id: string; data: TransactionUpdateRequest }
+  >(
+    `${API_URL}/transactions`,
+    async (
+      _url: string,
+      { arg }: { arg: { id: string; data: TransactionUpdateRequest } },
+    ) => {
+      return fetcher({
+        url: `${API_URL}/transactions/${arg.id}`,
+        method: HTTPMethod.PATCH,
+        body: arg.data,
+        schema: TransactionResponseSchema,
+      });
+    },
+  );
 }
 
 export function useDeleteTransactions() {
-    return useSWRMutation<void, Error, string, string[]>(
-        `${API_URL}/transactions/bulk`,
-        deleteTransactionsRequest
-    );
+  return useSWRMutation<void, Error, string, string[]>(
+    `${API_URL}/transactions/bulk`,
+    deleteTransactionsRequest,
+  );
 }
 
 export function useCreatePlatform() {
-    return useSWRMutation<PlatformResponse, Error, string, PlatformCreateRequest>(
-        `${API_URL}/transactions/platforms`, 
-        createPlatform
-    );
+  return useSWRMutation<PlatformResponse, Error, string, PlatformCreateRequest>(
+    `${API_URL}/transactions/platforms`,
+    createPlatform,
+  );
 }
 
 export function useCalculateWeightedPrices() {
-    return useSWRMutation<WeightedPriceCalculationResponse, Error, string, WeightedPriceCalculationRequest>(
-        `${API_URL}/transactions/calculate-weighted-line-item-prices`, 
-        calculateWeightedPrices
-    );
+  return useSWRMutation<
+    WeightedPriceCalculationResponse,
+    Error,
+    string,
+    WeightedPriceCalculationRequest
+  >(
+    `${API_URL}/transactions/calculate-weighted-line-item-prices`,
+    calculateWeightedPrices,
+  );
+}
+
+export function useTransactionMetrics() {
+  return useSWR("/transactions/metrics", (path) =>
+    fetcher({
+      url: `${API_URL}${path}`,
+      method: HTTPMethod.GET,
+      schema: TransactionMetricsResponseSchema,
+    }),
+  );
 }

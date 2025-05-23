@@ -5,7 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.routes.transactions.service import create_transaction_service
+from app.routes.transactions.service import (
+    create_transaction_service,
+    get_transaction_metrics,
+)
 from core.dao.transaction import (
     InsufficientInventoryError,
     create_transaction_line_items,
@@ -27,6 +30,7 @@ from app.routes.transactions.schemas import (
     WeightedPriceCalculationRequestSchema,
     WeightedPriceCalculationResponseSchema,
     CalculatedWeightedLineItemSchema,
+    TransactionMetricsResponseSchema,
 )
 from core.database import get_db_session
 from core.models.transaction import Transaction, LineItem, Platform
@@ -44,6 +48,13 @@ from core.dao.catalog import create_product_set_fts_vector
 router = APIRouter(
     prefix="/transactions",
 )
+
+
+@router.get("/metrics", response_model=TransactionMetricsResponseSchema)
+async def get_transactions_metrics(session: Session = Depends(get_db_session)):
+    """Get aggregate metrics for all transactions."""
+    metrics = get_transaction_metrics(session=session)
+    return TransactionMetricsResponseSchema(**metrics)
 
 
 @router.get("/platforms", response_model=list[PlatformResponseSchema])

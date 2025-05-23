@@ -72,6 +72,7 @@ import { ProductImage } from "@/components/ui/product-image";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { FormFieldPlatformSelect } from "@/components/ui/platform-select";
 import { ProductDisplay } from "@/components/product-display";
+import { FixedFooter } from "@/components/ui/fixed-footer";
 
 export const TransactionCreateFormLineItemSchema =
   LineItemCreateRequestSchema.extend({
@@ -688,25 +689,23 @@ export default function CreateTransactionFormDialog() {
       </div>
 
       {/* Persistent footer with submit button */}
-      <div className="fixed bottom-0 left-0 right-0 md:left-64 py-4 px-4 bg-background border-t shadow-sm z-10">
-        <div className="flex justify-end pr-2">
-          <Button
-            type="button"
-            onClick={() => form.handleSubmit(onSubmit)()}
-            disabled={isMutating || fields.length === 0}
-            className="min-w-[140px]"
-          >
-            {isMutating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Create Transaction"
-            )}
-          </Button>
-        </div>
-      </div>
+      <FixedFooter>
+        <Button
+          type="button"
+          onClick={() => form.handleSubmit(onSubmit)()}
+          disabled={isMutating || fields.length === 0}
+          className="min-w-[140px]"
+        >
+          {isMutating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            "Create Transaction"
+          )}
+        </Button>
+      </FixedFooter>
     </Form>
   );
 }

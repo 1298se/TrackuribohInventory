@@ -38,7 +38,6 @@ class InventoryMetricsResponseSchema(BaseModel):
     total_inventory_cost: MoneyAmountSchema
     total_market_value: MoneyAmountSchema
     unrealised_profit: MoneyAmountSchema
-    lifetime_profit: MoneyAmountSchema
     currency: str = "USD"
 
 

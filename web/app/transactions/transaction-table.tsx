@@ -17,6 +17,18 @@ import { ProductImage } from "@/components/ui/product-image";
 import { useState } from "react";
 import { RowSelectionState } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
+import { FixedFooter } from "@/components/ui/fixed-footer";
 
 const DefaultLoading = () => <Skeleton className="h-4 w-24" />;
 const ProductLoading = () => (
@@ -207,48 +219,87 @@ export function TransactionTable({
 }: TransactionTableProps) {
   // State for row selection remains the same
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Use controlled props
   const data = { transactions };
   const isLoading = loading;
 
-  // handler to bulk delete the selected transactions using rowSelection state
-  const handleBulkDelete = () => {
-    const selectedIds = Object.keys(rowSelection).filter(
-      (key) => rowSelection[key],
-    );
-    if (selectedIds.length === 0) return;
-    onDeleteSelected(selectedIds);
+  // Compute selected IDs and count
+  const selectedIds = Object.keys(rowSelection).filter(
+    (key) => rowSelection[key],
+  );
+  const selectedCount = selectedIds.length;
+
+  // handler to bulk delete the selected transactions
+  const handleBulkDelete = async () => {
+    await onDeleteSelected(selectedIds);
     setRowSelection({});
+    setShowDeleteDialog(false);
   };
 
-  // Compute the count of selected rows from rowSelection
-  const selectedCount = Object.keys(rowSelection).length;
-
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        {/* Header removed; title managed by SiteHeader */}
-        <Button
-          onClick={handleBulkDelete}
-          disabled={selectedCount === 0}
-          variant="destructive"
-        >
-          Delete ({selectedCount})
-        </Button>
+    <>
+      <div className="space-y-4 pb-20">
+        {" "}
+        {/* Add padding bottom to prevent content being hidden behind footer */}
+        <DataTable
+          columns={columns}
+          data={transactions}
+          loading={isLoading}
+          rowSelectionProps={{
+            enableRowSelection: true,
+            rowSelectionState: rowSelection,
+            onRowSelectionStateChange: setRowSelection,
+          }}
+          getRowId={(row) => row.id}
+          onRowClick={(row) => onRowClick(row.original.id)}
+        />
       </div>
-      <DataTable
-        columns={columns}
-        data={transactions}
-        loading={isLoading}
-        rowSelectionProps={{
-          enableRowSelection: true,
-          rowSelectionState: rowSelection,
-          onRowSelectionStateChange: setRowSelection,
-        }}
-        getRowId={(row) => row.id}
-        onRowClick={(row) => onRowClick(row.original.id)}
-      />
-    </div>
+
+      {/* Fixed footer appears when items are selected */}
+      {selectedCount > 0 && (
+        <FixedFooter>
+          <div className="flex items-center gap-4 w-full">
+            <p className="text-sm font-medium flex-1 text-left pl-4">
+              {selectedCount}{" "}
+              {selectedCount === 1 ? "transaction" : "transactions"} selected
+            </p>
+            <Button
+              onClick={() => setShowDeleteDialog(true)}
+              variant="destructive"
+              size="default"
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Selected
+            </Button>
+          </div>
+        </FixedFooter>
+      )}
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Transactions</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedCount}{" "}
+              {selectedCount === 1 ? "transaction" : "transactions"}? This
+              action cannot be undone and will affect your inventory counts.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

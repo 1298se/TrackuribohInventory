@@ -6,7 +6,6 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from core.inventory.inventory import build_inventory_query
-from core.dao.transaction import build_total_sales_profit_query
 from core.models.inventory_snapshot import InventorySnapshot
 
 
@@ -17,7 +16,6 @@ class InventoryMetrics(TypedDict):
     total_inventory_cost: float
     total_market_value: float
     unrealised_profit: float
-    lifetime_profit: float
     currency: str
 
 
@@ -60,18 +58,11 @@ def get_inventory_metrics(
     total_market = Decimal(row.total_market_value)
     unrealised = total_market - total_cost
 
-    # Calculate lifetime realised profit using profit query builder
-    num_sales, profit_decimal = session.execute(
-        build_total_sales_profit_query(catalog_id)
-    ).first()
-    lifetime_profit = profit_decimal
-
     return {
         "number_of_items": num_items,
         "total_inventory_cost": total_cost,
         "total_market_value": total_market,
         "unrealised_profit": unrealised,
-        "lifetime_profit": lifetime_profit,
         "currency": "USD",
     }
 

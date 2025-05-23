@@ -108,8 +108,21 @@ export type TransactionsResponse = z.infer<typeof TransactionsResponseSchema>;
 export const BulkTransactionDeleteRequestSchema = z.object({
   transaction_ids: z.array(z.string().uuid()),
 });
+
+// Transaction Metrics Schemas
+export const TransactionMetricsResponseSchema = z.object({
+  total_revenue: MoneyAmountSchema,
+  total_spent: MoneyAmountSchema,
+  net_profit: MoneyAmountSchema,
+  total_transactions: z.number(),
+  currency: z.string().default("USD"),
+});
+
 export type BulkTransactionDeleteRequest = z.infer<
   typeof BulkTransactionDeleteRequestSchema
+>;
+export type TransactionMetricsResponse = z.infer<
+  typeof TransactionMetricsResponseSchema
 >;
 
 /**

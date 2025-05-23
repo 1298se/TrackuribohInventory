@@ -253,7 +253,7 @@ export function InventoryTable() {
   return (
     <div className="space-y-4">
       {/* Aggregate Metric Cards */}
-      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs w-full">
+      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs w-full">
         <InventoryMetricCard
           title="Items in Stock"
           value={metricData?.number_of_items ?? 0}
@@ -272,11 +272,6 @@ export function InventoryTable() {
         <InventoryMetricCard
           title="Unrealised Profit"
           value={formatCurrency(metricData?.unrealised_profit)}
-          isLoading={metricLoading}
-        />
-        <InventoryMetricCard
-          title="Lifetime Profit"
-          value={formatCurrency(metricData?.lifetime_profit)}
           isLoading={metricLoading}
         />
       </div>

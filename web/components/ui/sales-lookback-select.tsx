@@ -22,7 +22,6 @@ export function SalesLookbackSelect({
         Sales Lookback:
       </label>
       <Select
-        id="sales-lookback-select"
         value={value.toString()}
         onValueChange={(v) => onChange(Number(v))}
       >

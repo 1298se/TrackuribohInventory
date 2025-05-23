@@ -1,17 +1,28 @@
-from typing import List
+from typing import List, TypedDict
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func, select
 
 from core.dao.transaction import (
-    create_transaction_with_line_items,
-    TransactionData,
     LineItemData,
     InsufficientInventoryError,
+    create_transaction_with_line_items,
+    TransactionData,
 )
 from app.routes.transactions.schemas import TransactionCreateRequestSchema
-from core.models.transaction import Transaction
+from core.models.transaction import Transaction, TransactionType, LineItem
 from core.services.create_transaction import calculate_weighted_unit_prices
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
+
+
+class TransactionMetrics(TypedDict):
+    """TypedDict representing aggregated transaction metrics."""
+
+    total_revenue: float
+    total_spent: float
+    net_profit: float
+    total_transactions: int
+    currency: str
 
 
 async def create_transaction_service(
@@ -65,3 +76,75 @@ async def create_transaction_service(
     except InsufficientInventoryError as e:
         # Re-raise the exception to be handled by the caller
         raise e
+
+
+def get_transaction_metrics(session: Session) -> TransactionMetrics:
+    """Calculate aggregate metrics for all transactions."""
+
+    # Subquery to calculate line item totals per transaction
+    line_items_total = (
+        select(
+            LineItem.transaction_id,
+            func.sum(LineItem.quantity * LineItem.unit_price_amount).label(
+                "line_items_total"
+            ),
+        )
+        .group_by(LineItem.transaction_id)
+        .subquery()
+    )
+
+    # Query for sales transactions with totals
+    sales_query = (
+        select(
+            func.count(Transaction.id).label("count"),
+            func.coalesce(
+                func.sum(
+                    line_items_total.c.line_items_total
+                    + Transaction.tax_amount
+                    - Transaction.shipping_cost_amount
+                ),
+                0,
+            ).label("total"),
+        )
+        .join(line_items_total, Transaction.id == line_items_total.c.transaction_id)
+        .where(Transaction.type == TransactionType.SALE)
+    )
+
+    # Query for purchase transactions with totals
+    purchase_query = (
+        select(
+            func.count(Transaction.id).label("count"),
+            func.coalesce(
+                func.sum(
+                    line_items_total.c.line_items_total
+                    + Transaction.tax_amount
+                    + Transaction.shipping_cost_amount
+                ),
+                0,
+            ).label("total"),
+        )
+        .join(line_items_total, Transaction.id == line_items_total.c.transaction_id)
+        .where(Transaction.type == TransactionType.PURCHASE)
+    )
+
+    # Execute queries
+    sales_result = session.execute(sales_query).first()
+    purchase_result = session.execute(purchase_query).first()
+
+    # Extract values
+    sales_count = sales_result.count if sales_result else 0
+    sales_total = float(sales_result.total) if sales_result else 0.0
+
+    purchase_count = purchase_result.count if purchase_result else 0
+    purchase_total = float(purchase_result.total) if purchase_result else 0.0
+
+    net_profit = sales_total - purchase_total
+    total_transactions = sales_count + purchase_count
+
+    return {
+        "total_revenue": sales_total,
+        "total_spent": purchase_total,
+        "net_profit": net_profit,
+        "total_transactions": total_transactions,
+        "currency": "USD",
+    }

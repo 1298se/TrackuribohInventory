@@ -103,8 +103,7 @@ export const InventoryMetricsResponseSchema = z.object({
   total_inventory_cost: MoneyAmountSchema,
   total_market_value: MoneyAmountSchema,
   unrealised_profit: MoneyAmountSchema,
-  lifetime_profit: MoneyAmountSchema,
-  currency: z.string(),
+  currency: z.string().default("USD"),
 });
 
 export type InventoryMetricsResponse = z.infer<
