@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: false
----
 # Project MDC (Markdown Configuration) Rules
 
 ## Project Structure
@@ -175,6 +170,40 @@ export type InventoryResponse = z.infer<typeof InventoryResponseSchema>
 3. Field types must be equivalent (e.g., Python `int` = TypeScript `z.number()`)
 4. Optional fields in Python (`field: Type | None`) should be nullable in TypeScript (`field: Schema.nullable()`)
 5. When adding a new field, add it to both schemas simultaneously
+
+## Database Migrations
+
+### Alembic Migration Workflow
+
+1. **Never create migration files manually** - Always use Alembic's autogenerate feature
+2. **Update models first** - Make changes to SQLAlchemy models in `core/models/`
+3. **Generate migration** - Run `alembic revision --autogenerate -m "description of changes"`
+4. **Review the generated migration** - Check the auto-generated file for accuracy
+5. **Do not modify migration files** - Only modify in extremely special circumstances, which must be communicated clearly
+
+### Migration Commands
+
+```bash
+# Generate a new migration after model changes
+alembic revision --autogenerate -m "add user email field"
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback one migration
+alembic downgrade -1
+
+# View migration history
+alembic history
+```
+
+### Important Migration Rules
+
+1. Always review auto-generated migrations before applying them
+2. Test migrations on a development database first
+3. Never modify migration files after they've been applied to production
+4. If a migration needs modification, create a new migration instead
+5. Keep migration descriptions clear and concise
 
 ## Testing
 

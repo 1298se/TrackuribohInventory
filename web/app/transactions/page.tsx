@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { TransactionTable } from "./transaction-table";
 import {
   useTransactions,
   useDeleteTransactions,
   useTransactionMetrics,
+  useTransactionFilterOptions,
 } from "./api";
 import { SearchInput } from "@/components/search-input";
 import { InventoryMetricCard } from "@/components/inventory-metric-card";
+import { useTransactionFilters } from "./hooks/use-transaction-filters";
 
 function formatCurrency(
   amount?: number | null,
@@ -25,34 +27,27 @@ function formatCurrency(
 }
 
 export default function TransactionsPage() {
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
 
-  // Get the current query from URL or default
-  const initialQuery = searchParams.get("q") || "";
-  // Fetch transactions based on the current query
-  const { data, isLoading, mutate } = useTransactions(initialQuery);
+  // Use the filter hook to manage all filter state
+  const { filters, updateFilters } = useTransactionFilters();
+
+  // Fetch transactions with all filters
+  const { data, isLoading, mutate } = useTransactions(filters);
   // Fetch transaction metrics
   const { data: metricsData, isLoading: metricsLoading } =
     useTransactionMetrics();
+  // Fetch filter options for dropdowns
+  const { data: filterOptions } = useTransactionFilterOptions();
   // Hook to delete transactions
   const deleteMutation = useDeleteTransactions();
 
-  // Handler to update URL when search is submitted
-  const handleFilterSubmit = useCallback(
+  // Handler to update search query
+  const handleSearchSubmit = useCallback(
     (query: string) => {
-      const params = new URLSearchParams(Array.from(searchParams.entries()));
-      if (!query) {
-        params.delete("q");
-      } else {
-        params.set("q", query);
-      }
-      const search = params.toString();
-      const queryStr = search ? `?${search}` : "";
-      router.replace(`${pathname}${queryStr}`);
+      updateFilters({ q: query || undefined });
     },
-    [router, searchParams, pathname],
+    [updateFilters],
   );
 
   // Handler to delete selected transactions
@@ -96,18 +91,23 @@ export default function TransactionsPage() {
         />
       </div>
 
-      {/* Search filter UI lifted to page level */}
+      {/* Search filter UI */}
       <SearchInput
         placeholder="Search by counterparty or product name..."
-        initialValue={initialQuery}
-        onSubmit={handleFilterSubmit}
+        initialValue={filters.q || ""}
+        onSubmit={handleSearchSubmit}
         className="w-full max-w-md"
       />
+
+      {/* Transaction table with filters */}
       <TransactionTable
         transactions={data?.transactions ?? []}
         loading={isLoading}
         onRowClick={handleRowClick}
         onDeleteSelected={handleDeleteSelected}
+        filters={filters}
+        onFiltersChange={updateFilters}
+        filterOptions={filterOptions}
       />
     </div>
   );

@@ -1,13 +1,13 @@
 import uuid
-from typing import assert_never, Optional, Dict
+from typing import assert_never, Optional, Dict, List
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, date
 from dataclasses import dataclass
 
-from sqlalchemy import asc, desc, select, func, distinct
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy import asc, desc, select, func, distinct, or_
+from sqlalchemy.orm import Session, aliased, Query
 
-from core.models.transaction import TransactionType
+from core.models.transaction import TransactionType, Platform
 from core.models.transaction import LineItem, LineItemConsumption, Transaction
 from core.models.types import MoneyAmount
 from core.models.catalog import SKU, Product, Set, Catalog
@@ -527,3 +527,171 @@ def build_total_sales_profit_query(catalog_id: Optional[uuid.UUID] = None):
         )
 
     return query
+
+
+@dataclass
+class TransactionFilterParams:
+    """Parameters for filtering transactions"""
+
+    search_query: Optional[str] = None
+    date_start: Optional[date] = None
+    date_end: Optional[date] = None
+    types: Optional[List[TransactionType]] = None
+    platform_ids: Optional[List[uuid.UUID]] = None
+    include_no_platform: bool = False
+    amount_min: Optional[float] = None
+    amount_max: Optional[float] = None
+
+
+def build_filtered_transactions_query(
+    session: Session, filters: TransactionFilterParams
+) -> Query[Transaction]:
+    """
+    Build a filtered query for transactions based on the provided parameters.
+
+    This centralizes all the filtering logic in the DAO layer for better
+    maintainability and testability.
+
+    Args:
+        session: The database session
+        filters: Dataclass containing all filter parameters
+
+    Returns:
+        A SQLAlchemy query object that can be executed or further modified
+    """
+    # Import here to avoid circular dependency
+    from core.dao.catalog import create_product_set_fts_vector
+
+    # Start with base query including necessary joins
+    query = (
+        session.query(Transaction)
+        .join(Transaction.line_items)
+        .join(LineItem.sku)
+        .join(SKU.product)
+        .join(Product.set)  # Join Set table for full-text search vector fields
+        .distinct()
+    )
+
+    # Apply search filter using PostgreSQL full-text search
+    if filters.search_query:
+        # Split the search query into terms
+        search_terms = filters.search_query.split()
+
+        if search_terms:
+            # Define text search vectors with weights for different columns
+            counterparty_ts_vector = func.setweight(
+                func.to_tsvector(
+                    "english", func.coalesce(Transaction.counterparty_name, "")
+                ),
+                "A",
+            )
+            product_ts_vector = create_product_set_fts_vector()
+
+            # Combine the vectors
+            combined_ts_vector = counterparty_ts_vector.op("||")(product_ts_vector)
+
+            # Create TS query with prefix matching support
+            prefix_terms = [term + ":*" for term in search_terms]
+            ts_query = func.to_tsquery("english", " & ".join(prefix_terms))
+
+            # Add text search condition to the query
+            query = query.filter(combined_ts_vector.op("@@")(ts_query))
+
+            # Calculate rank for sorting
+            combined_rank = func.ts_rank(combined_ts_vector, ts_query)
+
+            # We'll add this to the order_by at the end
+            query = query.order_by(combined_rank.desc())
+
+    # Apply date range filter
+    if filters.date_start:
+        query = query.filter(Transaction.date >= filters.date_start)
+    if filters.date_end:
+        query = query.filter(Transaction.date <= filters.date_end)
+
+    # Apply transaction type filter
+    if filters.types:
+        query = query.filter(Transaction.type.in_(filters.types))
+
+    # Apply platform filter
+    if filters.platform_ids or filters.include_no_platform:
+        platform_conditions = []
+        if filters.platform_ids:
+            platform_conditions.append(
+                Transaction.platform_id.in_(filters.platform_ids)
+            )
+        if filters.include_no_platform:
+            platform_conditions.append(Transaction.platform_id.is_(None))
+        query = query.filter(or_(*platform_conditions))
+
+    # Apply amount range filter
+    if filters.amount_min is not None or filters.amount_max is not None:
+        # Create subquery to calculate total amount per transaction
+        amount_subquery = (
+            session.query(
+                LineItem.transaction_id,
+                func.sum(LineItem.unit_price_amount * LineItem.quantity).label(
+                    "total_amount"
+                ),
+            )
+            .group_by(LineItem.transaction_id)
+            .subquery()
+        )
+
+        # Join with the subquery
+        query = query.join(
+            amount_subquery, Transaction.id == amount_subquery.c.transaction_id
+        )
+
+        # Apply min/max filters
+        if filters.amount_min is not None:
+            query = query.filter(amount_subquery.c.total_amount >= filters.amount_min)
+        if filters.amount_max is not None:
+            query = query.filter(amount_subquery.c.total_amount <= filters.amount_max)
+
+    # Order by date descending (most recent first) as final sort
+    query = query.order_by(desc(Transaction.date), desc(Transaction.id))
+
+    return query
+
+
+def get_transaction_filter_options(
+    session: Session, catalog_id: Optional[uuid.UUID] = None
+) -> dict:
+    """
+    Get available options for transaction filters.
+    This is useful for populating filter dropdowns in the UI.
+
+    Args:
+        session: The database session
+        catalog_id: Optional catalog ID to filter options
+
+    Returns:
+        Dictionary containing available filter options
+    """
+    # Get all platforms
+    platforms_query = session.query(Platform).order_by(Platform.name)
+
+    # Get date range of transactions
+    date_range = session.query(
+        func.min(Transaction.date).label("min_date"),
+        func.max(Transaction.date).label("max_date"),
+    ).one()
+
+    # Get transaction types (from enum)
+    transaction_types = [type.value for type in TransactionType]
+
+    # If catalog_id provided, filter to relevant platforms
+    if catalog_id:
+        # This would require joining through transactions -> line_items -> SKUs -> products -> sets
+        # Implementation depends on your exact model relationships
+        pass
+
+    return {
+        "platforms": [{"id": str(p.id), "name": p.name} for p in platforms_query.all()],
+        "transaction_types": transaction_types,
+        "date_range": {
+            "min": date_range.min_date.isoformat() if date_range.min_date else None,
+            "max": date_range.max_date.isoformat() if date_range.max_date else None,
+        },
+    }

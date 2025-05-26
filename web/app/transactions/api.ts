@@ -17,6 +17,9 @@ import {
   WeightedPriceCalculationResponseSchema,
   TransactionMetricsResponse,
   TransactionMetricsResponseSchema,
+  TransactionFilter,
+  TransactionFilterOptionsResponse,
+  TransactionFilterOptionsResponseSchema,
 } from "./schemas";
 import { z } from "zod";
 import { ProductSearchResponse } from "../catalog/schemas";
@@ -65,11 +68,20 @@ const deleteTransactionsRequest = async (
 };
 
 // For GET requests, we use the standard fetcher
-export function useTransactions(query?: string) {
-  const params: { [key: string]: string } = {};
-  if (query) {
-    params.query = query;
-  }
+export function useTransactions(filters?: TransactionFilter) {
+  // Build query parameters - no mapping needed, names match the API
+  const params: Record<string, string | string[]> = {};
+
+  if (filters?.q) params.q = filters.q;
+  if (filters?.date_start) params.date_start = filters.date_start;
+  if (filters?.date_end) params.date_end = filters.date_end;
+  if (filters?.types?.length) params.types = filters.types;
+  if (filters?.platform_ids?.length) params.platform_ids = filters.platform_ids;
+  if (filters?.include_no_platform) params.include_no_platform = "true";
+  if (filters?.amount_min !== undefined)
+    params.amount_min = filters.amount_min.toString();
+  if (filters?.amount_max !== undefined)
+    params.amount_max = filters.amount_max.toString();
 
   return useSWR(["/transactions", params], ([path, params]) =>
     fetcher({
@@ -168,6 +180,22 @@ export function useTransactionMetrics() {
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: TransactionMetricsResponseSchema,
+    }),
+  );
+}
+
+export function useTransactionFilterOptions(catalogId?: string) {
+  const params: { [key: string]: string } = {};
+  if (catalogId) {
+    params.catalog_id = catalogId;
+  }
+
+  return useSWR(["/transactions/filter-options", params], ([path, params]) =>
+    fetcher({
+      url: `${API_URL}${path}`,
+      params,
+      method: HTTPMethod.GET,
+      schema: TransactionFilterOptionsResponseSchema,
     }),
   );
 }

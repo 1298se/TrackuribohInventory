@@ -6,6 +6,7 @@ import {
   Row,
   RowSelectionState,
   OnChangeFn,
+  ColumnFiltersState,
 } from "@tanstack/react-table";
 
 import {
@@ -29,6 +30,8 @@ interface DataTableProps<TData, TValue> {
   columns: Column<TData, TValue>[];
   data: TData[];
   rowSelectionProps?: RowSelectionProps<TData>;
+  columnFilters?: ColumnFiltersState;
+  onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
   loading?: boolean;
   onRowClick?: (row: Row<TData>) => void;
   getRowId?: (row: TData) => string;
@@ -44,6 +47,8 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   rowSelectionProps,
+  columnFilters,
+  onColumnFiltersChange,
   loading = false,
   onRowClick,
   getRowId,
@@ -54,10 +59,12 @@ export function DataTable<TData, TValue>({
     columns,
     state: {
       rowSelection: rowSelectionProps?.rowSelectionState,
+      columnFilters,
     },
     getCoreRowModel: getCoreRowModel(),
     enableRowSelection: rowSelectionProps?.enableRowSelection,
     onRowSelectionChange: rowSelectionProps?.onRowSelectionStateChange,
+    onColumnFiltersChange,
     getRowId: getRowId,
     // Enable manual filtering for server-side filtering
     manualFiltering: true,

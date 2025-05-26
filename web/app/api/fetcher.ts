@@ -1,13 +1,13 @@
 import { z, ZodError } from "zod"; // Import ZodError for potential type checking if needed
 
-export const API_URL = "http://localhost:8000"
+export const API_URL = "http://localhost:8000";
 
 export enum HTTPMethod {
   GET = "GET",
   POST = "POST",
   PUT = "PUT",
   PATCH = "PATCH",
-  DELETE = "DELETE"
+  DELETE = "DELETE",
 }
 
 // Extended to support all HTTP methods
@@ -16,24 +16,34 @@ export interface FetcherParams<T extends z.ZodTypeAny> {
   method?: HTTPMethod;
   body?: any;
   init?: RequestInit;
-  params?: Record<string, string>;
+  params?: Record<string, string | string[]>;
   schema: T;
 }
 
 // Enhanced fetcher that supports GET and mutation operations
-export const fetcher = async <T extends z.ZodTypeAny>({ 
-  url, 
+export const fetcher = async <T extends z.ZodTypeAny>({
+  url,
   method = HTTPMethod.GET,
   body = undefined,
   init = {},
-  params = undefined, 
-  schema
+  params = undefined,
+  schema,
 }: FetcherParams<T>): Promise<z.infer<T>> => {
-  
   // Append params if they exist
   if (params) {
-    const queryParams = new URLSearchParams(params)
-    url = `${url}?${queryParams}`
+    const queryParams = new URLSearchParams();
+
+    // Handle array parameters properly
+    Object.entries(params).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        // For arrays, append each value as a separate parameter
+        value.forEach((v) => queryParams.append(key, v));
+      } else {
+        queryParams.append(key, value);
+      }
+    });
+
+    url = `${url}?${queryParams}`;
   }
 
   // Prepare fetch options
@@ -41,7 +51,7 @@ export const fetcher = async <T extends z.ZodTypeAny>({
     ...init,
     method,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...init.headers,
     },
   };
@@ -69,13 +79,18 @@ export const fetcher = async <T extends z.ZodTypeAny>({
 
   // Parse JSON - potential error source
   const data = await response.json().catch(() => ({}));
-  
+
   // Validate using safeParse
   const parseResult = schema.safeParse(data);
 
   if (!parseResult.success) {
-    console.error(`Zod validation failed for URL ${url}:`, parseResult.error.flatten());
-    throw new Error(`API response validation failed for ${url}: ${parseResult.error.message}`);
+    console.error(
+      `Zod validation failed for URL ${url}:`,
+      parseResult.error.flatten(),
+    );
+    throw new Error(
+      `API response validation failed for ${url}: ${parseResult.error.message}`,
+    );
   }
 
   // Return validated data
@@ -86,14 +101,14 @@ export const fetcher = async <T extends z.ZodTypeAny>({
 export function createMutation<RequestType, ResponseType extends z.ZodTypeAny>(
   endpoint: string,
   method: HTTPMethod,
-  responseSchema: ResponseType
+  responseSchema: ResponseType,
 ) {
-  return async function(_: string, { arg }: { arg: RequestType }) {
+  return async function (_: string, { arg }: { arg: RequestType }) {
     return fetcher({
       url: `${API_URL}${endpoint}`,
       method,
       body: arg,
-      schema: responseSchema
+      schema: responseSchema,
     });
   };
 }

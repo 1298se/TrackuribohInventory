@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, date
+from typing import Optional, List
 
-from pydantic import BaseModel, field_validator, computed_field
+from pydantic import BaseModel, field_validator, computed_field, Field
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
@@ -168,3 +168,36 @@ class TransactionMetricsResponseSchema(BaseModel):
     net_profit: MoneyAmountSchema
     total_transactions: int
     currency: str = "USD"
+
+
+class TransactionFilterRequestSchema(BaseModel):
+    """Request schema for transaction filtering"""
+
+    search_query: Optional[str] = Field(None, description="Search query")
+    date_start: Optional[date] = Field(None, description="Start date")
+    date_end: Optional[date] = Field(None, description="End date")
+    types: Optional[List[TransactionType]] = Field(
+        None, description="Transaction types"
+    )
+    platform_ids: Optional[List[str]] = Field(None, description="Platform IDs")
+    include_no_platform: bool = Field(False, description="Include no platform")
+    amount_min: Optional[float] = Field(None, description="Minimum amount")
+    amount_max: Optional[float] = Field(None, description="Maximum amount")
+
+
+class PlatformFilterOption(BaseModel):
+    id: str
+    name: str
+
+
+class DateRangeOption(BaseModel):
+    min: Optional[str] = None
+    max: Optional[str] = None
+
+
+class TransactionFilterOptionsResponseSchema(BaseModel):
+    """Schema for available filter options"""
+
+    platforms: list[PlatformFilterOption]
+    transaction_types: list[str]
+    date_range: DateRangeOption

@@ -1,8 +1,9 @@
 import uuid
-from typing import List, Dict
+from typing import List, Dict, Optional
+from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import desc, func, select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.routes.transactions.service import (
@@ -18,6 +19,9 @@ from core.dao.transaction import (
     LineItemData,
     LineItemUpdateSpec,
     bulk_update_transaction_line_items,
+    TransactionFilterParams,
+    get_transaction_filter_options as dao_get_transaction_filter_options,
+    build_filtered_transactions_query,
 )
 from app.routes.transactions.schemas import (
     TransactionResponseSchema,
@@ -31,10 +35,10 @@ from app.routes.transactions.schemas import (
     WeightedPriceCalculationResponseSchema,
     CalculatedWeightedLineItemSchema,
     TransactionMetricsResponseSchema,
+    TransactionFilterOptionsResponseSchema,
 )
 from core.database import get_db_session
-from core.models.transaction import Transaction, LineItem, Platform
-from core.models.catalog import SKU, Product
+from core.models.transaction import Transaction, LineItem, Platform, TransactionType
 from core.services.create_transaction import (
     LineItemInput,
     calculate_weighted_unit_prices,
@@ -43,7 +47,6 @@ from core.services.tcgplayer_catalog_service import (
     TCGPlayerCatalogService,
     get_tcgplayer_catalog_service,
 )
-from core.dao.catalog import create_product_set_fts_vector
 
 router = APIRouter(
     prefix="/transactions",
@@ -79,82 +82,57 @@ async def create_platform(
 
 @router.get("/", response_model=TransactionsResponseSchema)
 async def get_transactions(
-    query: str | None = None, session: Session = Depends(get_db_session)
+    # Existing search parameter
+    q: Optional[str] = Query(None, description="Search query"),
+    # New filter parameters
+    date_start: Optional[date] = Query(None, description="Start date"),
+    date_end: Optional[date] = Query(None, description="End date"),
+    types: Optional[List[TransactionType]] = Query(
+        None, description="Transaction types"
+    ),
+    platform_ids: Optional[List[str]] = Query(None, description="Platform IDs"),
+    include_no_platform: bool = Query(False, description="Include no platform"),
+    amount_min: Optional[float] = Query(None, description="Minimum amount"),
+    amount_max: Optional[float] = Query(None, description="Maximum amount"),
+    # Dependencies
+    session: Session = Depends(get_db_session),
 ):
-    # Step 1: Apply filters and sorting to get a list of matching transaction IDs
-    base_id_query = (
-        select(Transaction.id)  # Include date in the SELECT list
-        .outerjoin(Transaction.line_items)
-        .outerjoin(LineItem.sku)
-        .outerjoin(SKU.product)
-        # Join Set table for full-text search vector fields
-        .outerjoin(Product.set)
+    """Get transactions with optional filtering"""
+
+    # Build filter params from query parameters
+    filter_params = TransactionFilterParams(
+        search_query=q,
+        date_start=date_start,
+        date_end=date_end,
+        types=types,
+        platform_ids=[uuid.UUID(pid) for pid in platform_ids] if platform_ids else None,
+        include_no_platform=include_no_platform,
+        amount_min=amount_min,
+        amount_max=amount_max,
     )
 
-    # Only apply the filter if query is provided
-    if query:
-        # Split the search query into terms
-        search_terms = query.split()
+    # Build the filtered query and execute
+    query = build_filtered_transactions_query(session, filter_params)
+    transactions = query.options(*TransactionResponseSchema.get_load_options()).all()
 
-        if search_terms:
-            # Define text search vectors with weights for different columns
-            counterparty_ts_vector = func.setweight(
-                func.to_tsvector(
-                    "english", func.coalesce(Transaction.counterparty_name, "")
-                ),
-                "A",
-            )
-            product_ts_vector = create_product_set_fts_vector()
-
-            # Combine the vectors
-            combined_ts_vector = counterparty_ts_vector.op("||")(product_ts_vector)
-
-            # Create TS query with prefix matching support
-            prefix_terms = [term + ":*" for term in search_terms]
-            ts_query = func.to_tsquery("english", " & ".join(prefix_terms))
-
-            # Add text search condition to the query
-            base_id_query = base_id_query.where(combined_ts_vector.op("@@")(ts_query))
-
-            # Calculate rank for sorting
-            combined_rank = func.ts_rank(combined_ts_vector, ts_query)
-
-            # Add ranking as first ordering criterion, followed by date
-            base_id_query = base_id_query.order_by(
-                combined_rank.desc(), desc(Transaction.date)
-            )
-        else:
-            # If query is provided but empty, just order by date
-            base_id_query = base_id_query.order_by(desc(Transaction.date))
-    else:
-        # If no query is provided, just order by date
-        base_id_query = base_id_query.order_by(desc(Transaction.date))
-
-    # Execute the first query to get just the IDs
-    result = session.execute(base_id_query).all()
-    transaction_ids = [
-        row[0] for row in result
-    ]  # Extract just the IDs from the result tuples
-
-    # Step 2: If we have matching IDs, query for full transaction data with load options
-    if not transaction_ids:
-        # Return empty result if no matches
-        return TransactionsResponseSchema(transactions=[])
-
-    # Query for full transaction data with the matched IDs
-    transactions_query = (
-        select(Transaction)
-        .where(Transaction.id.in_(transaction_ids))
-        .options(*TransactionResponseSchema.get_load_options())
+    # Convert to response schema
+    return TransactionsResponseSchema(
+        transactions=[TransactionResponseSchema.from_orm(t) for t in transactions],
     )
 
-    # Execute the second query to get the full data
-    transactions = session.scalars(transactions_query).all()
 
-    # Sort transactions by the position of their id in transaction_ids
-    transactions.sort(key=lambda transaction: transaction_ids.index(transaction.id))
+@router.get("/filter-options", response_model=TransactionFilterOptionsResponseSchema)
+async def get_transaction_filter_options(
+    catalog_id: Optional[str] = Query(None, description="Catalog ID"),
+    session: Session = Depends(get_db_session),
+):
+    """Get available options for transaction filters"""
 
-    return TransactionsResponseSchema(transactions=transactions)
+    options = dao_get_transaction_filter_options(
+        session, uuid.UUID(catalog_id) if catalog_id else None
+    )
+
+    return TransactionFilterOptionsResponseSchema(**options)
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponseSchema)

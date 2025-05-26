@@ -193,3 +193,52 @@ export type CalculatedWeightedLineItem = z.infer<
 export type WeightedPriceCalculationResponse = z.infer<
   typeof WeightedPriceCalculationResponseSchema
 >;
+
+/**
+ * TransactionFilterSchema - matches backend TransactionFilterRequestSchema
+ */
+export const TransactionFilterSchema = z.object({
+  q: z.string().optional(),
+  date_start: z.string().optional(),
+  date_end: z.string().optional(),
+  types: z.array(z.enum(["PURCHASE", "SALE"])).optional(),
+  platform_ids: z.array(z.string()).optional(),
+  include_no_platform: z.boolean().optional(),
+  amount_min: z.number().optional(),
+  amount_max: z.number().optional(),
+});
+
+export type TransactionFilter = z.infer<typeof TransactionFilterSchema>;
+
+/**
+ * PlatformFilterOption
+ */
+export const PlatformFilterOptionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+export type PlatformFilterOption = z.infer<typeof PlatformFilterOptionSchema>;
+
+/**
+ * DateRangeOption
+ */
+export const DateRangeOptionSchema = z.object({
+  min: z.string().nullable().optional(),
+  max: z.string().nullable().optional(),
+});
+
+export type DateRangeOption = z.infer<typeof DateRangeOptionSchema>;
+
+/**
+ * TransactionFilterOptionsResponseSchema
+ */
+export const TransactionFilterOptionsResponseSchema = z.object({
+  platforms: z.array(PlatformFilterOptionSchema),
+  transaction_types: z.array(z.string()),
+  date_range: DateRangeOptionSchema,
+});
+
+export type TransactionFilterOptionsResponse = z.infer<
+  typeof TransactionFilterOptionsResponseSchema
+>;
