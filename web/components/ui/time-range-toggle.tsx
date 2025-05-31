@@ -13,7 +13,6 @@ interface TimeRangeToggleProps {
   value: number;
   onChange: (value: number) => void;
   options?: { label: string; value: number }[];
-  id?: string;
 }
 
 export function TimeRangeToggle({
@@ -23,14 +22,13 @@ export function TimeRangeToggle({
     { label: "7d", value: 7 },
     { label: "30d", value: 30 },
     { label: "90d", value: 90 },
+    { label: "1yr", value: 365 },
   ],
-  id = "time-range-select",
 }: TimeRangeToggleProps) {
   const isMobile = useIsMobile();
   if (isMobile) {
     return (
       <Select
-        id={id}
         value={value.toString()}
         onValueChange={(v) => onChange(Number(v))}
       >

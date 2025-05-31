@@ -253,51 +253,51 @@ export function MarketDepthWithMetrics({
               currency={currency}
             />
           </div>
-          <div className="flex w-64 flex-none flex-col items-start gap-4">
-            <div className="flex w-full flex-col items-start gap-2">
-              <span className="text-sm font-medium text-gray-600">
+          <div className="flex w-48 flex-none flex-col items-start gap-3">
+            <div className="flex w-full flex-col items-start gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
                 Total Quantity
               </span>
               {isLoading ? (
-                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-5 w-20" />
               ) : (
-                <span className="text-xl font-semibold">
+                <span className="text-lg font-semibold">
                   {selectedMetrics?.total_quantity}
                 </span>
               )}
             </div>
-            <div className="flex w-full flex-col items-start gap-2">
-              <span className="text-sm font-medium text-gray-600">
+            <div className="flex w-full flex-col items-start gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
                 Total Listings
               </span>
               {isLoading ? (
-                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-5 w-20" />
               ) : (
-                <span className="text-xl font-semibold">
+                <span className="text-lg font-semibold">
                   {selectedMetrics?.total_listings}
                 </span>
               )}
             </div>
-            <div className="flex w-full flex-col items-start gap-2">
-              <span className="text-sm font-medium text-gray-600">
+            <div className="flex w-full flex-col items-start gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
                 Sales Velocity
               </span>
               {isLoading ? (
-                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-5 w-20" />
               ) : (
-                <span className="text-xl font-semibold">
+                <span className="text-lg font-semibold">
                   {selectedMetrics?.sales_velocity} /day
                 </span>
               )}
             </div>
-            <div className="flex w-full flex-col items-start gap-2">
-              <span className="text-sm font-medium text-gray-600">
+            <div className="flex w-full flex-col items-start gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
                 Days of Inventory
               </span>
               {isLoading ? (
-                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-5 w-20" />
               ) : (
-                <span className="text-xl font-semibold">
+                <span className="text-lg font-semibold">
                   {selectedMetrics?.days_of_inventory != null
                     ? `${selectedMetrics.days_of_inventory} days`
                     : "—"}

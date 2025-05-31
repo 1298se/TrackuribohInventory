@@ -64,6 +64,38 @@ resource "aws_cloudwatch_event_target" "ecs_snapshot_product_sku_prices_target" 
   }
 }
 
+# --- Snapshot Inventory Schedule (Daily at 00:05 UTC) ---
+resource "aws_cloudwatch_event_rule" "snapshot_inventory_schedule" {
+  name                = "${var.project_name}-snapshot-inventory-rule"
+  description         = "Runs cron.tasks.snapshot_inventory daily at 00:05 UTC to create daily inventory snapshots"
+  schedule_expression = "cron(5 0 * * ? *)" # Daily at 00:05 UTC
+
+  tags = {
+    Name      = "${var.project_name}-snapshot-inventory-rule"
+    ManagedBy = "Terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "ecs_snapshot_inventory_target" {
+  rule      = aws_cloudwatch_event_rule.snapshot_inventory_schedule.name
+  arn       = aws_ecs_cluster.cron_cluster.arn
+  role_arn  = aws_iam_role.event_bridge_role.arn
+  target_id = "${var.project_name}-snapshot-inventory-target"
+
+  ecs_target {
+    launch_type         = "FARGATE"
+    task_count          = 1
+    task_definition_arn = aws_ecs_task_definition.snapshot_inventory_task.arn
+    platform_version    = "LATEST"
+
+    network_configuration {
+      subnets          = var.private_subnet_ids
+      security_groups  = var.task_security_group_ids
+      assign_public_ip = true
+    }
+  }
+}
+
 # --- Update Catalog DB Schedule ---
 resource "aws_cloudwatch_event_rule" "update_catalog_db_schedule" {
   name                = "${var.project_name}-update-catalog-db-rule"
@@ -133,6 +165,7 @@ resource "aws_iam_policy" "event_bridge_policy" {
         Resource = [
           aws_ecs_task_definition.snapshot_inventory_sku_prices_task.arn,
           aws_ecs_task_definition.snapshot_product_sku_prices_task.arn,
+          aws_ecs_task_definition.snapshot_inventory_task.arn,
           aws_ecs_task_definition.update_catalog_db_task.arn
         ],
         Condition = {

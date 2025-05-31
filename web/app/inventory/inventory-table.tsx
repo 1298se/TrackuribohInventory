@@ -25,9 +25,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useCallback, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryCatalogs } from "./api";
-import { InventoryMetricCard } from "@/components/inventory-metric-card";
-import { useInventoryMetrics } from "./api";
-import { InventoryHistoryGraph } from "./inventory-history-graph";
+import { PortfolioValueChart } from "./portfolio-value-chart";
 import { SearchInput } from "@/components/search-input";
 
 const ImageLoading = () => <Skeleton className="h-16 w-16 rounded-md" />;
@@ -241,19 +239,6 @@ function ErrorState({ message }: { message: string }) {
   );
 }
 
-function formatCurrency(
-  amount?: number | null,
-  currency: string = "USD",
-): string {
-  if (amount === null || amount === undefined) return "N/A";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
 export function InventoryTable() {
   const router = useRouter();
   const pathname = usePathname();
@@ -274,10 +259,6 @@ export function InventoryTable() {
     initialQuery,
     selectedCatalogId,
   );
-
-  // Fetch aggregate metrics (does not depend on search query)
-  const { data: metricData, isLoading: metricLoading } =
-    useInventoryMetrics(selectedCatalogId);
 
   // Sync selectedCatalogId when URL param changes (e.g., via back/forward)
   useEffect(() => {
@@ -329,30 +310,9 @@ export function InventoryTable() {
 
   return (
     <div className="space-y-4">
-      {/* Aggregate Metric Cards */}
-      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs w-full">
-        <InventoryMetricCard
-          title="Items in Stock"
-          value={metricData?.number_of_items ?? 0}
-          isLoading={metricLoading}
-        />
-        <InventoryMetricCard
-          title="Total Cost"
-          value={formatCurrency(metricData?.total_inventory_cost)}
-          isLoading={metricLoading}
-        />
-        <InventoryMetricCard
-          title="Market Value"
-          value={formatCurrency(metricData?.total_market_value)}
-          isLoading={metricLoading}
-        />
-        <InventoryMetricCard
-          title="Unrealised Profit"
-          value={formatCurrency(metricData?.unrealised_profit)}
-          isLoading={metricLoading}
-        />
-      </div>
-      <InventoryHistoryGraph catalogId={selectedCatalogId} />
+      {/* Hero Portfolio Value with Chart */}
+      <PortfolioValueChart catalogId={selectedCatalogId} />
+
       {/* Catalog Tabs */}
       <div className="flex items-center">
         {catalogsLoading ? (
