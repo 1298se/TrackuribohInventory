@@ -1,8 +1,8 @@
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Annotated
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, field_validator, Field, AfterValidator
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
@@ -145,7 +145,7 @@ class SKUMarketDataResponseSchema(BaseModel):
 
     total_listings: int
     total_quantity: int
-    sales_velocity: float
+    sales_velocity: Annotated[float, AfterValidator(lambda x: round(x, 1))]
     days_of_inventory: Optional[float]
     cumulative_depth_levels: list[
         CumulativeDepthLevelResponseSchema

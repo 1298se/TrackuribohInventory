@@ -10,9 +10,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Package2, AlertCircle } from "lucide-react";
+import {
+  Package2,
+  AlertCircle,
+  Triangle,
+  TriangleAlert,
+  Minus,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrencyNumber } from "@/lib/utils";
 import { type Column } from "../../components/data-table";
 import { SKUDisplay } from "@/components/sku-display";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -31,7 +37,6 @@ const ProductLoading = () => (
     <Skeleton className="h-4 w-[200px]" />
   </div>
 );
-const DefaultLoading = () => <Skeleton className="h-4 w-24" />;
 
 export const columns: Column<InventoryItemResponse, any>[] = [
   {
@@ -63,10 +68,10 @@ export const columns: Column<InventoryItemResponse, any>[] = [
   {
     accessorKey: "quantity",
     header: "Quantity",
-    loading: DefaultLoading,
+    align: "right",
     cell: ({ row }) => {
       return (
-        <div className="font-medium tabular-nums">
+        <div className="font-medium tabular-nums text-right">
           {row.getValue("quantity")}
         </div>
       );
@@ -74,49 +79,113 @@ export const columns: Column<InventoryItemResponse, any>[] = [
   },
   {
     accessorKey: "cost_per_item.amount",
-    header: "Average Cost",
-    loading: DefaultLoading,
+    header: "Avg. Cost",
+    align: "right",
     cell: ({ row }) => {
       const amount = row.original.average_cost_per_item.amount;
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: row.original.average_cost_per_item.currency,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(amount);
-
-      return <div className="font-medium tabular-nums">{formatted}</div>;
+      return (
+        <div className="font-medium text-right">
+          ${formatCurrencyNumber(amount)}
+        </div>
+      );
     },
   },
   {
     accessorKey: "lowest_listing_price.amount",
-    header: "Lowest Listing Price",
-    loading: DefaultLoading,
+    header: "Market Price",
+    align: "right",
     cell: ({ row }) => {
       const lowestListingPrice = row.original.lowest_listing_price;
       if (!lowestListingPrice) {
-        return <div className="text-muted-foreground">N/A</div>;
+        return <div className="text-muted-foreground text-right">N/A</div>;
       }
 
       const amount = lowestListingPrice.amount;
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: lowestListingPrice.currency,
+      return (
+        <div className="font-medium text-right">
+          ${formatCurrencyNumber(amount)}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "price_change_24h_amount.amount",
+    header: "24h Change",
+    align: "right",
+    cell: ({ row }) => {
+      const changeAmount = row.original.price_change_24h_amount;
+      const changePercentage = row.original.price_change_24h_percentage;
+
+      if (!changeAmount || changePercentage === null) {
+        return <div className="text-muted-foreground text-right">N/A</div>;
+      }
+
+      const amount = changeAmount.amount;
+
+      // Show "—" for zero change
+      if (changePercentage === 0) {
+        return (
+          <div className="text-muted-foreground flex items-center justify-end gap-1">
+            <Minus className="h-3 w-3" />
+            <span>—</span>
+          </div>
+        );
+      }
+
+      const formattedNumber = new Intl.NumberFormat("en-US", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      }).format(amount);
+        signDisplay: "never",
+      }).format(Math.abs(amount));
 
-      return <div className="font-medium tabular-nums">{formatted}</div>;
+      const formattedPercentage = new Intl.NumberFormat("en-US", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+        signDisplay: "never",
+      }).format(Math.abs(changePercentage));
+
+      const isPositive = amount > 0;
+      const isNegative = amount < 0;
+      const sign = isPositive ? "+" : "-";
+
+      return (
+        <div
+          className={cn(
+            "font-medium flex items-center justify-end gap-1",
+            isPositive
+              ? "text-green-600"
+              : isNegative
+                ? "text-red-600"
+                : "text-muted-foreground",
+          )}
+        >
+          <div className="flex flex-col items-end">
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-xs">{sign}$</span>
+              <span className="tabular-nums">{formattedNumber}</span>
+            </div>
+            <span className="text-sm tabular-nums">
+              <span className="text-xs">{sign}</span>
+              {formattedPercentage}%
+            </span>
+          </div>
+          {isPositive ? (
+            <Triangle className="h-3 w-3 flex-shrink-0 fill-current" />
+          ) : (
+            <Triangle className="h-3 w-3 flex-shrink-0 rotate-180 fill-current" />
+          )}
+        </div>
+      );
     },
   },
   {
     id: "unrealized_profit",
-    header: "Total Unrealized Profit",
-    loading: DefaultLoading,
+    header: "Unrealized Profit",
+    align: "right",
     cell: ({ row }) => {
       const lowestListingPrice = row.original.lowest_listing_price;
       if (!lowestListingPrice) {
-        return <div className="text-muted-foreground">N/A</div>;
+        return <div className="text-muted-foreground text-right">N/A</div>;
       }
 
       const listingAmount = lowestListingPrice.amount;
@@ -126,28 +195,36 @@ export const columns: Column<InventoryItemResponse, any>[] = [
       const profit = (listingAmount - costAmount) * quantity;
       const percentageGain = ((listingAmount - costAmount) / costAmount) * 100;
 
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: lowestListingPrice.currency,
+      const formattedNumber = new Intl.NumberFormat("en-US", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      }).format(profit);
+      }).format(Math.abs(profit));
 
       const percentFormatted = new Intl.NumberFormat("en-US", {
         minimumFractionDigits: 1,
         maximumFractionDigits: 1,
-        signDisplay: "always",
-      }).format(percentageGain);
+        signDisplay: "never",
+      }).format(Math.abs(percentageGain));
+
+      const isPositive = profit > 0;
+      const isNegative = profit < 0;
+      const sign = isPositive ? "+" : "-";
 
       return (
         <div
           className={cn(
-            "font-medium tabular-nums flex flex-col",
-            profit > 0 ? "text-green-600" : profit < 0 ? "text-red-600" : "",
+            "font-medium flex flex-col items-end",
+            isPositive ? "text-green-600" : isNegative ? "text-red-600" : "",
           )}
         >
-          <span>{formatted}</span>
-          <span className="text-sm">({percentFormatted}%)</span>
+          <div className="flex items-baseline gap-0.5">
+            <span className="text-xs">{sign}$</span>
+            <span className="tabular-nums">{formattedNumber}</span>
+          </div>
+          <span className="text-sm tabular-nums">
+            <span className="text-xs">{sign}</span>
+            {percentFormatted}%
+          </span>
         </div>
       );
     },

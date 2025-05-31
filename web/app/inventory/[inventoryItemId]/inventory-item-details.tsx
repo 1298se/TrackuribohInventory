@@ -1,10 +1,12 @@
 "use client";
 
-import { useInventoryItem, useInventoryItemTransactions } from "../api";
 import {
-  InventorySKUTransactionLineItem,
-  InventoryItemResponse,
-} from "../schemas";
+  useInventoryItem,
+  useInventoryItemTransactions,
+  useInventoryPriceHistory,
+  useSkuMarketplaces,
+} from "../api";
+import { InventorySKUTransactionLineItem } from "../schemas";
 import { DataTable } from "@/components/data-table";
 import { type ColumnDef, type Row } from "@tanstack/react-table";
 import { format } from "date-fns";
@@ -15,22 +17,20 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { formatCurrencyNumber } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
-import { ChartContainer } from "@/components/ui/chart";
 import { useSkuMarketData } from "@/app/catalog/api";
 import { useRouter } from "next/navigation";
-import { MarketDepthChart } from "@/components/market-depth-chart";
-import { SKUMarketDataItem, SkuBase } from "@/app/catalog/schemas";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { formatSKU } from "@/app/catalog/utils";
 import { ProductHeader } from "@/components/product-header";
 import { MarketDepthWithMetrics } from "@/components/market-depth-chart-with-metrics";
+import { PriceHistoryChart } from "@/components/price-history-chart";
+import { TimeRangeToggle } from "@/components/ui/time-range-toggle";
+import { Select } from "@/components/marketplace-selector";
 
 interface InventoryItemDetailsProps {
   inventoryItemId: string;
@@ -80,7 +80,7 @@ const transactionColumns: ColumnDef<InventorySKUTransactionLineItem>[] = [
     header: "Quantity",
     cell: ({ row }) => {
       const quantity = row.getValue("quantity") as number;
-      return <div className="tabular-nums">{quantity}</div>;
+      return <div className="tabular-nums text-right">{quantity}</div>;
     },
   },
   {
@@ -91,11 +91,14 @@ const transactionColumns: ColumnDef<InventorySKUTransactionLineItem>[] = [
         amount?: number | null;
         currency?: string | null;
       } | null;
-      const formatted = formatCurrency(
-        unitPrice?.amount,
-        unitPrice?.currency ?? "USD",
+      if (unitPrice?.amount == null) {
+        return <div className="text-muted-foreground text-right">N/A</div>;
+      }
+      return (
+        <div className="tabular-nums text-right">
+          ${formatCurrencyNumber(unitPrice.amount)}
+        </div>
       );
-      return <div className="tabular-nums">{formatted}</div>;
     },
   },
 ];
@@ -104,36 +107,69 @@ export function InventoryItemDetails({
   inventoryItemId,
 }: InventoryItemDetailsProps) {
   const router = useRouter();
+
+  // State declarations first
+  const [marketAnalysisDays, setMarketAnalysisDays] = useState<number>(30);
+  const [selectedMarketplace, setSelectedMarketplace] = useState<string | null>(
+    null,
+  );
+
+  // Data fetching hooks
   const {
     data: inventoryItem,
     isLoading: itemLoading,
     error: itemError,
   } = useInventoryItem(inventoryItemId);
+
   const {
     data: transactionsData,
     isLoading: transactionsLoading,
     error: transactionsError,
   } = useInventoryItemTransactions(inventoryItemId);
+
+  const {
+    data: marketDataItems,
+    isLoading: marketLoading,
+    error: marketError,
+  } = useSkuMarketData(inventoryItem?.sku.id || null, marketAnalysisDays);
+
+  const {
+    data: marketplacesData,
+    isLoading: marketplacesLoading,
+    error: marketplacesError,
+  } = useSkuMarketplaces(inventoryItem?.sku.id || null);
+
+  const {
+    data: priceHistoryData,
+    isLoading: priceHistoryLoading,
+    error: priceHistoryError,
+  } = useInventoryPriceHistory(
+    inventoryItem?.sku.id && selectedMarketplace ? inventoryItem.sku.id : null,
+    marketAnalysisDays,
+    selectedMarketplace,
+  );
+
+  // Get marketplace options from dedicated endpoint
+  const marketplaceOptions = marketplacesData?.marketplaces || [];
+
+  // Auto-select first marketplace when options change
+  useEffect(() => {
+    if (!marketplaceOptions.length) return;
+
+    const effectiveMarketplace = selectedMarketplace || marketplaceOptions[0];
+
+    if (!selectedMarketplace && effectiveMarketplace) {
+      setSelectedMarketplace(effectiveMarketplace);
+    }
+  }, [marketplaceOptions, selectedMarketplace]);
+
+  // Event handlers
   const handleTransactionRowClick = (
     row: Row<InventorySKUTransactionLineItem>,
   ) => {
     const transactionId = row.original.transaction_id;
     router.push(`/transactions/${transactionId}`);
   };
-
-  // State for sales lookback days
-  const [salesLookbackDays, setSalesLookbackDays] = useState<number>(30);
-  // Updated to handle multiple marketplace data
-  const {
-    data: marketDataItems,
-    isLoading: marketLoading,
-    error: marketError,
-  } = useSkuMarketData(inventoryItem?.sku.id || null, salesLookbackDays);
-
-  // Add state for selected marketplace
-  const [selectedMarketplace, setSelectedMarketplace] = useState<string | null>(
-    null,
-  );
 
   if (itemError) {
     return <div>Error loading inventory item: {itemError.message}</div>;
@@ -162,44 +198,6 @@ export function InventoryItemDetails({
     profitPercentage !== null
       ? `${profitPercentage >= 0 ? "+" : ""}${profitPercentage.toFixed(1)}%`
       : null;
-
-  // Generate a list of unique marketplaces from the market data
-  const marketplaceOptions = useMemo(() => {
-    if (!marketDataItems?.length) return [];
-    return Array.from(new Set(marketDataItems.map((item) => item.marketplace)));
-  }, [marketDataItems]);
-
-  // Get the market data for the selected marketplace or fall back to first available
-  const selectedMarketData = useMemo(() => {
-    if (!marketDataItems?.length) return null;
-
-    // If no marketplace is selected yet or selection invalid, use the first one
-    const effectiveMarketplace =
-      selectedMarketplace || marketDataItems[0]?.marketplace;
-
-    // Auto-select first marketplace when options change
-    if (!selectedMarketplace && effectiveMarketplace) {
-      setSelectedMarketplace(effectiveMarketplace);
-    }
-
-    // Find the matching market data item
-    return (
-      marketDataItems.find((item) => item.marketplace === effectiveMarketplace)
-        ?.market_data || null
-    );
-  }, [marketDataItems, selectedMarketplace]);
-
-  // Compute chart data from the selected market data
-  const chartData = useMemo(() => {
-    if (!selectedMarketData?.cumulative_depth_levels?.length) return [];
-
-    return selectedMarketData.cumulative_depth_levels.map(
-      ({ price, cumulative_count }) => ({
-        price,
-        cumulativeCount: cumulative_count,
-      }),
-    );
-  }, [selectedMarketData]);
 
   if (itemLoading) {
     return <div>Loading inventory details...</div>;
@@ -270,8 +268,8 @@ export function InventoryItemDetails({
       <Tabs defaultValue="market" className="w-full">
         <div className="flex justify-center">
           <TabsList>
-            <TabsTrigger value="market">Market Data</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="market">Market Analysis</TabsTrigger>
+            <TabsTrigger value="history">Transaction History</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
           </TabsList>
         </div>
@@ -285,14 +283,71 @@ export function InventoryItemDetails({
           {/* TODO: Add Listing History Table here */}
           {/* TODO: Add Audit Trail Table here */}
         </TabsContent>
-        <TabsContent value="market" className="mt-4">
+        <TabsContent value="market" className="mt-4 space-y-6">
+          {/* Consolidated Market Analysis Controls */}
+          <div className="flex justify-end mb-6">
+            <div className="flex items-center space-x-4">
+              <TimeRangeToggle
+                value={marketAnalysisDays}
+                onChange={setMarketAnalysisDays}
+                options={[
+                  { label: "7d", value: 7 },
+                  { label: "30d", value: 30 },
+                  { label: "90d", value: 90 },
+                  { label: "1y", value: 365 },
+                ]}
+              />
+              {marketplaceOptions.length > 0 && (
+                <Select
+                  value={selectedMarketplace}
+                  onChange={(option) => setSelectedMarketplace(option.value)}
+                  options={marketplaceOptions.map((mp) => ({
+                    value: mp,
+                    label: mp,
+                  }))}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Price History Section */}
+          <Card>
+            <CardHeader>
+              <div>
+                <CardTitle>Price History</CardTitle>
+                <CardDescription>
+                  Historical price data for this SKU on{" "}
+                  {selectedMarketplace || "the marketplace"}
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <PriceHistoryChart
+                data={priceHistoryData?.items || []}
+                isLoading={priceHistoryLoading}
+                currency={
+                  inventoryItem?.average_cost_per_item?.currency ?? "USD"
+                }
+              />
+              {priceHistoryError && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Failed to load price history: {priceHistoryError.message}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Market Depth Section */}
           <MarketDepthWithMetrics
             data={marketDataItems}
             isLoading={marketLoading}
             error={marketError}
             currency={inventoryItem?.average_cost_per_item?.currency ?? "USD"}
-            salesLookbackDays={salesLookbackDays}
-            onSalesLookbackDaysChange={setSalesLookbackDays}
+            salesLookbackDays={marketAnalysisDays}
+            selectedMarketplace={selectedMarketplace}
           />
         </TabsContent>
         <TabsContent value="details" className="mt-4">

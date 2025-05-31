@@ -482,6 +482,7 @@ export function TransactionTable({
       id: "subtotal_amount",
       accessorKey: "subtotal_amount",
       enableSorting: false,
+      align: "right",
       header: () => (
         <TableColumnHeader
           title="Total"
@@ -549,7 +550,7 @@ export function TransactionTable({
         }, 0);
 
         return (
-          <div className="font-medium">
+          <div className="font-medium text-right">
             {new Intl.NumberFormat("en-US", {
               style: "currency",
               currency: row.original.currency,

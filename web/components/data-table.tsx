@@ -24,6 +24,7 @@ import { SearchInput } from "./search-input";
 
 export type Column<TData, TValue> = ColumnDef<TData, TValue> & {
   loading?: React.ComponentType;
+  align?: "left" | "center" | "right";
 };
 
 interface DataTableProps<TData, TValue> {
@@ -72,21 +73,32 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full h-full">
-      <div className="rounded-md border overflow-auto">
-        <Table>
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="min-w-[1000px]">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const align = (
+                    header.column.columnDef as Column<TData, TValue>
+                  ).align;
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={cn(
+                        align === "center" && "text-center",
+                        align === "right" && "text-right",
+                      )}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -95,11 +107,24 @@ export function DataTable<TData, TValue>({
               [...Array(5)].map((_, rowIndex) => (
                 <TableRow key={rowIndex}>
                   {columns.map((column, columnIndex) => (
-                    <TableCell key={columnIndex}>
+                    <TableCell
+                      key={columnIndex}
+                      className={cn(
+                        column.align === "center" && "text-center",
+                        column.align === "right" && "text-right",
+                      )}
+                    >
                       {column.loading ? (
                         <column.loading />
                       ) : (
-                        <Skeleton className="h-4 w-24" />
+                        <div
+                          className={cn(
+                            column.align === "center" && "flex justify-center",
+                            column.align === "right" && "flex justify-end",
+                          )}
+                        >
+                          <Skeleton className="h-4 w-24" />
+                        </div>
                       )}
                     </TableCell>
                   ))}
@@ -115,14 +140,25 @@ export function DataTable<TData, TValue>({
                   className={cn(onRowClick && "cursor-pointer hover:bg-muted")}
                   onClick={() => onRowClick?.(row)}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const align = (
+                      cell.column.columnDef as Column<TData, TValue>
+                    ).align;
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          align === "center" && "text-center",
+                          align === "right" && "text-right",
+                        )}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))
             ) : (

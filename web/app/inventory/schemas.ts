@@ -42,6 +42,8 @@ export const InventoryItemResponseSchema = z.object({
   quantity: z.number(),
   average_cost_per_item: MoneySchema,
   lowest_listing_price: MoneySchema.nullable(),
+  price_change_24h_amount: MoneySchema.nullable(),
+  price_change_24h_percentage: z.number().nullable(),
 });
 
 // InventoryResponseSchema
@@ -118,3 +120,35 @@ export const InventoryHistoryItemSchema = z.object({
 });
 
 export type InventoryHistoryItem = z.infer<typeof InventoryHistoryItemSchema>;
+
+/* -----------------------------------------------------
+ * 7) Inventory Price History Schemas
+ * ----------------------------------------------------- */
+
+export const InventoryPriceHistoryItemSchema = z.object({
+  datetime: z.string().datetime(),
+  price: MoneySchema,
+});
+
+export const InventoryPriceHistoryResponseSchema = z.object({
+  items: z.array(InventoryPriceHistoryItemSchema),
+});
+
+export type InventoryPriceHistoryItem = z.infer<
+  typeof InventoryPriceHistoryItemSchema
+>;
+export type InventoryPriceHistoryResponse = z.infer<
+  typeof InventoryPriceHistoryResponseSchema
+>;
+
+/* -----------------------------------------------------
+ * 8) Inventory SKU Marketplaces Schema
+ * ----------------------------------------------------- */
+
+export const InventorySkuMarketplacesResponseSchema = z.object({
+  marketplaces: z.array(z.string()),
+});
+
+export type InventorySkuMarketplacesResponse = z.infer<
+  typeof InventorySkuMarketplacesResponseSchema
+>;

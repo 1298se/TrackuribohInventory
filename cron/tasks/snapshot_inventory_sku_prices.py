@@ -30,7 +30,7 @@ async def snapshot_inventory_sku_price_data():
                 # 1. Gather all SKUs currently in inventory
                 all_sku_ids: list[uuid.UUID] = [
                     sku.id
-                    for (sku, _, _, _) in session.execute(query_inventory_items()).all()
+                    for (sku, _, _) in session.execute(query_inventory_items()).all()
                 ]
 
                 total_skus_targeted = len(all_sku_ids)

@@ -5,7 +5,7 @@ from uuid import UUID
 from datetime import date, timedelta
 from decimal import Decimal
 
-from core.inventory.inventory import build_inventory_query
+from core.dao.inventory import build_inventory_query
 from core.models.inventory_snapshot import InventorySnapshot
 
 

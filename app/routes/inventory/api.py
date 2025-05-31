@@ -1,11 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta, date
+from datetime import timezone as datetime_timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, desc
 from typing import List, TypedDict
 from uuid import UUID
 from decimal import Decimal
-from datetime import date
 
 from app.routes.catalog.schemas import (
     SKUWithProductResponseSchema,
@@ -15,6 +15,7 @@ from core.dao.inventory import (
     query_inventory_items,
     InventoryQueryResultRow,
     get_sku_cost_quantity_cte,
+    build_inventory_query,
 )
 from app.routes.inventory.schemas import (
     InventoryResponseSchema,
@@ -23,13 +24,22 @@ from app.routes.inventory.schemas import (
     InventorySKUTransactionLineItemSchema,
     InventoryMetricsResponseSchema,
     InventoryHistoryItemSchema,
+    InventoryPriceHistoryResponseSchema,
+    InventoryPriceHistoryItemSchema,
+    InventorySkuMarketplacesResponseSchema,
 )
 from app.routes.utils import MoneySchema
 from core.database import get_db_session
 from core.models.catalog import SKU, Catalog, Product, Set
-from core.dao.price import latest_price_subquery
+from core.dao.price import (
+    latest_price_subquery,
+    price_24h_ago_subquery,
+    fetch_sku_price_snapshots,
+    normalize_price_history,
+    date_to_datetime_utc,
+)
+from core.services.tcgplayer_catalog_service import get_tcgplayer_catalog_service
 from core.models.transaction import Transaction, LineItem, TransactionType
-from core.inventory.inventory import build_inventory_query
 from core.services.inventory_service import get_inventory_metrics, get_inventory_history
 
 router = APIRouter(
@@ -89,7 +99,7 @@ def get_inventory_catalogs(
     # First get SKUs in inventory
     inventory_query = query_inventory_items()
     sku_ids_with_inventory = [
-        sku.id for sku, _, _, _ in session.execute(inventory_query).all()
+        sku.id for sku, _, _ in session.execute(inventory_query).all()
     ]
 
     # Now find which catalogs these SKUs belong to
@@ -121,26 +131,43 @@ def get_inventory(
         inventory_query
     ).all()
 
-    inventory_items = [
-        InventoryItemResponseSchema(
-            sku=sku,
-            quantity=total_quantity,
-            average_cost_per_item=MoneySchema(
-                amount=total_cost / total_quantity, currency="USD"
-            ),
-            lowest_listing_price=MoneySchema(
-                amount=lowest_listing_price, currency="USD"
+    inventory_items = []
+    for (
+        sku,
+        total_quantity,
+        total_cost,
+        lowest_listing_price,
+        price_24h_ago,
+    ) in skus_with_quantity:
+        # Calculate 24h price change
+        if (
+            lowest_listing_price is not None
+            and price_24h_ago is not None
+            and price_24h_ago != 0
+        ):
+            change_amount = lowest_listing_price - price_24h_ago
+            change_percentage = (change_amount / price_24h_ago) * 100
+            price_change_24h_amount = MoneySchema(amount=change_amount, currency="USD")
+        else:
+            change_percentage = None
+            price_change_24h_amount = None
+
+        inventory_items.append(
+            InventoryItemResponseSchema(
+                sku=sku,
+                quantity=total_quantity,
+                average_cost_per_item=MoneySchema(
+                    amount=total_cost / total_quantity, currency="USD"
+                ),
+                lowest_listing_price=MoneySchema(
+                    amount=lowest_listing_price, currency="USD"
+                )
+                if lowest_listing_price is not None
+                else None,
+                price_change_24h_amount=price_change_24h_amount,
+                price_change_24h_percentage=change_percentage,
             )
-            if lowest_listing_price is not None
-            else None,
         )
-        for (
-            sku,
-            total_quantity,
-            total_cost,
-            lowest_listing_price,
-        ) in skus_with_quantity
-    ]
 
     return InventoryResponseSchema(inventory_items=inventory_items)
 
@@ -162,6 +189,7 @@ def get_inventory_item_details(
     """
     inventory_sku_quantity_cte = get_sku_cost_quantity_cte()
     latest_price = latest_price_subquery()
+    price_24h_ago = price_24h_ago_subquery()
 
     query = (
         select(
@@ -169,9 +197,11 @@ def get_inventory_item_details(
             inventory_sku_quantity_cte.c.total_quantity,
             inventory_sku_quantity_cte.c.total_cost,
             latest_price.c.lowest_listing_price_total,
+            price_24h_ago.c.lowest_listing_price_total.label("price_24h_ago"),
         )
         .join(inventory_sku_quantity_cte, SKU.id == inventory_sku_quantity_cte.c.sku_id)
         .outerjoin(latest_price, SKU.id == latest_price.c.sku_id)
+        .outerjoin(price_24h_ago, SKU.id == price_24h_ago.c.sku_id)
         .options(  # Eager load SKU's related data for the response schema
             joinedload(SKU.product).joinedload(Product.set),
             joinedload(SKU.condition),
@@ -188,7 +218,13 @@ def get_inventory_item_details(
             status_code=404, detail="Inventory item not found or quantity is zero"
         )
 
-    sku_obj, total_quantity, total_cost, lowest_listing_price_total = result
+    (
+        sku_obj,
+        total_quantity,
+        total_cost,
+        lowest_listing_price_total,
+        price_24h_ago_total,
+    ) = result
 
     # Ensure total_cost is treated as Decimal for calculation
     total_cost_decimal = total_cost if isinstance(total_cost, Decimal) else Decimal(0)
@@ -212,12 +248,27 @@ def get_inventory_item_details(
         else None
     )
 
+    # Calculate 24h price change
+    if (
+        lowest_listing_price_total is not None
+        and price_24h_ago_total is not None
+        and price_24h_ago_total != 0
+    ):
+        change_amount = lowest_listing_price_total - price_24h_ago_total
+        change_percentage = (change_amount / price_24h_ago_total) * 100
+        price_change_24h_amount = MoneySchema(amount=change_amount, currency="USD")
+    else:
+        change_percentage = None
+        price_change_24h_amount = None
+
     # Manually construct the response object
     response_data = InventoryItemResponseSchema(
         sku=sku_obj,  # Pass the fetched SKU object with its eager-loaded relations
         quantity=total_quantity,
         average_cost_per_item=avg_cost,
         lowest_listing_price=lowest_listing,
+        price_change_24h_amount=price_change_24h_amount,
+        price_change_24h_percentage=change_percentage,
     )
 
     return response_data
@@ -279,3 +330,127 @@ def get_sku_transaction_history(
         )
 
     return InventorySKUTransactionsResponseSchema(items=history_items, total=total)
+
+
+@router.get(
+    "/{sku_id}/price-history",
+    response_model=InventoryPriceHistoryResponseSchema,
+    summary="Get Price History for an Inventory SKU",
+)
+async def get_sku_price_history(
+    sku_id: UUID,
+    days: int | None = None,
+    marketplace: str | None = None,
+    session: Session = Depends(get_db_session),
+):
+    """
+    Get the normalized price history for a specific SKU in inventory.
+
+    Returns daily price data with forward-filled values (last known price
+    is carried forward until a new price is recorded).
+
+    Parameters:
+    - sku_id: The SKU to get price history for
+    - days: Number of days to look back (defaults to 30)
+    - marketplace: Marketplace to filter by (currently returns combined data)
+    """
+    # Default to 30 days if not specified
+    if days is None:
+        days = 30
+
+    # Calculate date range
+    start_date = datetime.now(datetime_timezone.utc) - timedelta(days=days)
+    end_date = datetime.now(datetime_timezone.utc)
+
+    # Get raw price history from the database
+    price_changes, initial_price = fetch_sku_price_snapshots(
+        session=session, sku_id=sku_id, start_date=start_date, end_date=end_date
+    )
+
+    # Normalize the price data
+    price_data = normalize_price_history(
+        price_changes=price_changes,
+        initial_price=initial_price,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    # Fetch fresh price data for today (read-only, not stored)
+    try:
+        sku_tcgplayer_id = session.execute(
+            select(SKU.tcgplayer_id).where(SKU.id == sku_id)
+        ).scalar_one_or_none()
+
+        if sku_tcgplayer_id:
+            catalog_service = get_tcgplayer_catalog_service()
+            # Fetch current price directly from TCGPlayer
+            sku_prices_response = await catalog_service.get_sku_prices(
+                [sku_tcgplayer_id]
+            )
+
+            if sku_prices_response.results:
+                fresh_price = sku_prices_response.results[0].lowest_listing_price_total
+
+                if fresh_price is not None:
+                    today_iso = date_to_datetime_utc(date.today()).isoformat()
+
+                    # Check if the last data point is today and update it, otherwise append
+                    if price_data and price_data[-1]["datetime"] == today_iso:
+                        price_data[-1]["price"] = float(fresh_price)
+                    else:
+                        price_data.append(
+                            {"datetime": today_iso, "price": float(fresh_price)}
+                        )
+
+    except Exception as e:
+        # Log the error but don't fail the request - just return historical data
+        import logging
+
+        logging.warning(f"Failed to fetch fresh price data for SKU {sku_id}: {e}")
+
+    # Convert to response schema
+    history_items = [
+        InventoryPriceHistoryItemSchema(
+            datetime=data_point["datetime"],
+            price=MoneySchema(
+                amount=data_point["price"],
+                currency="USD",  # Assuming USD for now
+            ),
+        )
+        for data_point in price_data
+    ]
+
+    return InventoryPriceHistoryResponseSchema(items=history_items)
+
+
+@router.get(
+    "/{sku_id}/marketplaces",
+    response_model=InventorySkuMarketplacesResponseSchema,
+    summary="Get Available Marketplaces for an Inventory SKU",
+)
+def get_sku_marketplaces(
+    sku_id: UUID,
+    session: Session = Depends(get_db_session),
+):
+    """
+    Get the list of marketplaces available for a specific SKU.
+
+    Returns a list of marketplace names that have data available for this SKU.
+    """
+    # Verify SKU exists in inventory
+    inventory_sku_quantity_cte = get_sku_cost_quantity_cte()
+
+    sku_check = session.execute(
+        select(SKU.id)
+        .join(inventory_sku_quantity_cte, SKU.id == inventory_sku_quantity_cte.c.sku_id)
+        .where(SKU.id == sku_id)
+    ).scalar_one_or_none()
+
+    if not sku_check:
+        raise HTTPException(status_code=404, detail="SKU not found in inventory")
+
+    # For now, return available marketplaces (currently only TCGPlayer)
+    # TODO: In the future, this could query actual marketplace data availability
+    marketplaces = ["TCGPlayer"]
+
+    return InventorySkuMarketplacesResponseSchema(marketplaces=marketplaces)

@@ -1,4 +1,5 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, date, timedelta
+from typing import Union
 import uuid
 from typing import Sequence, Dict
 from dataclasses import dataclass
@@ -108,9 +109,217 @@ async def insert_price_snapshots_if_changed(
     return len(rows)
 
 
+def price_24h_ago_subquery():
+    """
+    Returns a subquery with the most recent price snapshot per SKU from 24 hours ago.
+    Gets the closest snapshot on or before exactly 24 hours from now.
+
+    Returns:
+        A SQLAlchemy subquery that can be used in joins, containing:
+        - sku_id: The SKU identifier
+        - lowest_listing_price_total: The price from the most recent snapshot 24 hours ago
+    """
+    twenty_four_hours_ago = datetime.now(UTC) - timedelta(hours=24)
+
+    return (
+        select(
+            SKUPriceDataSnapshot.sku_id,
+            SKUPriceDataSnapshot.lowest_listing_price_total,
+        )
+        .distinct(SKUPriceDataSnapshot.sku_id)
+        .where(SKUPriceDataSnapshot.snapshot_datetime <= twenty_four_hours_ago)
+        .order_by(
+            SKUPriceDataSnapshot.sku_id,
+            SKUPriceDataSnapshot.snapshot_datetime.desc(),
+        )
+        .subquery()
+    )
+
+
+def date_to_datetime_utc(d: Union[date, datetime]) -> datetime:
+    """Convert a date to a UTC datetime at midnight."""
+    if isinstance(d, datetime):
+        return d.replace(tzinfo=UTC) if d.tzinfo is None else d
+    return datetime.combine(d, datetime.min.time()).replace(tzinfo=UTC)
+
+
+@dataclass
+class PriceSnapshot:
+    """Raw price snapshot data from the database."""
+
+    snapshot_datetime: datetime
+    lowest_listing_price_total: float | None
+
+
+def fetch_sku_price_snapshots(
+    session: Session,
+    sku_id: uuid.UUID,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    days: int | None = None,
+) -> tuple[list[PriceSnapshot], PriceSnapshot | None]:
+    """
+    Fetch raw price snapshots for a specific SKU over a date range.
+
+    Parameters
+    ----------
+    session : Session
+        Active SQLAlchemy session.
+    sku_id : uuid.UUID
+        The SKU to get price history for.
+    start_date : datetime | None
+        Start of the date range (defaults to 30 days ago if not provided).
+    end_date : datetime | None
+        End of the date range (defaults to now).
+    days : int | None
+        Number of days back from now (overrides start_date if provided).
+
+    Returns
+    -------
+    tuple[list[PriceSnapshot], PriceSnapshot | None]
+        A tuple containing:
+        - List of price snapshots within the date range, ordered by datetime ascending
+        - Initial price snapshot before the start date (for forward-filling), or None
+    """
+    # Handle date range
+    if days is not None:
+        start_date = datetime.now(UTC) - timedelta(days=days)
+        end_date = datetime.now(UTC)
+    elif start_date is None and end_date is None:
+        # Default to 30 days
+        start_date = datetime.now(UTC) - timedelta(days=30)
+        end_date = datetime.now(UTC)
+
+    # Get the most recent price before or at the start date
+    initial_price_query = (
+        select(SKUPriceDataSnapshot)
+        .where(SKUPriceDataSnapshot.sku_id == sku_id)
+        .where(SKUPriceDataSnapshot.snapshot_datetime <= start_date)
+        .order_by(SKUPriceDataSnapshot.snapshot_datetime.desc())
+        .limit(1)
+    )
+    initial_price_result = session.execute(initial_price_query).scalar_one_or_none()
+    initial_price = (
+        PriceSnapshot(
+            snapshot_datetime=initial_price_result.snapshot_datetime,
+            lowest_listing_price_total=initial_price_result.lowest_listing_price_total,
+        )
+        if initial_price_result
+        else None
+    )
+
+    # Get all price changes within the date range
+    changes_query = (
+        select(SKUPriceDataSnapshot)
+        .where(SKUPriceDataSnapshot.sku_id == sku_id)
+        .where(SKUPriceDataSnapshot.snapshot_datetime > start_date)
+        .where(SKUPriceDataSnapshot.snapshot_datetime <= end_date)
+        .order_by(SKUPriceDataSnapshot.snapshot_datetime.asc())
+    )
+    price_changes_raw = list(session.execute(changes_query).scalars().all())
+
+    # Convert to PriceSnapshot objects
+    price_changes = [
+        PriceSnapshot(
+            snapshot_datetime=snapshot.snapshot_datetime,
+            lowest_listing_price_total=snapshot.lowest_listing_price_total,
+        )
+        for snapshot in price_changes_raw
+    ]
+
+    return price_changes, initial_price
+
+
+def normalize_price_history(
+    price_changes: list[PriceSnapshot],
+    initial_price: PriceSnapshot | None,
+    start_date: datetime,
+    end_date: datetime,
+) -> list[dict]:
+    """
+    Normalize price history data into daily price points with forward-filling.
+
+    Forward-fills prices (carries forward the last known price) and returns
+    at most one price per day.
+
+    Parameters
+    ----------
+    price_changes : list[PriceSnapshot]
+        List of price snapshots within the date range, ordered by datetime ascending.
+    initial_price : PriceSnapshot | None
+        Initial price snapshot before the start date (for forward-filling), or None.
+    start_date : datetime
+        Start of the date range.
+    end_date : datetime
+        End of the date range.
+
+    Returns
+    -------
+    list[dict]
+        List of price data points with 'datetime' and 'price' keys,
+        ordered by datetime ascending, with at most one entry per day.
+    """
+    result = []
+    current_date = start_date.date()
+    end_date = end_date.date()
+
+    # Track the current price
+    current_price = initial_price.lowest_listing_price_total if initial_price else None
+
+    # Helper to add a price point
+    def add_price_point(date_obj: date, price: float):
+        result.append(
+            {
+                "datetime": date_to_datetime_utc(date_obj).isoformat(),
+                "price": float(price),
+            }
+        )
+
+    # Add initial price if available
+    if current_price is not None:
+        add_price_point(current_date, current_price)
+
+    # Process each day
+    change_index = 0
+    current_date += timedelta(days=1)
+
+    while current_date <= end_date:
+        day_start_dt = date_to_datetime_utc(current_date)
+        day_end_dt = day_start_dt + timedelta(days=1) - timedelta(microseconds=1)
+
+        # Find the last price change of the day
+        last_price_of_day = None
+        while (
+            change_index < len(price_changes)
+            and price_changes[change_index].snapshot_datetime <= day_end_dt
+        ):
+            if price_changes[change_index].snapshot_datetime >= day_start_dt:
+                last_price_of_day = price_changes[
+                    change_index
+                ].lowest_listing_price_total
+            current_price = price_changes[change_index].lowest_listing_price_total
+            change_index += 1
+
+        # Add a data point using the most recent price
+        price_to_use = (
+            last_price_of_day if last_price_of_day is not None else current_price
+        )
+        if price_to_use is not None:
+            add_price_point(current_date, price_to_use)
+
+        current_date += timedelta(days=1)
+
+    return result
+
+
 # What this module exports
 __all__ = [
     "latest_price_subquery",
+    "price_24h_ago_subquery",
+    "fetch_sku_price_snapshots",
+    "normalize_price_history",
+    "date_to_datetime_utc",
+    "PriceSnapshot",
     "SKUPriceRecord",
     "insert_price_snapshots_if_changed",
 ]

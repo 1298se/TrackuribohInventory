@@ -12,13 +12,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MarketDepthChart } from "@/components/market-depth-chart";
 import { formatSKU } from "@/app/catalog/utils";
 import {
-  Select,
+  Select as UISelect,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
 import { TimeRangeToggle } from "@/components/ui/time-range-toggle";
+import { Select } from "@/components/marketplace-selector";
 
 interface Props {
   data: SKUMarketDataItem[];
@@ -27,6 +28,8 @@ interface Props {
   currency?: string;
   salesLookbackDays?: number;
   onSalesLookbackDaysChange?: (days: number) => void;
+  selectedMarketplace?: string | null;
+  onMarketplaceChange?: (marketplace: string) => void;
 }
 
 export function MarketDepthWithMetrics({
@@ -36,21 +39,33 @@ export function MarketDepthWithMetrics({
   currency = "USD",
   salesLookbackDays,
   onSalesLookbackDaysChange,
+  selectedMarketplace,
+  onMarketplaceChange,
 }: Props) {
   const marketplaces = useMemo(
     () => Array.from(new Set(data.map((i) => i.marketplace))),
     [data],
   );
-  const [selectedMarketplace, setSelectedMarketplace] = useState<string>("");
+
+  // Use prop if provided, otherwise manage internally
+  const [internalSelectedMarketplace, setInternalSelectedMarketplace] =
+    useState<string>("");
+  const effectiveMarketplace =
+    selectedMarketplace || internalSelectedMarketplace;
+
   useEffect(() => {
-    if (marketplaces.length && !marketplaces.includes(selectedMarketplace)) {
-      setSelectedMarketplace(marketplaces[0]);
+    if (
+      !selectedMarketplace &&
+      marketplaces.length &&
+      !marketplaces.includes(internalSelectedMarketplace)
+    ) {
+      setInternalSelectedMarketplace(marketplaces[0]);
     }
-  }, [marketplaces, selectedMarketplace]);
+  }, [marketplaces, internalSelectedMarketplace, selectedMarketplace]);
 
   const itemsForMarketplace = useMemo(
-    () => data.filter((i) => i.marketplace === selectedMarketplace),
-    [data, selectedMarketplace],
+    () => data.filter((i) => i.marketplace === effectiveMarketplace),
+    [data, effectiveMarketplace],
   );
   const skusForMarketplace = useMemo(
     () => itemsForMarketplace.map((i) => i.sku),
@@ -183,45 +198,29 @@ export function MarketDepthWithMetrics({
               {selectedSkuId === "aggregated"
                 ? "for all variants"
                 : "for selected variant"}{" "}
-              on {selectedMarketplace || "all marketplaces"}.
+              on {effectiveMarketplace || "all marketplaces"}.
             </CardDescription>
           </div>
           <div className="flex items-center space-x-4 mt-4 sm:mt-0">
-            {onSalesLookbackDaysChange && salesLookbackDays != null && (
-              <TimeRangeToggle
-                value={salesLookbackDays}
-                onChange={onSalesLookbackDaysChange}
+            {!selectedMarketplace && (
+              <Select
+                value={effectiveMarketplace}
+                onChange={(option) => {
+                  setInternalSelectedMarketplace(option.value);
+                  onMarketplaceChange?.(option.value);
+                }}
+                options={marketplaces.map((mp) => ({ value: mp, label: mp }))}
               />
             )}
-            <div className="flex items-center space-x-2">
-              <label
-                htmlFor="marketplace-select"
-                className="text-sm font-medium"
-              >
-                Marketplace:
-              </label>
-              <Select
-                value={selectedMarketplace}
-                onValueChange={setSelectedMarketplace}
-              >
-                <SelectTrigger id="marketplace-select" className="w-32">
-                  <SelectValue placeholder="All Marketplaces" />
-                </SelectTrigger>
-                <SelectContent>
-                  {marketplaces.map((mp) => (
-                    <SelectItem key={mp} value={mp}>
-                      {mp}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             {skusForMarketplace.length > 1 && (
               <div className="flex items-center space-x-2">
                 <label htmlFor="sku-select" className="text-sm font-medium">
                   SKU:
                 </label>
-                <Select value={selectedSkuId} onValueChange={setSelectedSkuId}>
+                <UISelect
+                  value={selectedSkuId}
+                  onValueChange={setSelectedSkuId}
+                >
                   <SelectTrigger id="sku-select" className="w-64">
                     <SelectValue placeholder="All SKUs" />
                   </SelectTrigger>
@@ -233,7 +232,7 @@ export function MarketDepthWithMetrics({
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </UISelect>
               </div>
             )}
           </div>

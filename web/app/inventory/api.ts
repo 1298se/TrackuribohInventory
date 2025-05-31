@@ -14,6 +14,10 @@ import {
   InventoryMetricsResponseSchema,
   InventoryHistoryItemSchema,
   InventoryHistoryItem,
+  InventoryPriceHistoryResponse,
+  InventoryPriceHistoryResponseSchema,
+  InventorySkuMarketplacesResponse,
+  InventorySkuMarketplacesResponseSchema,
 } from "./schemas";
 import {
   ProductSearchResponseSchema,
@@ -180,5 +184,41 @@ export function useInventoryHistory(
         schema: z.array(InventoryHistoryItemSchema),
       });
     },
+  );
+}
+
+export function useInventoryPriceHistory(
+  skuId: string | null,
+  days: number = 30,
+  marketplace: string | null = null,
+) {
+  const params: { [key: string]: string } = { days: days.toString() };
+  if (marketplace) {
+    params.marketplace = marketplace;
+  }
+
+  return useSWR<InventoryPriceHistoryResponse>(
+    skuId ? [`/inventory/${skuId}/price-history`, params] : null,
+    (args: [string, Record<string, string>]) => {
+      const [path, queryParams] = args;
+      return fetcher({
+        url: `${API_URL}${path}`,
+        params: queryParams,
+        method: HTTPMethod.GET,
+        schema: InventoryPriceHistoryResponseSchema,
+      });
+    },
+  );
+}
+
+export function useSkuMarketplaces(skuId: string | null) {
+  return useSWR<InventorySkuMarketplacesResponse>(
+    skuId ? `/inventory/${skuId}/marketplaces` : null,
+    (path: string) =>
+      fetcher({
+        url: `${API_URL}${path}`,
+        method: HTTPMethod.GET,
+        schema: InventorySkuMarketplacesResponseSchema,
+      }),
   );
 }

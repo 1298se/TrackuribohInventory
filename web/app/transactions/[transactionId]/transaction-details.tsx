@@ -255,6 +255,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
       {
         accessorKey: "quantity",
         header: "Quantity",
+        align: "right",
         loading: DefaultLoading,
         cell: ({ row }) => {
           if (isEditing) {
@@ -279,7 +280,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             );
           }
           return (
-            <div className="font-medium tabular-nums">
+            <div className="font-medium tabular-nums text-right">
               {row.getValue("quantity")}
             </div>
           );
@@ -288,6 +289,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
       {
         accessorKey: "unit_price_amount",
         header: "Unit Price",
+        align: "right",
         loading: DefaultLoading,
         cell: ({ row }) => {
           if (isEditing) {
@@ -316,12 +318,17 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             style: "currency",
             currency: transaction?.currency || "USD",
           }).format(amount);
-          return <div className="font-medium tabular-nums">{formatted}</div>;
+          return (
+            <div className="font-medium tabular-nums text-right">
+              {formatted}
+            </div>
+          );
         },
       },
       {
         id: "total_price",
         header: "Total Price",
+        align: "right",
         loading: DefaultLoading,
         cell: ({ row }) => {
           const quantity = row.original.quantity;
@@ -331,7 +338,11 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
             style: "currency",
             currency: transaction?.currency || "USD",
           }).format(total);
-          return <div className="font-medium tabular-nums">{formatted}</div>;
+          return (
+            <div className="font-medium tabular-nums text-right">
+              {formatted}
+            </div>
+          );
         },
       },
       {

@@ -91,7 +91,7 @@ export function MarketDepthChart({
             }
             formatter={(value: number, name: string) => [
               value,
-              name === "listingCumulativeCount" ? "Listings" : "Sales",
+              name === "Listings" ? "Listings" : "Sales",
             ]}
           />
           <Legend />
