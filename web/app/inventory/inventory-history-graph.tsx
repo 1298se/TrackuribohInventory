@@ -8,7 +8,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Select,
@@ -18,7 +18,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useInventoryHistory } from "./api";
+import { useInventoryPerformance } from "./api";
 import { BarChart as BarChartIcon } from "lucide-react";
 
 interface InventoryHistoryGraphProps {
@@ -36,7 +36,7 @@ export function InventoryHistoryGraph({
     setDays(isMobile ? 7 : 30);
   }, [isMobile]);
 
-  const { data, error, isLoading } = useInventoryHistory(catalogId, days);
+  const { data, error, isLoading } = useInventoryPerformance(catalogId, days);
 
   const timeRanges = [
     { label: "7d", value: 7 },
@@ -46,24 +46,17 @@ export function InventoryHistoryGraph({
 
   if (error) {
     return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Inventory History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-destructive">
-            Failed to load inventory history.
-          </div>
-        </CardContent>
-      </Card>
+      <Alert variant="destructive">
+        <AlertDescription>Failed to load inventory history.</AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader className="relative">
-        <CardTitle>Inventory History</CardTitle>
-        <div className="absolute right-4 top-4">
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div></div>
+        <div>
           {isMobile ? (
             <Select
               value={days.toString()}
@@ -98,8 +91,8 @@ export function InventoryHistoryGraph({
             </ToggleGroup>
           )}
         </div>
-      </CardHeader>
-      <CardContent className="h-[250px] relative">
+      </div>
+      <div className="h-[250px] relative">
         {isLoading || !data ? (
           <div className="flex h-full items-center justify-center">
             <div className="animate-pulse text-muted-foreground">
@@ -233,7 +226,7 @@ export function InventoryHistoryGraph({
             </AreaChart>
           </ChartContainer>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
