@@ -7,7 +7,7 @@ import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { TimeRangeToggle } from "@/components/ui/time-range-toggle";
-import { useInventoryHistory, useInventoryMetrics } from "./api";
+import { useInventoryPerformance, useInventoryMetrics } from "./api";
 import {
   BarChart as BarChartIcon,
   TrendingUp,
@@ -18,44 +18,34 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface PortfolioValueChartProps {
   catalogId: string | null;
+  days: number;
 }
 
-export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
-  const [days, setDays] = useState<number>(30);
-
-  const {
-    data: historyData,
-    error,
-    isLoading,
-  } = useInventoryHistory(catalogId, days);
+export function PortfolioValueChart({
+  catalogId,
+  days,
+}: PortfolioValueChartProps) {
   const { data: currentMetrics, isLoading: metricsLoading } =
     useInventoryMetrics(catalogId);
+  const {
+    data: performanceData,
+    error: performanceError,
+    isLoading: performanceLoading,
+  } = useInventoryPerformance(catalogId, days);
 
   // Combine historical data with current metrics for a complete chart
   const chartData = useMemo(() => {
-    if (!historyData) return [];
-
-    // If we have current metrics and the last snapshot isn't today, add current data
-    if (currentMetrics && historyData.length > 0) {
-      const today = new Date().toISOString().split("T")[0];
-      const lastSnapshotDate =
-        historyData[historyData.length - 1].snapshot_date;
-
-      if (lastSnapshotDate !== today) {
-        return [
-          ...historyData,
-          {
-            snapshot_date: today,
-            total_market_value: currentMetrics.total_market_value,
-            total_cost: currentMetrics.total_inventory_cost,
-            unrealised_profit: currentMetrics.unrealised_profit,
-          },
-        ];
-      }
+    if (!performanceData || performanceData.length === 0) {
+      return [];
     }
 
-    return historyData;
-  }, [historyData, currentMetrics]);
+    return performanceData.map((item) => ({
+      date: item.snapshot_date,
+      market_value: item.total_market_value,
+      cost: item.total_cost,
+      profit: item.unrealised_profit,
+    }));
+  }, [performanceData]);
 
   // Calculate change based on selected time period
   const portfolioChange = useMemo(() => {
@@ -65,7 +55,7 @@ export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
 
     const currentValue = currentMetrics.total_market_value;
     const firstSnapshot = chartData[0];
-    const previousValue = firstSnapshot.total_market_value;
+    const previousValue = firstSnapshot.market_value;
 
     const absoluteChange = currentValue - previousValue;
     const percentageChange =
@@ -101,13 +91,21 @@ export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
     return formatCurrency(value);
   };
 
-  if (error) {
+  if (performanceError) {
     return (
       <Card className="w-full">
         <CardHeader>
           <div className="text-destructive">Failed to load portfolio data.</div>
         </CardHeader>
       </Card>
+    );
+  }
+
+  if (performanceLoading || metricsLoading) {
+    return (
+      <div className="flex h-[300px] items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
     );
   }
 
@@ -156,12 +154,17 @@ export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
             </div>
           </div>
           <div>
-            <TimeRangeToggle value={days} onChange={setDays} />
+            <TimeRangeToggle
+              value={days}
+              onChange={(newDays) => {
+                // Handle the change in days
+              }}
+            />
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        {error && (
+        {performanceError && (
           <Alert variant="destructive">
             <AlertDescription>Failed to load portfolio data.</AlertDescription>
           </Alert>
@@ -169,7 +172,7 @@ export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
         <div className="flex w-full items-start gap-6">
           <div className="flex grow shrink-0 basis-0 flex-col items-start gap-4">
             <div className="h-[250px] w-full">
-              {isLoading || !chartData ? (
+              {performanceLoading || !chartData ? (
                 <div className="flex h-full items-center justify-center">
                   <div className="animate-pulse text-muted-foreground">
                     Loading...
@@ -194,7 +197,7 @@ export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
                     >
                       <CartesianGrid stroke="#ccc" strokeDasharray="3 3" />
                       <XAxis
-                        dataKey="snapshot_date"
+                        dataKey="date"
                         tickFormatter={(dateStr) =>
                           format(parseISO(dateStr), days <= 7 ? "EEE" : "MMM d")
                         }
@@ -264,7 +267,7 @@ export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
                       </linearGradient>
                     </defs>
                     <XAxis
-                      dataKey="snapshot_date"
+                      dataKey="date"
                       tickFormatter={(dateStr) =>
                         format(parseISO(dateStr), days <= 7 ? "EEE" : "MMM d")
                       }
@@ -279,10 +282,10 @@ export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
                           return null;
 
                         const portfolioValue = payload.find(
-                          (p) => p.dataKey === "total_market_value",
+                          (p) => p.dataKey === "market_value",
                         )?.value as number;
                         const costBasis = payload.find(
-                          (p) => p.dataKey === "total_cost",
+                          (p) => p.dataKey === "cost",
                         )?.value as number;
                         const unrealizedPL =
                           portfolioValue && costBasis
@@ -343,7 +346,7 @@ export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
                     />
                     <Area
                       type="monotone"
-                      dataKey="total_cost"
+                      dataKey="cost"
                       stroke="var(--color-total_cost)"
                       strokeWidth={2}
                       fill="url(#gradient-cost)"
@@ -351,7 +354,7 @@ export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
                     />
                     <Area
                       type="monotone"
-                      dataKey="total_market_value"
+                      dataKey="market_value"
                       stroke="var(--color-total_market_value)"
                       strokeWidth={2}
                       fill="url(#gradient-portfolio)"
@@ -389,7 +392,7 @@ export function PortfolioValueChart({ catalogId }: PortfolioValueChartProps) {
             </div>
             <div className="flex w-full flex-col items-start gap-1">
               <span className="text-xs font-medium text-muted-foreground">
-                Unrealized P&L
+                Total P&L
               </span>
               {metricsLoading ? (
                 <Skeleton className="h-5 w-20" />

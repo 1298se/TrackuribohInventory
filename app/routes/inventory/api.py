@@ -52,13 +52,13 @@ router = APIRouter(
 # -------------------------------------------------------------------------
 
 
-@router.get("/history", response_model=list[InventoryHistoryItemSchema])
-def get_inventory_history_endpoint(
+@router.get("/performance", response_model=list[InventoryHistoryItemSchema])
+def get_inventory_performance_endpoint(
     catalog_id: UUID | None = None,
     days: int | None = None,
     session: Session = Depends(get_db_session),
 ):
-    """Return historical inventory valuation snapshots.
+    """Return historical inventory performance data for visualization.
 
     If ``catalog_id`` is omitted the response aggregates across catalogues. When
     ``days`` is omitted, all available history is returned.

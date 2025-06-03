@@ -164,17 +164,23 @@ export function useInventoryMetrics(catalog_id: string | null = null) {
   );
 }
 
-export function useInventoryHistory(
+export function useInventoryPerformance(
   catalog_id: string | null = null,
-  days: number = 7,
+  days: number | null = 7,
 ) {
-  const params: { [key: string]: string } = { days: days.toString() };
+  const params: { [key: string]: string } = {};
+
+  // Only include days parameter if it's not null (null means "All time")
+  if (days !== null) {
+    params.days = days.toString();
+  }
+
   if (catalog_id) {
     params.catalog_id = catalog_id;
   }
 
   return useSWR<InventoryHistoryItem[]>(
-    ["/inventory/history", params],
+    ["/inventory/performance", params],
     (args: [string, Record<string, string>]) => {
       const [path, queryParams] = args;
       return fetcher({

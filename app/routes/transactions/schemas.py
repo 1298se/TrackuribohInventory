@@ -201,3 +201,26 @@ class TransactionFilterOptionsResponseSchema(BaseModel):
     platforms: list[PlatformFilterOption]
     transaction_types: list[str]
     date_range: DateRangeOption
+
+
+class TransactionPerformanceRequestSchema(BaseModel):
+    """Request schema for transaction performance"""
+
+    days: int = Field(30, ge=1, le=365, description="Number of days to look back")
+
+
+class TransactionPerformanceDataPointSchema(BaseModel):
+    """Schema for a single performance data point"""
+
+    date: str = Field(description="Date in YYYY-MM-DD format")
+    revenue: MoneyAmountSchema = Field(description="Total revenue for this period")
+    expenses: MoneyAmountSchema = Field(description="Total expenses for this period")
+    net_profit: MoneyAmountSchema = Field(description="Net profit for this period")
+    transaction_count: int = Field(description="Number of transactions for this period")
+
+
+class TransactionPerformanceResponseSchema(BaseModel):
+    """Response schema for transaction performance"""
+
+    data_points: list[TransactionPerformanceDataPointSchema]
+    currency: str = "USD"

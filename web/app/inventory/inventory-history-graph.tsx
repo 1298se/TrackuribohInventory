@@ -20,6 +20,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useInventoryPerformance } from "./api";
 import { BarChart as BarChartIcon } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface InventoryHistoryGraphProps {
   catalogId: string | null;
@@ -29,7 +30,7 @@ export function InventoryHistoryGraph({
   catalogId,
 }: InventoryHistoryGraphProps) {
   const isMobile = useIsMobile();
-  const [days, setDays] = useState<number>(isMobile ? 7 : 30);
+  const [days, setDays] = useState<number | null>(isMobile ? 7 : 30);
 
   // Reset default when switching between mobile/desktop
   useEffect(() => {
@@ -42,6 +43,8 @@ export function InventoryHistoryGraph({
     { label: "7d", value: 7 },
     { label: "30d", value: 30 },
     { label: "90d", value: 90 },
+    { label: "1yr", value: 365 },
+    { label: "All time", value: null },
   ];
 
   if (error) {
@@ -59,15 +62,18 @@ export function InventoryHistoryGraph({
         <div>
           {isMobile ? (
             <Select
-              value={days.toString()}
-              onValueChange={(v) => setDays(Number(v))}
+              value={days?.toString() ?? "all"}
+              onValueChange={(v) => setDays(v === "all" ? null : Number(v))}
             >
               <SelectTrigger className="w-[80px]">
                 <SelectValue placeholder="Range" />
               </SelectTrigger>
               <SelectContent>
                 {timeRanges.map((tr) => (
-                  <SelectItem key={tr.value} value={tr.value.toString()}>
+                  <SelectItem
+                    key={tr.value ?? "all"}
+                    value={tr.value?.toString() ?? "all"}
+                  >
                     {tr.label}
                   </SelectItem>
                 ))}
@@ -76,13 +82,15 @@ export function InventoryHistoryGraph({
           ) : (
             <ToggleGroup
               type="single"
-              value={days.toString()}
-              onValueChange={(v) => v && setDays(Number(v))}
+              value={days?.toString() ?? "all"}
+              onValueChange={(v) =>
+                v && setDays(v === "all" ? null : Number(v))
+              }
             >
               {timeRanges.map((tr) => (
                 <ToggleGroupItem
-                  key={tr.value}
-                  value={tr.value.toString()}
+                  key={tr.value ?? "all"}
+                  value={tr.value?.toString() ?? "all"}
                   aria-label={tr.label}
                 >
                   {tr.label}
@@ -100,49 +108,9 @@ export function InventoryHistoryGraph({
             </div>
           </div>
         ) : data.length === 0 ? (
-          <>
-            <ChartContainer
-              id="inventory-history"
-              config={{
-                total_cost: { label: "Cost", color: "#3b82f6" },
-                total_market_value: { label: "Market Value", color: "#10b981" },
-              }}
-              className="h-full w-full"
-            >
-              <AreaChart
-                data={data}
-                margin={{ top: 10, right: 30, left: 30, bottom: 0 }}
-              >
-                <CartesianGrid stroke="#ccc" strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="snapshot_date"
-                  tickFormatter={(dateStr) =>
-                    format(parseISO(dateStr), "MMM d")
-                  }
-                  axisLine={true}
-                  tickLine={true}
-                />
-                <YAxis
-                  tickFormatter={(value) =>
-                    new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                      minimumFractionDigits: 0,
-                    }).format(value)
-                  }
-                  axisLine={true}
-                  tickLine={true}
-                  domain={["auto", "auto"]}
-                  tickCount={6}
-                  allowDecimals={false}
-                />
-              </AreaChart>
-            </ChartContainer>
-            <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-              <BarChartIcon className="mr-2 h-5 w-5" />
-              No inventory snapshots yet for the last {days} days
-            </div>
-          </>
+          <EmptyState
+            message={`No inventory snapshots yet${days ? ` for the last ${days} days` : ""}`}
+          />
         ) : (
           <ChartContainer
             id="inventory-history"

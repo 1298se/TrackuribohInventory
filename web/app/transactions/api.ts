@@ -20,6 +20,8 @@ import {
   TransactionFilter,
   TransactionFilterOptionsResponse,
   TransactionFilterOptionsResponseSchema,
+  TransactionPerformanceResponse,
+  TransactionPerformanceResponseSchema,
 } from "./schemas";
 import { z } from "zod";
 import { ProductSearchResponse } from "../catalog/schemas";
@@ -196,6 +198,24 @@ export function useTransactionFilterOptions(catalogId?: string) {
       params,
       method: HTTPMethod.GET,
       schema: TransactionFilterOptionsResponseSchema,
+    }),
+  );
+}
+
+export function useTransactionPerformance(days: number | null = 30) {
+  const params: { [key: string]: string } = {};
+
+  // Only include days parameter if it's not null (null means "All time")
+  if (days !== null) {
+    params.days = days.toString();
+  }
+
+  return useSWR(["/transactions/performance", params], ([path, params]) =>
+    fetcher({
+      url: `${API_URL}${path}`,
+      params,
+      method: HTTPMethod.GET,
+      schema: TransactionPerformanceResponseSchema,
     }),
   );
 }

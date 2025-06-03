@@ -81,11 +81,11 @@ resource "aws_ecs_task_definition" "snapshot_inventory_sku_prices_task" {
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
         },
         {
-          name      = "tcgplayer_client_id"
+          name      = "TCGPLAYER_CLIENT_ID"
           valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
         },
         {
-          name      = "tcgplayer_client_secret"
+          name      = "TCGPLAYER_CLIENT_SECRET"
           valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
         }
       ]
@@ -155,11 +155,11 @@ resource "aws_ecs_task_definition" "snapshot_product_sku_prices_task" {
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
         },
         {
-          name      = "tcgplayer_client_id"
+          name      = "TCGPLAYER_CLIENT_ID"
           valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
         },
         {
-          name      = "tcgplayer_client_secret"
+          name      = "TCGPLAYER_CLIENT_SECRET"
           valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
         }
       ]
@@ -226,6 +226,14 @@ resource "aws_ecs_task_definition" "snapshot_inventory_task" {
         {
           name      = "db_name"
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
+        },
+        {
+          name      = "TCGPLAYER_CLIENT_ID"
+          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
+        },
+        {
+          name      = "TCGPLAYER_CLIENT_SECRET"
+          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
         }
       ]
 
@@ -293,11 +301,11 @@ resource "aws_ecs_task_definition" "update_catalog_db_task" {
           valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
         },
         {
-          name      = "tcgplayer_client_id"
+          name      = "TCGPLAYER_CLIENT_ID"
           valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
         },
         {
-          name      = "tcgplayer_client_secret"
+          name      = "TCGPLAYER_CLIENT_SECRET"
           valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
         }
       ]

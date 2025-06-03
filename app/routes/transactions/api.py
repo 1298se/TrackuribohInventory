@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.routes.transactions.service import (
     create_transaction_service,
     get_transaction_metrics,
+    get_transaction_performance,
 )
 from core.dao.transaction import (
     InsufficientInventoryError,
@@ -36,6 +37,7 @@ from app.routes.transactions.schemas import (
     CalculatedWeightedLineItemSchema,
     TransactionMetricsResponseSchema,
     TransactionFilterOptionsResponseSchema,
+    TransactionPerformanceResponseSchema,
 )
 from core.database import get_db_session
 from core.models.transaction import Transaction, LineItem, Platform, TransactionType
@@ -133,6 +135,26 @@ async def get_transaction_filter_options(
     )
 
     return TransactionFilterOptionsResponseSchema(**options)
+
+
+@router.get("/performance", response_model=TransactionPerformanceResponseSchema)
+def get_transaction_performance_endpoint(
+    days: Optional[int] = Query(
+        None,
+        ge=1,
+        le=365,
+        description="Number of days to look back (omit for all time)",
+    ),
+    session: Session = Depends(get_db_session),
+):
+    """Get transaction performance data for visualization."""
+    try:
+        performance_data = get_transaction_performance(session=session, days=days)
+        return TransactionPerformanceResponseSchema(**performance_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving transaction performance: {e}"
+        )
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponseSchema)

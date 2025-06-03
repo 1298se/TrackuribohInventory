@@ -242,3 +242,35 @@ export const TransactionFilterOptionsResponseSchema = z.object({
 export type TransactionFilterOptionsResponse = z.infer<
   typeof TransactionFilterOptionsResponseSchema
 >;
+
+/**
+ * Transaction Performance Schemas
+ */
+export const TransactionPerformanceRequestSchema = z.object({
+  days: z.number().int().min(1).max(365).default(30),
+});
+
+export type TransactionPerformanceRequest = z.infer<
+  typeof TransactionPerformanceRequestSchema
+>;
+
+export const TransactionPerformanceDataPointSchema = z.object({
+  date: z.string(),
+  revenue: MoneyAmountSchema,
+  expenses: MoneyAmountSchema,
+  net_profit: MoneyAmountSchema,
+  transaction_count: z.number().int(),
+});
+
+export type TransactionPerformanceDataPoint = z.infer<
+  typeof TransactionPerformanceDataPointSchema
+>;
+
+export const TransactionPerformanceResponseSchema = z.object({
+  data_points: z.array(TransactionPerformanceDataPointSchema),
+  currency: z.string().default("USD"),
+});
+
+export type TransactionPerformanceResponse = z.infer<
+  typeof TransactionPerformanceResponseSchema
+>;
