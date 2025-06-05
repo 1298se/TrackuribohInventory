@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Select,
   SelectTrigger,
@@ -12,24 +12,35 @@ import { useIsMobile } from "@/hooks/use-mobile";
 interface TimeRangeToggleProps {
   value: number | null;
   onChange: (value: number | null) => void;
-  options?: { label: string; value: number | null }[];
+  options: { label: string; value: number | null }[];
 }
 
 export function TimeRangeToggle({
   value,
   onChange,
-  options = [
-    { label: "30d", value: 30 },
-    { label: "90d", value: 90 },
-    { label: "1yr", value: 365 },
-    { label: "All time", value: null },
-  ],
+  options,
 }: TimeRangeToggleProps) {
   const isMobile = useIsMobile();
+
+  // Auto-select first option if no value is set
+  useEffect(() => {
+    if (value === undefined || value === null) {
+      if (options.length > 0) {
+        onChange(options[0].value);
+      }
+    }
+  }, [value, onChange, options]);
+
+  // Get the display value - use first option if value is null
+  const displayValue =
+    value !== null && value !== undefined
+      ? value.toString()
+      : (options[0]?.value?.toString() ?? "all");
+
   if (isMobile) {
     return (
       <Select
-        value={value?.toString() ?? "all"}
+        value={displayValue}
         onValueChange={(v) => onChange(v === "all" ? null : Number(v))}
       >
         <SelectTrigger className="w-24">
@@ -51,7 +62,7 @@ export function TimeRangeToggle({
   return (
     <ToggleGroup
       type="single"
-      value={value?.toString() ?? "all"}
+      value={displayValue}
       onValueChange={(v) => v && onChange(v === "all" ? null : Number(v))}
       className="space-x-2"
     >

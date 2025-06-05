@@ -20,6 +20,14 @@ import {
 } from "@/components/ui/select";
 import { TimeRangeToggle } from "@/components/ui/time-range-toggle";
 import { Select } from "@/components/marketplace-selector";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Clock, InfoIcon } from "lucide-react";
 
 interface Props {
   data: SKUMarketDataItem[];
@@ -188,56 +196,7 @@ export function MarketDepthWithMetrics({
   }, [itemsForMarketplace, selectedSkuId]);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center w-full">
-          <div>
-            <CardTitle>Market Depth</CardTitle>
-            <CardDescription>
-              Cumulative active listings{" "}
-              {selectedSkuId === "aggregated"
-                ? "for all variants"
-                : "for selected variant"}{" "}
-              on {effectiveMarketplace || "all marketplaces"}.
-            </CardDescription>
-          </div>
-          <div className="flex items-center space-x-4 mt-4 sm:mt-0">
-            {!selectedMarketplace && (
-              <Select
-                value={effectiveMarketplace}
-                onChange={(option) => {
-                  setInternalSelectedMarketplace(option.value);
-                  onMarketplaceChange?.(option.value);
-                }}
-                options={marketplaces.map((mp) => ({ value: mp, label: mp }))}
-              />
-            )}
-            {skusForMarketplace.length > 1 && (
-              <div className="flex items-center space-x-2">
-                <label htmlFor="sku-select" className="text-sm font-medium">
-                  SKU:
-                </label>
-                <UISelect
-                  value={selectedSkuId}
-                  onValueChange={setSelectedSkuId}
-                >
-                  <SelectTrigger id="sku-select" className="w-64">
-                    <SelectValue placeholder="All SKUs" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="aggregated">All SKUs</SelectItem>
-                    {skusForMarketplace.map((sku) => (
-                      <SelectItem key={sku.id} value={sku.id}>
-                        {formatSKU(sku.condition, sku.printing, sku.language)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </UISelect>
-              </div>
-            )}
-          </div>
-        </div>
-      </CardHeader>
+    <Card className="border-0">
       <CardContent>
         {error && (
           <Alert variant="destructive">
@@ -253,58 +212,93 @@ export function MarketDepthWithMetrics({
               currency={currency}
             />
           </div>
-          <div className="flex w-48 flex-none flex-col items-start gap-3">
-            <div className="flex w-full flex-col items-start gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Total Quantity
-              </span>
-              {isLoading ? (
-                <Skeleton className="h-5 w-20" />
-              ) : (
-                <span className="text-lg font-semibold">
-                  {selectedMetrics?.total_quantity}
+          <TooltipProvider>
+            <div className="flex w-48 flex-none flex-col items-start gap-3">
+              <div className="flex w-full flex-col items-start gap-1">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Total Quantity
                 </span>
-              )}
-            </div>
-            <div className="flex w-full flex-col items-start gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Total Listings
-              </span>
-              {isLoading ? (
-                <Skeleton className="h-5 w-20" />
-              ) : (
-                <span className="text-lg font-semibold">
-                  {selectedMetrics?.total_listings}
+                {isLoading ? (
+                  <Skeleton className="h-5 w-20" />
+                ) : (
+                  <span className="text-lg font-semibold">
+                    {selectedMetrics?.total_quantity}
+                  </span>
+                )}
+              </div>
+              <div className="flex w-full flex-col items-start gap-1">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Total Listings
                 </span>
-              )}
-            </div>
-            <div className="flex w-full flex-col items-start gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Sales Velocity
-              </span>
-              {isLoading ? (
-                <Skeleton className="h-5 w-20" />
-              ) : (
-                <span className="text-lg font-semibold">
-                  {selectedMetrics?.sales_velocity} /day
+                {isLoading ? (
+                  <Skeleton className="h-5 w-20" />
+                ) : (
+                  <span className="text-lg font-semibold">
+                    {selectedMetrics?.total_listings}
+                  </span>
+                )}
+              </div>
+              <div className="flex w-full flex-col items-start gap-1 relative pl-2 border-l-2 border-l-blue-300/50 dark:border-l-blue-700/50">
+                <span className="text-xs font-medium text-muted-foreground flex items-center">
+                  <Clock className="h-3 w-3 mr-1 text-blue-500" />
+                  Sales Velocity
+                  <Badge
+                    variant="secondary"
+                    className="ml-1 text-[10px] px-1 py-0"
+                  >
+                    {salesLookbackDays ?? 7}d
+                  </Badge>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <InfoIcon className="h-3 w-3 ml-1 text-muted-foreground/60" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Average daily sales over the selected time period</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </span>
-              )}
-            </div>
-            <div className="flex w-full flex-col items-start gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Days of Inventory
-              </span>
-              {isLoading ? (
-                <Skeleton className="h-5 w-20" />
-              ) : (
-                <span className="text-lg font-semibold">
-                  {selectedMetrics?.days_of_inventory != null
-                    ? `${selectedMetrics.days_of_inventory} days`
-                    : "—"}
+                {isLoading ? (
+                  <Skeleton className="h-5 w-20" />
+                ) : (
+                  <span className="text-lg font-semibold transition-opacity duration-200">
+                    {selectedMetrics?.sales_velocity} /day
+                  </span>
+                )}
+              </div>
+              <div className="flex w-full flex-col items-start gap-1 relative pl-2 border-l-2 border-l-blue-300/50 dark:border-l-blue-700/50">
+                <span className="text-xs font-medium text-muted-foreground flex items-center">
+                  <Clock className="h-3 w-3 mr-1 text-blue-500" />
+                  Days of Inventory
+                  <Badge
+                    variant="secondary"
+                    className="ml-1 text-[10px] px-1 py-0"
+                  >
+                    {salesLookbackDays ?? 7}d
+                  </Badge>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <InfoIcon className="h-3 w-3 ml-1 text-muted-foreground/60" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        How long current inventory would last at current sales
+                        velocity
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
                 </span>
-              )}
+                {isLoading ? (
+                  <Skeleton className="h-5 w-20" />
+                ) : (
+                  <span className="text-lg font-semibold transition-opacity duration-200">
+                    {selectedMetrics?.days_of_inventory != null
+                      ? `${selectedMetrics.days_of_inventory} days`
+                      : "—"}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          </TooltipProvider>
         </div>
       </CardContent>
     </Card>

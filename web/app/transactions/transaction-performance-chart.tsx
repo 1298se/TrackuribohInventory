@@ -26,7 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export function TransactionPerformanceChart() {
-  const [days, setDays] = useState<number | null>(30);
+  const [days, setDays] = useState<number | null>(null);
 
   const {
     data: performanceData,
@@ -135,7 +135,17 @@ export function TransactionPerformanceChart() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-end mb-6">
-        <TimeRangeToggle value={days} onChange={setDays} />
+        <TimeRangeToggle
+          value={days}
+          onChange={setDays}
+          options={[
+            { label: "7d", value: 7 },
+            { label: "30d", value: 30 },
+            { label: "90d", value: 90 },
+            { label: "1yr", value: 365 },
+            { label: "All time", value: null },
+          ]}
+        />
       </div>
 
       <div className="h-[300px] w-full">

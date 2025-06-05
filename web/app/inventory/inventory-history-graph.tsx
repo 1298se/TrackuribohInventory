@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { parseISO, format } from "date-fns";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
 import {
@@ -9,14 +9,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+import { TimeRangeToggle } from "@/components/ui/time-range-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useInventoryPerformance } from "./api";
 import { BarChart as BarChartIcon } from "lucide-react";
@@ -30,22 +23,9 @@ export function InventoryHistoryGraph({
   catalogId,
 }: InventoryHistoryGraphProps) {
   const isMobile = useIsMobile();
-  const [days, setDays] = useState<number | null>(isMobile ? 7 : 30);
-
-  // Reset default when switching between mobile/desktop
-  useEffect(() => {
-    setDays(isMobile ? 7 : 30);
-  }, [isMobile]);
+  const [days, setDays] = useState<number | null>(null);
 
   const { data, error, isLoading } = useInventoryPerformance(catalogId, days);
-
-  const timeRanges = [
-    { label: "7d", value: 7 },
-    { label: "30d", value: 30 },
-    { label: "90d", value: 90 },
-    { label: "1yr", value: 365 },
-    { label: "All time", value: null },
-  ];
 
   if (error) {
     return (
@@ -60,44 +40,17 @@ export function InventoryHistoryGraph({
       <div className="flex items-center justify-between mb-4">
         <div></div>
         <div>
-          {isMobile ? (
-            <Select
-              value={days?.toString() ?? "all"}
-              onValueChange={(v) => setDays(v === "all" ? null : Number(v))}
-            >
-              <SelectTrigger className="w-[80px]">
-                <SelectValue placeholder="Range" />
-              </SelectTrigger>
-              <SelectContent>
-                {timeRanges.map((tr) => (
-                  <SelectItem
-                    key={tr.value ?? "all"}
-                    value={tr.value?.toString() ?? "all"}
-                  >
-                    {tr.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <ToggleGroup
-              type="single"
-              value={days?.toString() ?? "all"}
-              onValueChange={(v) =>
-                v && setDays(v === "all" ? null : Number(v))
-              }
-            >
-              {timeRanges.map((tr) => (
-                <ToggleGroupItem
-                  key={tr.value ?? "all"}
-                  value={tr.value?.toString() ?? "all"}
-                  aria-label={tr.label}
-                >
-                  {tr.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          )}
+          <TimeRangeToggle
+            value={days}
+            onChange={setDays}
+            options={[
+              { label: "7d", value: 7 },
+              { label: "30d", value: 30 },
+              { label: "90d", value: 90 },
+              { label: "1yr", value: 365 },
+              { label: "All time", value: null },
+            ]}
+          />
         </div>
       </div>
       <div className="h-[250px] relative">
