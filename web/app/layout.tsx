@@ -1,10 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/app/app-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { Card } from "@/components/ui/card";
+import { TopNav } from "@/components/top-nav";
 import { SWRConfig } from "swr";
 
 export const metadata: Metadata = {
@@ -21,13 +18,10 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-background text-foreground antialiased">
         <SWRConfig value={{ revalidateOnFocus: false }}>
-          <SidebarProvider>
-            <AppSidebar />
-            <div className="flex flex-1 flex-col">
-              <SiteHeader />
-              <main className="flex flex-1 flex-col p-6">{children}</main>
-            </div>
-          </SidebarProvider>
+          <div className="flex min-h-screen flex-col">
+            <TopNav />
+            <main className="flex-1 p-6">{children}</main>
+          </div>
         </SWRConfig>
       </body>
     </html>
