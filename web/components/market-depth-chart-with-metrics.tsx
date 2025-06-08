@@ -1,33 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { SKUMarketDataItem } from "@/app/catalog/schemas";
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MarketDepthChart } from "@/components/market-depth-chart";
-import { formatSKU } from "@/app/catalog/utils";
-import {
-  Select as UISelect,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { TimeRangeToggle } from "@/components/ui/time-range-toggle";
-import { Select } from "@/components/marketplace-selector";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Clock, InfoIcon } from "lucide-react";
 
 interface Props {
   data: SKUMarketDataItem[];
@@ -209,111 +184,71 @@ export function MarketDepthWithMetrics({
   }, [itemsForMarketplace, selectedSkuId, salesLookbackDays]);
 
   return (
-    <Card className="border-0">
-      <CardContent>
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>Failed to load market data.</AlertDescription>
-          </Alert>
-        )}
-        <div className="flex w-full items-start gap-6">
-          <div className="flex grow shrink-0 basis-0 flex-col items-start gap-4">
-            <MarketDepthChart
-              listingsCumulativeDepth={listingChartData}
-              salesCumulativeDepth={salesChartData}
-              isLoading={isLoading}
-              currency={currency}
-            />
+    <div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>Failed to load market data.</AlertDescription>
+        </Alert>
+      )}
+      <div className="space-y-4">
+        {/* Main metric and secondary metrics */}
+        <div className="space-y-1">
+          <div className="flex items-baseline gap-4">
+            {isLoading ? (
+              <Skeleton className="h-10 w-32" />
+            ) : (
+              <>
+                <h2 className="text-3xl font-bold tracking-tight">
+                  {selectedMetrics?.total_quantity?.toLocaleString() || "0"}
+                </h2>
+                <span className="text-sm text-muted-foreground">
+                  Quantity Available
+                </span>
+              </>
+            )}
           </div>
-          <TooltipProvider>
-            <div className="flex w-48 flex-none flex-col items-start gap-3">
-              <div className="flex w-full flex-col items-start gap-1">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Total Quantity
+          {/* Secondary Metrics */}
+          {!isLoading && selectedMetrics && (
+            <div className="flex items-center gap-6 mt-3 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-muted-foreground">Listings:</span>
+                <span className="font-medium tabular-nums">
+                  {selectedMetrics.total_listings?.toLocaleString() || "0"}
                 </span>
-                {isLoading ? (
-                  <Skeleton className="h-5 w-20" />
-                ) : (
-                  <span className="text-lg font-semibold">
-                    {selectedMetrics?.total_quantity}
-                  </span>
-                )}
               </div>
-              <div className="flex w-full flex-col items-start gap-1">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Total Listings
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                <span className="text-muted-foreground">Sales velocity:</span>
+                <span className="font-medium tabular-nums">
+                  {selectedMetrics.sales_velocity} /day
                 </span>
-                {isLoading ? (
-                  <Skeleton className="h-5 w-20" />
-                ) : (
-                  <span className="text-lg font-semibold">
-                    {selectedMetrics?.total_listings}
-                  </span>
-                )}
               </div>
-              <div className="flex w-full flex-col items-start gap-1 relative pl-2 border-l-2 border-l-blue-300/50 dark:border-l-blue-700/50">
-                <span className="text-xs font-medium text-muted-foreground flex items-center">
-                  <Clock className="h-3 w-3 mr-1 text-blue-500" />
-                  Sales Velocity
-                  <Badge
-                    variant="secondary"
-                    className="ml-1 text-[10px] px-1 py-0"
-                  >
-                    {salesLookbackDays ?? 7}d
-                  </Badge>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <InfoIcon className="h-3 w-3 ml-1 text-muted-foreground/60" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Average daily sales over the selected time period</p>
-                    </TooltipContent>
-                  </Tooltip>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span className="text-muted-foreground">
+                  Days of inventory:
                 </span>
-                {isLoading ? (
-                  <Skeleton className="h-5 w-20" />
-                ) : (
-                  <span className="text-lg font-semibold transition-opacity duration-200">
-                    {selectedMetrics?.sales_velocity} /day
-                  </span>
-                )}
-              </div>
-              <div className="flex w-full flex-col items-start gap-1 relative pl-2 border-l-2 border-l-blue-300/50 dark:border-l-blue-700/50">
-                <span className="text-xs font-medium text-muted-foreground flex items-center">
-                  <Clock className="h-3 w-3 mr-1 text-blue-500" />
-                  Days of Inventory
-                  <Badge
-                    variant="secondary"
-                    className="ml-1 text-[10px] px-1 py-0"
-                  >
-                    {salesLookbackDays ?? 7}d
-                  </Badge>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <InfoIcon className="h-3 w-3 ml-1 text-muted-foreground/60" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        How long current inventory would last at current sales
-                        velocity
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
+                <span className="font-medium tabular-nums">
+                  {selectedMetrics.days_of_inventory != null
+                    ? `${selectedMetrics.days_of_inventory} days`
+                    : "—"}
                 </span>
-                {isLoading ? (
-                  <Skeleton className="h-5 w-20" />
-                ) : (
-                  <span className="text-lg font-semibold transition-opacity duration-200">
-                    {selectedMetrics?.days_of_inventory != null
-                      ? `${selectedMetrics.days_of_inventory} days`
-                      : "—"}
-                  </span>
-                )}
               </div>
             </div>
-          </TooltipProvider>
+          )}
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Chart */}
+        <div className="w-full">
+          <MarketDepthChart
+            listingsCumulativeDepth={listingChartData}
+            salesCumulativeDepth={salesChartData}
+            isLoading={isLoading}
+            currency={currency}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

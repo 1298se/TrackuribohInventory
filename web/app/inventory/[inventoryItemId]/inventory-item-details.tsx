@@ -450,6 +450,12 @@ export function InventoryItemDetails({
             <CardContent className="p-0 space-y-6">
               {/* Price History Section */}
               <div className="p-6 pb-0">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold">Price History</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Historical price trends and market movements over time
+                  </p>
+                </div>
                 <PriceHistoryChart
                   data={priceHistoryData?.items || []}
                   isLoading={priceHistoryLoading}

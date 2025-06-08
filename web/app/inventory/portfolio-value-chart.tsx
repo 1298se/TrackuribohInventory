@@ -139,6 +139,9 @@ export function PortfolioValueChart({
                 <h2 className="text-3xl font-bold tracking-tight">
                   {formatCurrency(currentMetrics?.total_market_value || 0)}
                 </h2>
+                <span className="text-sm text-muted-foreground">
+                  Market Value
+                </span>
                 {portfolioChange && (
                   <div
                     className={cn(

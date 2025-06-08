@@ -77,12 +77,13 @@ export function PriceHistoryChart({
           <Skeleton className="h-8 w-32" />
         ) : data.length > 0 ? (
           <>
-            <h3 className="text-2xl font-bold tracking-tight">
+            <h2 className="text-3xl font-bold tracking-tight">
               {formatCurrency(
                 data[data.length - 1]?.price?.amount || 0,
                 currency,
               )}
-            </h3>
+            </h2>
+            <span className="text-sm text-muted-foreground">Current Price</span>
             {priceChange && (
               <div
                 className={cn(
