@@ -53,6 +53,26 @@ function formatCurrency(
   }).format(amount);
 }
 
+// Helper function to convert string time range to API days parameter
+const timeRangeToDays = (timeRange: string | undefined): number | null => {
+  if (!timeRange) return null;
+
+  switch (timeRange) {
+    case "7d":
+      return 7;
+    case "30d":
+      return 30;
+    case "90d":
+      return 90;
+    case "1y":
+      return 365;
+    case "all":
+      return null;
+    default:
+      return null;
+  }
+};
+
 const transactionColumns: ColumnDef<InventorySKUTransactionLineItem>[] = [
   {
     accessorKey: "transaction_date",
@@ -115,8 +135,8 @@ export function InventoryItemDetails({
   const router = useRouter();
 
   // State declarations first
-  const [marketAnalysisDays, setMarketAnalysisDays] = useState<number | null>(
-    null,
+  const [marketAnalysisDays, setMarketAnalysisDays] = useState<string | null>(
+    "7d",
   );
   const [selectedMarketplace, setSelectedMarketplace] = useState<string | null>(
     null,
@@ -141,7 +161,9 @@ export function InventoryItemDetails({
     error: marketError,
   } = useSkuMarketData(
     inventoryItem?.sku.id || null,
-    marketAnalysisDays || undefined,
+    marketAnalysisDays
+      ? timeRangeToDays(marketAnalysisDays) || undefined
+      : undefined,
   );
 
   const {
@@ -156,7 +178,9 @@ export function InventoryItemDetails({
     error: priceHistoryError,
   } = useInventoryPriceHistory(
     inventoryItem?.sku.id && selectedMarketplace ? inventoryItem.sku.id : null,
-    marketAnalysisDays || undefined,
+    marketAnalysisDays
+      ? timeRangeToDays(marketAnalysisDays) || undefined
+      : undefined,
     selectedMarketplace,
   );
 
@@ -402,10 +426,10 @@ export function InventoryItemDetails({
                     value={marketAnalysisDays}
                     onChange={setMarketAnalysisDays}
                     options={[
-                      { label: "7d", value: 7 },
-                      { label: "30d", value: 30 },
-                      { label: "90d", value: 90 },
-                      { label: "1y", value: 365 },
+                      { label: "7d", value: "7d" },
+                      { label: "30d", value: "30d" },
+                      { label: "90d", value: "90d" },
+                      { label: "1y", value: "1y" },
                     ]}
                   />
                   {marketplaceOptions.length > 0 && (
@@ -426,13 +450,6 @@ export function InventoryItemDetails({
             <CardContent className="p-0 space-y-6">
               {/* Price History Section */}
               <div className="p-6 pb-0">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold">Price History</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Historical price data for this SKU on{" "}
-                    {selectedMarketplace || "the marketplace"}
-                  </p>
-                </div>
                 <PriceHistoryChart
                   data={priceHistoryData?.items || []}
                   isLoading={priceHistoryLoading}
@@ -467,7 +484,11 @@ export function InventoryItemDetails({
                     currency={
                       inventoryItem?.average_cost_per_item?.currency ?? "USD"
                     }
-                    salesLookbackDays={marketAnalysisDays ?? undefined}
+                    salesLookbackDays={
+                      marketAnalysisDays
+                        ? (timeRangeToDays(marketAnalysisDays) ?? undefined)
+                        : undefined
+                    }
                     selectedMarketplace={selectedMarketplace}
                   />
                 </div>

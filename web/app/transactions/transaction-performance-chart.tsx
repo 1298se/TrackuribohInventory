@@ -25,14 +25,43 @@ import { cn, formatCurrencyNumber } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
-export function TransactionPerformanceChart() {
-  const [days, setDays] = useState<number | null>(null);
+interface TransactionPerformanceChartProps {
+  metricData?: any;
+  metricLoading: boolean;
+}
 
+export function TransactionPerformanceChart({
+  metricData,
+  metricLoading,
+}: TransactionPerformanceChartProps) {
+  const [days, setDays] = useState<string | undefined>(undefined);
+
+  // Helper function to convert string time range to API days parameter
+  const timeRangeToDays = (timeRange: string | undefined): number | null => {
+    if (!timeRange) return null;
+
+    switch (timeRange) {
+      case "7d":
+        return 7;
+      case "30d":
+        return 30;
+      case "90d":
+        return 90;
+      case "1y":
+        return 365;
+      case "all":
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  const daysNumber = timeRangeToDays(days);
   const {
     data: performanceData,
     error,
     isLoading,
-  } = useTransactionPerformance(days);
+  } = useTransactionPerformance(daysNumber);
 
   // Process data for chart visualization
   const chartData = useMemo(() => {
@@ -134,18 +163,55 @@ export function TransactionPerformanceChart() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-end mb-6">
-        <TimeRangeToggle
-          value={days}
-          onChange={setDays}
-          options={[
-            { label: "7d", value: 7 },
-            { label: "30d", value: 30 },
-            { label: "90d", value: 90 },
-            { label: "1yr", value: 365 },
-            { label: "All time", value: null },
-          ]}
-        />
+      <div className="flex items-center justify-between mb-6">
+        <div className="space-y-1">
+          <div className="flex items-baseline gap-4">
+            {metricLoading ? (
+              <Skeleton className="h-10 w-48" />
+            ) : (
+              <>
+                <h2 className="text-3xl font-bold tracking-tight">
+                  {formatCurrency(metricData?.net_profit || 0)}
+                </h2>
+                <span className="text-sm text-muted-foreground">
+                  Net Profit
+                </span>
+              </>
+            )}
+          </div>
+          {/* Secondary Metrics */}
+          {!metricLoading && metricData && (
+            <div className="flex items-center gap-6 mt-3 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-muted-foreground">Revenue:</span>
+                <span className="font-medium tabular-nums">
+                  {formatCurrency(metricData.total_revenue || 0)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                <span className="text-muted-foreground">Expenses:</span>
+                <span className="font-medium tabular-nums">
+                  {formatCurrency(metricData.total_spent || 0)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+        <div>
+          <TimeRangeToggle
+            value={days}
+            onChange={setDays}
+            options={[
+              { label: "7d", value: "7d" },
+              { label: "30d", value: "30d" },
+              { label: "90d", value: "90d" },
+              { label: "1y", value: "1y" },
+              { label: "All time", value: "all" },
+            ]}
+          />
+        </div>
       </div>
 
       <div className="h-[300px] w-full">
@@ -184,7 +250,10 @@ export function TransactionPerformanceChart() {
               <XAxis
                 dataKey="date"
                 tickFormatter={(dateStr) =>
-                  format(parseISO(dateStr), days && days <= 7 ? "EEE" : "MMM d")
+                  format(
+                    parseISO(dateStr),
+                    daysNumber && daysNumber <= 7 ? "EEE" : "MMM d",
+                  )
                 }
                 axisLine={false}
                 tickLine={false}
@@ -215,7 +284,9 @@ export function TransactionPerformanceChart() {
                       <p className="text-sm font-medium mb-2">
                         {format(
                           parseISO(label),
-                          days && days <= 7 ? "EEE, MMM d" : "MMM d, yyyy",
+                          daysNumber && daysNumber <= 7
+                            ? "EEE, MMM d"
+                            : "MMM d, yyyy",
                         )}
                       </p>
                       <div className="space-y-1">

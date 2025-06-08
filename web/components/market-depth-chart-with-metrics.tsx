@@ -176,10 +176,23 @@ export function MarketDepthWithMetrics({
         (s, i) => s + i.market_data.total_quantity,
         0,
       );
-      const sales_velocity = itemsForMarketplace.reduce(
-        (s, i) => s + i.market_data.sales_velocity,
-        0,
+      // Calculate total sales across all SKUs from cumulative sales depth levels
+      const total_sales = itemsForMarketplace.reduce((sum, item) => {
+        const salesLevels = item.market_data.cumulative_sales_depth_levels;
+        // The last entry in cumulative sales represents total sales for this SKU
+        const skuTotalSales =
+          salesLevels.length > 0
+            ? salesLevels[salesLevels.length - 1].cumulative_count
+            : 0;
+        return sum + skuTotalSales;
+      }, 0);
+
+      // Calculate true sales velocity: total sales / lookback days
+      const lookbackDays = salesLookbackDays || 7;
+      const sales_velocity = parseFloat(
+        (total_sales / lookbackDays).toFixed(2),
       );
+
       const days_of_inventory =
         sales_velocity > 0
           ? parseFloat((total_quantity / sales_velocity).toFixed(1))
@@ -193,7 +206,7 @@ export function MarketDepthWithMetrics({
     }
     const item = itemsForMarketplace.find((i) => i.sku.id === selectedSkuId);
     return item?.market_data || null;
-  }, [itemsForMarketplace, selectedSkuId]);
+  }, [itemsForMarketplace, selectedSkuId, salesLookbackDays]);
 
   return (
     <Card className="border-0">

@@ -20,7 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DollarSign, TrendingUp, Receipt, AlertCircle } from "lucide-react";
+import { TrendingUp, Receipt, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -37,126 +37,13 @@ function formatCurrency(
   }).format(amount);
 }
 
-function TransactionOverviewSection({
+function TransactionPerformanceSection({
   metricData,
   metricLoading,
 }: {
   metricData?: any;
   metricLoading: boolean;
 }) {
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <CardTitle className="text-xl font-semibold">
-                Transaction Overview
-              </CardTitle>
-              <CardDescription className="text-sm">
-                All-time transaction summary and totals
-              </CardDescription>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Total Revenue
-              </p>
-            </div>
-            {metricLoading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <div className="space-y-1">
-                <p className="text-2xl font-bold tabular-nums">
-                  {formatCurrency(metricData?.total_revenue)}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Total Expenses
-              </p>
-            </div>
-            {metricLoading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <div className="space-y-1">
-                <p className="text-2xl font-bold tabular-nums">
-                  {formatCurrency(metricData?.total_spent)}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <div
-                className={cn(
-                  "w-2 h-2 rounded-full",
-                  (metricData?.net_profit ?? 0) >= 0
-                    ? "bg-emerald-500"
-                    : "bg-red-500",
-                )}
-              ></div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Net Profit
-              </p>
-            </div>
-            {metricLoading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <div className="space-y-1">
-                <p
-                  className={cn(
-                    "text-2xl font-bold tabular-nums",
-                    (metricData?.net_profit ?? 0) >= 0
-                      ? "text-emerald-600"
-                      : "text-red-600",
-                  )}
-                >
-                  {formatCurrency(metricData?.net_profit)}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Total Transactions
-              </p>
-            </div>
-            {metricLoading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <div className="space-y-1">
-                <p className="text-2xl font-bold tabular-nums">
-                  {metricData?.total_transactions?.toLocaleString() ?? 0}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function TransactionPerformanceSection() {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950">
@@ -175,7 +62,10 @@ function TransactionPerformanceSection() {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <TransactionPerformanceChart />
+        <TransactionPerformanceChart
+          metricData={metricData}
+          metricLoading={metricLoading}
+        />
       </CardContent>
     </Card>
   );
@@ -209,9 +99,16 @@ function TransactionDetailsSection({
               <Receipt className="h-5 w-5 text-slate-600 dark:text-slate-400" />
             </div>
             <div>
-              <CardTitle className="text-xl font-semibold">
-                Transaction Details
-              </CardTitle>
+              <div className="flex items-baseline gap-3">
+                <CardTitle className="text-xl font-semibold">
+                  Transaction Details
+                </CardTitle>
+                {!isLoading && data?.transactions && (
+                  <span className="text-lg font-medium text-muted-foreground tabular-nums">
+                    {data.transactions.length} transactions
+                  </span>
+                )}
+              </div>
               <CardDescription className="text-sm">
                 Browse and manage all transactions
               </CardDescription>
@@ -300,14 +197,11 @@ export default function TransactionsPage() {
 
   return (
     <div className="container space-y-8">
-      {/* Static Transaction Overview Section */}
-      <TransactionOverviewSection
+      {/* Transaction Performance Section */}
+      <TransactionPerformanceSection
         metricData={metricData}
         metricLoading={metricLoading}
       />
-
-      {/* Transaction Performance Section */}
-      <TransactionPerformanceSection />
 
       {/* Transaction Details Section */}
       <TransactionDetailsSection

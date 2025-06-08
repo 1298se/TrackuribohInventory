@@ -23,9 +23,33 @@ export function InventoryHistoryGraph({
   catalogId,
 }: InventoryHistoryGraphProps) {
   const isMobile = useIsMobile();
-  const [days, setDays] = useState<number | null>(null);
+  const [days, setDays] = useState<string | undefined>(undefined);
 
-  const { data, error, isLoading } = useInventoryPerformance(catalogId, days);
+  // Helper function to convert string time range to API days parameter
+  const timeRangeToDays = (timeRange: string | undefined): number | null => {
+    if (!timeRange) return null;
+
+    switch (timeRange) {
+      case "7d":
+        return 7;
+      case "30d":
+        return 30;
+      case "90d":
+        return 90;
+      case "1y":
+        return 365;
+      case "all":
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  const daysNumber = timeRangeToDays(days);
+  const { data, error, isLoading } = useInventoryPerformance(
+    catalogId,
+    daysNumber,
+  );
 
   if (error) {
     return (
@@ -44,11 +68,11 @@ export function InventoryHistoryGraph({
             value={days}
             onChange={setDays}
             options={[
-              { label: "7d", value: 7 },
-              { label: "30d", value: 30 },
-              { label: "90d", value: 90 },
-              { label: "1yr", value: 365 },
-              { label: "All time", value: null },
+              { label: "7d", value: "7d" },
+              { label: "30d", value: "30d" },
+              { label: "90d", value: "90d" },
+              { label: "1y", value: "1y" },
+              { label: "All time", value: "all" },
             ]}
           />
         </div>
@@ -62,7 +86,7 @@ export function InventoryHistoryGraph({
           </div>
         ) : data.length === 0 ? (
           <EmptyState
-            message={`No inventory snapshots yet${days ? ` for the last ${days} days` : ""}`}
+            message={`No inventory snapshots yet${daysNumber ? ` for the last ${daysNumber} days` : ""}`}
           />
         ) : (
           <ChartContainer
