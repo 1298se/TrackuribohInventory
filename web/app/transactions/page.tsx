@@ -189,14 +189,14 @@ export default function TransactionsPage() {
   // Handle potential error state
   if (error) {
     return (
-      <div className="container space-y-4">
+      <div className="space-y-4">
         <ErrorState message={error.message || "Failed to load transactions."} />
       </div>
     );
   }
 
   return (
-    <div className="container space-y-8">
+    <div className="space-y-8">
       {/* Transaction Performance Section */}
       <TransactionPerformanceSection
         metricData={metricData}
