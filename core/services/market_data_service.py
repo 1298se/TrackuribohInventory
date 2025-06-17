@@ -158,20 +158,21 @@ def _compute_aggregated_metrics(
     listings: List[SKUListingResponse],
     sales_records: List[CardSaleResponse],
     days: int = 7,
-) -> tuple[int, int, float, Optional[float]]:
+) -> tuple[int, int, int, float, Optional[float]]:
     """
-    Compute total listings, total quantity, average daily sales velocity, and days of inventory.
+    Compute total listings, total quantity, total sales, average daily sales velocity, and days of inventory.
     """
     total_quantity = sum(listing.quantity for listing in listings)
     total_listings = len(listings)
-    sales_count = len(sales_records)
-    sales_velocity_daily_avg = sales_count / days if days > 0 else 0.0
+    total_sales = sum(sale.quantity for sale in sales_records)
+    sales_velocity_daily_avg = total_sales / days if days > 0 else 0.0
     days_of_inventory: Optional[float] = None
     if sales_velocity_daily_avg > 0 and total_quantity > 0:
         days_of_inventory = round(total_quantity / sales_velocity_daily_avg, 1)
     return (
         total_listings,
         total_quantity,
+        total_sales,
         round(sales_velocity_daily_avg, 2),
         days_of_inventory,
     )
@@ -182,6 +183,7 @@ def _build_sku_item(
     listings: List[SKUListingResponse],
     sales_records: List[CardSaleResponse],
     marketplace: str = "TCGPlayer",
+    sales_lookback_days: int = 7,
 ) -> SKUMarketDataItemResponseSchema:
     """Helper to build a SKUMarketDataItemResponseSchema for one SKU & marketplace."""
     # Apply outlier detection to listings before calculating depth levels
@@ -190,12 +192,13 @@ def _build_sku_item(
     depth_levels = calculate_cumulative_depth_levels(pruned_listings)
     # Calculate cumulative sales depth levels as well
     sales_depth_levels = calculate_cumulative_sales_depth_levels(sales_records)
-    total_listings, total_quantity, sales_velocity, days_of_inventory = (
-        _compute_aggregated_metrics(listings, sales_records)
+    total_listings, total_quantity, total_sales, sales_velocity, days_of_inventory = (
+        _compute_aggregated_metrics(listings, sales_records, sales_lookback_days)
     )
     market_data = SKUMarketDataResponseSchema(
         total_listings=total_listings,
         total_quantity=total_quantity,
+        total_sales=total_sales,
         sales_velocity=sales_velocity,
         days_of_inventory=days_of_inventory,
         cumulative_depth_levels=depth_levels,
@@ -268,7 +271,13 @@ async def get_market_data_for_sku(
         print(f"Error fetching TCGPlayer sales for SKU {sku_id}: {e}")
 
     # Build a single-item market data response using provided days
-    item = _build_sku_item(sku, listings, sales_records, marketplace="TCGPlayer")
+    item = _build_sku_item(
+        sku,
+        listings,
+        sales_records,
+        marketplace="TCGPlayer",
+        sales_lookback_days=sales_lookback_days,
+    )
     return {"market_data_items": [item]}
 
 
@@ -353,7 +362,13 @@ async def get_market_data_for_product(
                     )
                 ]
                 # Build per-SKU metrics including sales depth
-                item = _build_sku_item(sku, sku_listings, sku_sales_records)
+                item = _build_sku_item(
+                    sku,
+                    sku_listings,
+                    sku_sales_records,
+                    marketplace="TCGPlayer",
+                    sales_lookback_days=sales_lookback_days,
+                )
                 results.append(item)
             except Exception as e:
                 print(f"Error processing SKU {sku.id}: {e}")
@@ -362,10 +377,4 @@ async def get_market_data_for_product(
         print(f"Error fetching listings for product {product_id}: {e}")
         return {"market_data_items": []}
 
-    # Aggregate metrics using shared helper
-    total_listings, total_quantity, sales_velocity, days_of_inventory = (
-        _compute_aggregated_metrics(
-            all_listings, all_sales_records, sales_lookback_days
-        )
-    )
     return {"market_data_items": results}

@@ -151,16 +151,10 @@ export function MarketDepthWithMetrics({
         (s, i) => s + i.market_data.total_quantity,
         0,
       );
-      // Calculate total sales across all SKUs from cumulative sales depth levels
-      const total_sales = itemsForMarketplace.reduce((sum, item) => {
-        const salesLevels = item.market_data.cumulative_sales_depth_levels;
-        // The last entry in cumulative sales represents total sales for this SKU
-        const skuTotalSales =
-          salesLevels.length > 0
-            ? salesLevels[salesLevels.length - 1].cumulative_count
-            : 0;
-        return sum + skuTotalSales;
-      }, 0);
+      const total_sales = itemsForMarketplace.reduce(
+        (s, i) => s + i.market_data.total_sales,
+        0,
+      );
 
       // Calculate true sales velocity: total sales / lookback days
       const lookbackDays = salesLookbackDays || 7;
@@ -175,6 +169,7 @@ export function MarketDepthWithMetrics({
       return {
         total_listings,
         total_quantity,
+        total_sales,
         sales_velocity,
         days_of_inventory,
       };
@@ -193,46 +188,69 @@ export function MarketDepthWithMetrics({
       <div className="space-y-4">
         {/* Main metric and secondary metrics */}
         <div className="space-y-1">
-          <div className="flex items-baseline gap-4">
-            {isLoading ? (
-              <Skeleton className="h-10 w-32" />
-            ) : (
-              <>
-                <h2 className="text-3xl font-bold tracking-tight">
-                  {selectedMetrics?.total_quantity?.toLocaleString() || "0"}
-                </h2>
-                <span className="text-sm text-muted-foreground">
-                  Quantity Available
-                </span>
-              </>
+          <div className="flex items-start gap-8">
+            {/* Primary Metric */}
+            <div className="space-y-1">
+              {isLoading ? (
+                <Skeleton className="h-10 w-32" />
+              ) : (
+                <>
+                  <span className="text-sm text-muted-foreground">
+                    Quantity Available
+                  </span>
+                  <h2 className="text-3xl font-bold tracking-tight">
+                    {selectedMetrics?.total_quantity?.toLocaleString() || "0"}
+                  </h2>
+                </>
+              )}
+            </div>
+
+            {/* Secondary Metrics beside primary */}
+            {!isLoading && selectedMetrics && (
+              <div className="flex items-start gap-6">
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">
+                    Sales velocity
+                  </span>
+                  <div className="text-lg font-semibold text-muted-foreground tabular-nums">
+                    {selectedMetrics.sales_velocity} /day
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">
+                    Days of inventory
+                  </span>
+                  <div className="text-lg font-semibold text-muted-foreground tabular-nums">
+                    {selectedMetrics.days_of_inventory != null
+                      ? `${selectedMetrics.days_of_inventory} days`
+                      : "—"}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
-          {/* Secondary Metrics */}
+
+          {/* Chart Legend - Listings and Sales */}
           {!isLoading && selectedMetrics && (
             <div className="flex items-center gap-6 mt-3 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: "#3B82F6" }}
+                ></div>
                 <span className="text-muted-foreground">Listings:</span>
                 <span className="font-medium tabular-nums">
                   {selectedMetrics.total_listings?.toLocaleString() || "0"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                <span className="text-muted-foreground">Sales velocity:</span>
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: "#F97316" }}
+                ></div>
+                <span className="text-muted-foreground">Sales:</span>
                 <span className="font-medium tabular-nums">
-                  {selectedMetrics.sales_velocity} /day
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span className="text-muted-foreground">
-                  Days of inventory:
-                </span>
-                <span className="font-medium tabular-nums">
-                  {selectedMetrics.days_of_inventory != null
-                    ? `${selectedMetrics.days_of_inventory} days`
-                    : "—"}
+                  {selectedMetrics.total_sales?.toLocaleString() || "0"}
                 </span>
               </div>
             </div>

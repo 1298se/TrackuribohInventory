@@ -165,17 +165,17 @@ export function TransactionPerformanceChart({
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="space-y-1">
-          <div className="flex items-baseline gap-4">
+          <div className="space-y-1">
             {metricLoading ? (
               <Skeleton className="h-10 w-48" />
             ) : (
               <>
-                <h2 className="text-3xl font-bold tracking-tight">
-                  {formatCurrency(metricData?.net_profit || 0)}
-                </h2>
                 <span className="text-sm text-muted-foreground">
                   Net Profit
                 </span>
+                <h2 className="text-3xl font-bold tracking-tight">
+                  {formatCurrency(metricData?.net_profit || 0)}
+                </h2>
               </>
             )}
           </div>
@@ -183,14 +183,20 @@ export function TransactionPerformanceChart({
           {!metricLoading && metricData && (
             <div className="flex items-center gap-6 mt-3 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: "#10b981" }}
+                ></div>
                 <span className="text-muted-foreground">Revenue:</span>
                 <span className="font-medium tabular-nums">
                   {formatCurrency(metricData.total_revenue || 0)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: "#3b82f6" }}
+                ></div>
                 <span className="text-muted-foreground">Expenses:</span>
                 <span className="font-medium tabular-nums">
                   {formatCurrency(metricData.total_spent || 0)}

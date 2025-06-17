@@ -72,40 +72,42 @@ export function PriceHistoryChart({
   return (
     <div className="space-y-4">
       {/* Header with current price and trend */}
-      <div className="flex items-baseline gap-4">
+      <div className="space-y-1">
         {isLoading ? (
           <Skeleton className="h-8 w-32" />
         ) : data.length > 0 ? (
           <>
-            <h2 className="text-3xl font-bold tracking-tight">
-              {formatCurrency(
-                data[data.length - 1]?.price?.amount || 0,
-                currency,
-              )}
-            </h2>
             <span className="text-sm text-muted-foreground">Current Price</span>
-            {priceChange && (
-              <div
-                className={cn(
-                  "flex items-center gap-1 text-sm font-medium",
-                  priceChange.isPositive ? "text-green-600" : "text-red-600",
+            <div className="flex items-baseline gap-4">
+              <h2 className="text-3xl font-bold tracking-tight">
+                {formatCurrency(
+                  data[data.length - 1]?.price?.amount || 0,
+                  currency,
                 )}
-              >
-                {priceChange.isPositive ? (
-                  <TrendingUp className="h-4 w-4" />
-                ) : (
-                  <TrendingDown className="h-4 w-4" />
-                )}
-                <span>
-                  {priceChange.isPositive ? "+" : ""}
-                  {formatCurrencyCompact(priceChange.absolute)}
-                </span>
-                <span className="text-xs">
-                  ({priceChange.isPositive ? "+" : ""}
-                  {priceChange.percentage.toFixed(2)}%)
-                </span>
-              </div>
-            )}
+              </h2>
+              {priceChange && (
+                <div
+                  className={cn(
+                    "flex items-center gap-1 text-sm font-medium",
+                    priceChange.isPositive ? "text-green-600" : "text-red-600",
+                  )}
+                >
+                  {priceChange.isPositive ? (
+                    <TrendingUp className="h-4 w-4" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4" />
+                  )}
+                  <span>
+                    {priceChange.isPositive ? "+" : ""}
+                    {formatCurrencyCompact(priceChange.absolute)}
+                  </span>
+                  <span className="text-xs">
+                    ({priceChange.isPositive ? "+" : ""}
+                    {priceChange.percentage.toFixed(2)}%)
+                  </span>
+                </div>
+              )}
+            </div>
           </>
         ) : null}
       </div>

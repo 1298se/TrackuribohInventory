@@ -145,6 +145,7 @@ class SKUMarketDataResponseSchema(BaseModel):
 
     total_listings: int
     total_quantity: int
+    total_sales: int
     sales_velocity: Annotated[float, AfterValidator(lambda x: round(x, 1))]
     days_of_inventory: Optional[float]
     cumulative_depth_levels: list[

@@ -287,12 +287,9 @@ export function InventoryItemDetails({
         <CardContent className="p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Quantity In Stock
-                </p>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Quantity In Stock
+              </p>
               {itemLoading ? (
                 <div className="space-y-1">
                   <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
@@ -307,12 +304,9 @@ export function InventoryItemDetails({
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Total Cost
-                </p>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Total Cost
+              </p>
               {itemLoading ? (
                 <div className="space-y-1">
                   <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
@@ -331,12 +325,9 @@ export function InventoryItemDetails({
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Market Value
-                </p>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Market Value
+              </p>
               {itemLoading ? (
                 <div className="space-y-1">
                   <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
@@ -357,18 +348,9 @@ export function InventoryItemDetails({
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    (totalProfitLoss ?? 0) >= 0
-                      ? "bg-emerald-500"
-                      : "bg-red-500"
-                  }`}
-                ></div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Unrealized P&L
-                </p>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Unrealized P&L
+              </p>
               {itemLoading ? (
                 <div className="space-y-1">
                   <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>

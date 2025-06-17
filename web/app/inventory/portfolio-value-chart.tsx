@@ -131,41 +131,43 @@ export function PortfolioValueChart({
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="space-y-1">
-          <div className="flex items-baseline gap-4">
+          <div className="space-y-1">
             {metricsLoading ? (
               <Skeleton className="h-10 w-48" />
             ) : (
               <>
-                <h2 className="text-3xl font-bold tracking-tight">
-                  {formatCurrency(currentMetrics?.total_market_value || 0)}
-                </h2>
                 <span className="text-sm text-muted-foreground">
                   Market Value
                 </span>
-                {portfolioChange && (
-                  <div
-                    className={cn(
-                      "flex items-center gap-1 text-sm font-medium",
-                      portfolioChange.isPositive
-                        ? "text-green-600"
-                        : "text-red-600",
-                    )}
-                  >
-                    {portfolioChange.isPositive ? (
-                      <TrendingUp className="h-4 w-4" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4" />
-                    )}
-                    <span>
-                      {portfolioChange.isPositive ? "+" : ""}
-                      {formatCurrencyCompact(portfolioChange.absolute)}
-                    </span>
-                    <span className="text-xs">
-                      ({portfolioChange.isPositive ? "+" : ""}
-                      {portfolioChange.percentage.toFixed(2)}%)
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-baseline gap-4">
+                  <h2 className="text-3xl font-bold tracking-tight">
+                    {formatCurrency(currentMetrics?.total_market_value || 0)}
+                  </h2>
+                  {portfolioChange && (
+                    <div
+                      className={cn(
+                        "flex items-center gap-1 text-sm font-medium",
+                        portfolioChange.isPositive
+                          ? "text-green-600"
+                          : "text-red-600",
+                      )}
+                    >
+                      {portfolioChange.isPositive ? (
+                        <TrendingUp className="h-4 w-4" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4" />
+                      )}
+                      <span>
+                        {portfolioChange.isPositive ? "+" : ""}
+                        {formatCurrencyCompact(portfolioChange.absolute)}
+                      </span>
+                      <span className="text-xs">
+                        ({portfolioChange.isPositive ? "+" : ""}
+                        {portfolioChange.percentage.toFixed(2)}%)
+                      </span>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -173,7 +175,10 @@ export function PortfolioValueChart({
           {!metricLoading && metricData && (
             <div className="flex items-center gap-6 mt-3 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: "#6366f1" }}
+                ></div>
                 <span className="text-muted-foreground">Total Cost:</span>
                 <span className="font-medium tabular-nums">
                   {formatCurrency(metricData.total_inventory_cost || 0)}
@@ -181,12 +186,8 @@ export function PortfolioValueChart({
               </div>
               <div className="flex items-center gap-2">
                 <div
-                  className={cn(
-                    "w-2 h-2 rounded-full",
-                    (metricData.unrealised_profit || 0) >= 0
-                      ? "bg-emerald-500"
-                      : "bg-red-500",
-                  )}
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: "#10b981" }}
                 ></div>
                 <span className="text-muted-foreground">Unrealized P&L:</span>
                 <span
