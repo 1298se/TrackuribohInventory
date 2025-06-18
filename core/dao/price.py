@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, date, timedelta
 from typing import Union
 import uuid
+from uuid import UUID
 from typing import Sequence, Dict
 from dataclasses import dataclass
 
@@ -312,11 +313,108 @@ def normalize_price_history(
     return result
 
 
+def fetch_bulk_sku_price_histories(
+    session: Session, sku_ids: list[UUID], start_date: datetime, end_date: datetime
+) -> dict[UUID, list[dict]]:
+    """
+    Fetch price histories for multiple SKUs in bulk to avoid N+1 queries.
+
+    Returns a dict mapping sku_id -> list of price history data points.
+    """
+    if not sku_ids:
+        return {}
+
+    # Bulk fetch all price changes for all SKUs in the date range
+    price_changes_query = (
+        select(SKUPriceDataSnapshot)
+        .where(
+            SKUPriceDataSnapshot.sku_id.in_(sku_ids),
+            SKUPriceDataSnapshot.snapshot_datetime > start_date,
+            SKUPriceDataSnapshot.snapshot_datetime <= end_date,
+        )
+        .order_by(
+            SKUPriceDataSnapshot.sku_id, SKUPriceDataSnapshot.snapshot_datetime.asc()
+        )
+    )
+
+    # Bulk fetch initial prices for all SKUs (prices before start_date for forward-filling)
+    # Use a window function to get the latest price per SKU before start_date
+    from sqlalchemy import func
+
+    initial_prices_subquery = (
+        select(
+            SKUPriceDataSnapshot,
+            func.row_number()
+            .over(
+                partition_by=SKUPriceDataSnapshot.sku_id,
+                order_by=SKUPriceDataSnapshot.snapshot_datetime.desc(),
+            )
+            .label("rn"),
+        ).where(
+            SKUPriceDataSnapshot.sku_id.in_(sku_ids),
+            SKUPriceDataSnapshot.snapshot_datetime <= start_date,
+        )
+    ).subquery()
+
+    initial_prices_query = select(
+        initial_prices_subquery.c.sku_id,
+        initial_prices_subquery.c.snapshot_datetime,
+        initial_prices_subquery.c.lowest_listing_price_total,
+    ).where(initial_prices_subquery.c.rn == 1)
+
+    # Execute both queries
+    price_changes_result = session.execute(price_changes_query).scalars().all()
+    initial_prices_result = session.execute(initial_prices_query).all()
+
+    # Group results by SKU ID
+    price_changes_by_sku: dict[UUID, list] = {}
+    initial_prices_by_sku: dict[UUID, object] = {}
+
+    for change in price_changes_result:
+        if change.sku_id not in price_changes_by_sku:
+            price_changes_by_sku[change.sku_id] = []
+        price_changes_by_sku[change.sku_id].append(change)
+
+    # Process initial prices - these are now tuples (sku_id, snapshot_datetime, lowest_listing_price_total)
+    for sku_id, snapshot_datetime, lowest_listing_price_total in initial_prices_result:
+        if sku_id not in initial_prices_by_sku:
+            # Create a simple object with the necessary attributes
+            class InitialPrice:
+                def __init__(
+                    self, sku_id, snapshot_datetime, lowest_listing_price_total
+                ):
+                    self.sku_id = sku_id
+                    self.snapshot_datetime = snapshot_datetime
+                    self.lowest_listing_price_total = lowest_listing_price_total
+
+            initial_prices_by_sku[sku_id] = InitialPrice(
+                sku_id, snapshot_datetime, lowest_listing_price_total
+            )
+
+    # Generate normalized price history for each SKU
+    result = {}
+    for sku_id in sku_ids:
+        price_changes = price_changes_by_sku.get(sku_id, [])
+        initial_price = initial_prices_by_sku.get(sku_id)
+
+        price_data = normalize_price_history(
+            price_changes=price_changes,
+            initial_price=initial_price,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        result[sku_id] = price_data
+
+    return result
+
+
 # What this module exports
 __all__ = [
     "latest_price_subquery",
     "price_24h_ago_subquery",
     "fetch_sku_price_snapshots",
+    "fetch_bulk_sku_price_histories",
     "normalize_price_history",
     "date_to_datetime_utc",
     "PriceSnapshot",

@@ -7,13 +7,20 @@ from datetime import datetime, date
 from uuid import UUID
 
 
+# Schema for SKU price history
+class InventoryPriceHistoryItemSchema(BaseModel):
+    datetime: datetime
+    price: MoneySchema
+
+
 class InventoryItemResponseSchema(BaseModel):
     sku: SKUWithProductResponseSchema
     quantity: int
     average_cost_per_item: MoneySchema
     lowest_listing_price: MoneySchema | None
-    price_change_24h_amount: MoneySchema | None
-    price_change_24h_percentage: float | None
+    price_change_7d_amount: MoneySchema | None
+    price_change_7d_percentage: float | None
+    price_history_7d: list[InventoryPriceHistoryItemSchema] | None
 
 
 class InventoryResponseSchema(BaseModel):
@@ -49,12 +56,6 @@ class InventoryHistoryItemSchema(BaseModel):
     total_cost: float
     total_market_value: float
     unrealised_profit: float
-
-
-# Schema for SKU price history
-class InventoryPriceHistoryItemSchema(BaseModel):
-    datetime: datetime
-    price: MoneySchema
 
 
 class InventoryPriceHistoryResponseSchema(BaseModel):

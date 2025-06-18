@@ -36,14 +36,21 @@ import {
  * 5) Inventory Schemas
  * ----------------------------------------------------- */
 
+// Price History Item Schema (needs to be defined first)
+export const InventoryPriceHistoryItemSchema = z.object({
+  datetime: z.string().datetime(),
+  price: MoneySchema,
+});
+
 // InventoryItemResponseSchema
 export const InventoryItemResponseSchema = z.object({
   sku: SKUWithProductResponseSchema,
   quantity: z.number(),
   average_cost_per_item: MoneySchema,
   lowest_listing_price: MoneySchema.nullable(),
-  price_change_24h_amount: MoneySchema.nullable(),
-  price_change_24h_percentage: z.number().nullable(),
+  price_change_7d_amount: MoneySchema.nullable(),
+  price_change_7d_percentage: z.number().nullable(),
+  price_history_7d: z.array(InventoryPriceHistoryItemSchema).nullable(),
 });
 
 // InventoryResponseSchema
@@ -124,11 +131,6 @@ export type InventoryHistoryItem = z.infer<typeof InventoryHistoryItemSchema>;
 /* -----------------------------------------------------
  * 7) Inventory Price History Schemas
  * ----------------------------------------------------- */
-
-export const InventoryPriceHistoryItemSchema = z.object({
-  datetime: z.string().datetime(),
-  price: MoneySchema,
-});
 
 export const InventoryPriceHistoryResponseSchema = z.object({
   items: z.array(InventoryPriceHistoryItemSchema),

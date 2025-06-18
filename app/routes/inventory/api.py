@@ -35,6 +35,7 @@ from core.dao.price import (
     latest_price_subquery,
     price_24h_ago_subquery,
     fetch_sku_price_snapshots,
+    fetch_bulk_sku_price_histories,
     normalize_price_history,
     date_to_datetime_utc,
 )
@@ -119,7 +120,7 @@ def get_inventory_catalogs(
 
 
 @router.get("/", response_model=InventoryResponseSchema)
-def get_inventory(
+async def get_inventory(
     session: Session = Depends(get_db_session),
     query: str | None = None,
     catalog_id: UUID | None = None,
@@ -131,6 +132,22 @@ def get_inventory(
         inventory_query
     ).all()
 
+    # Bulk fetch 7-day price histories for all SKUs to avoid N+1 queries
+    sku_ids = [sku.id for sku, _, _, _, _ in skus_with_quantity]
+    start_date = datetime.now(datetime_timezone.utc) - timedelta(days=7)
+    end_date = datetime.now(datetime_timezone.utc)
+
+    try:
+        bulk_price_histories = fetch_bulk_sku_price_histories(
+            session=session, sku_ids=sku_ids, start_date=start_date, end_date=end_date
+        )
+    except Exception as e:
+        # Log the error but don't fail the request
+        import logging
+
+        logging.warning(f"Failed to fetch bulk 7d price histories: {e}")
+        bulk_price_histories = {}
+
     inventory_items = []
     for (
         sku,
@@ -139,18 +156,37 @@ def get_inventory(
         lowest_listing_price,
         price_24h_ago,
     ) in skus_with_quantity:
-        # Calculate 24h price change
-        if (
-            lowest_listing_price is not None
-            and price_24h_ago is not None
-            and price_24h_ago != 0
-        ):
-            change_amount = lowest_listing_price - price_24h_ago
-            change_percentage = (change_amount / price_24h_ago) * 100
-            price_change_24h_amount = MoneySchema(amount=change_amount, currency="USD")
-        else:
-            change_percentage = None
-            price_change_24h_amount = None
+        # Get 7-day price history for this SKU from bulk results
+        price_history_7d = None
+        price_change_7d_amount = None
+        price_change_7d_percentage = None
+
+        price_data = bulk_price_histories.get(sku.id, [])
+
+        # Convert to schema format
+        if price_data:
+            price_history_7d = [
+                InventoryPriceHistoryItemSchema(
+                    datetime=data_point["datetime"],
+                    price=MoneySchema(
+                        amount=data_point["price"],
+                        currency="USD",
+                    ),
+                )
+                for data_point in price_data
+            ]
+
+            # Calculate 7-day change if we have enough data
+            if len(price_data) >= 2:
+                first_price = price_data[0]["price"]
+                last_price = price_data[-1]["price"]
+                if first_price != 0:
+                    change_amount = last_price - first_price
+                    change_percentage = (change_amount / first_price) * 100
+                    price_change_7d_amount = MoneySchema(
+                        amount=change_amount, currency="USD"
+                    )
+                    price_change_7d_percentage = change_percentage
 
         inventory_items.append(
             InventoryItemResponseSchema(
@@ -164,8 +200,9 @@ def get_inventory(
                 )
                 if lowest_listing_price is not None
                 else None,
-                price_change_24h_amount=price_change_24h_amount,
-                price_change_24h_percentage=change_percentage,
+                price_change_7d_amount=price_change_7d_amount,
+                price_change_7d_percentage=price_change_7d_percentage,
+                price_history_7d=price_history_7d,
             )
         )
 
@@ -248,18 +285,59 @@ def get_inventory_item_details(
         else None
     )
 
-    # Calculate 24h price change
-    if (
-        lowest_listing_price_total is not None
-        and price_24h_ago_total is not None
-        and price_24h_ago_total != 0
-    ):
-        change_amount = lowest_listing_price_total - price_24h_ago_total
-        change_percentage = (change_amount / price_24h_ago_total) * 100
-        price_change_24h_amount = MoneySchema(amount=change_amount, currency="USD")
-    else:
-        change_percentage = None
-        price_change_24h_amount = None
+    # Get 7-day price history for sparkline
+    price_history_7d = None
+    price_change_7d_amount = None
+    price_change_7d_percentage = None
+
+    try:
+        # Calculate date range for 7 days
+        start_date = datetime.now(datetime_timezone.utc) - timedelta(days=7)
+        end_date = datetime.now(datetime_timezone.utc)
+
+        # Get raw price history from the database
+        price_changes, initial_price = fetch_sku_price_snapshots(
+            session=session, sku_id=sku_id, start_date=start_date, end_date=end_date
+        )
+
+        # Normalize the price data
+        price_data = normalize_price_history(
+            price_changes=price_changes,
+            initial_price=initial_price,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Convert to schema format
+        if price_data:
+            price_history_7d = [
+                InventoryPriceHistoryItemSchema(
+                    datetime=data_point["datetime"],
+                    price=MoneySchema(
+                        amount=data_point["price"],
+                        currency="USD",
+                    ),
+                )
+                for data_point in price_data
+            ]
+
+            # Calculate 7-day change if we have enough data
+            if len(price_data) >= 2:
+                first_price = price_data[0]["price"]
+                last_price = price_data[-1]["price"]
+                if first_price != 0:
+                    change_amount = last_price - first_price
+                    change_percentage = (change_amount / first_price) * 100
+                    price_change_7d_amount = MoneySchema(
+                        amount=change_amount, currency="USD"
+                    )
+                    price_change_7d_percentage = change_percentage
+
+    except Exception as e:
+        # Log the error but don't fail the request
+        import logging
+
+        logging.warning(f"Failed to fetch 7d price history for SKU {sku_id}: {e}")
 
     # Manually construct the response object
     response_data = InventoryItemResponseSchema(
@@ -267,8 +345,9 @@ def get_inventory_item_details(
         quantity=total_quantity,
         average_cost_per_item=avg_cost,
         lowest_listing_price=lowest_listing,
-        price_change_24h_amount=price_change_24h_amount,
-        price_change_24h_percentage=change_percentage,
+        price_change_7d_amount=price_change_7d_amount,
+        price_change_7d_percentage=price_change_7d_percentage,
+        price_history_7d=price_history_7d,
     )
 
     return response_data
