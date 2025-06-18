@@ -20,7 +20,9 @@ export default function RootLayout({
         <SWRConfig value={{ revalidateOnFocus: false }}>
           <div className="flex min-h-screen flex-col">
             <TopNav />
-            <main className="flex-1 p-6">{children}</main>
+            <main className="flex-1 p-6">
+              <div className="container">{children}</div>
+            </main>
           </div>
         </SWRConfig>
       </body>

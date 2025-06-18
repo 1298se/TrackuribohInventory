@@ -1,4 +1,3 @@
-import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "../../components/data-table";
 import { InventoryItemResponse } from "./schemas";
 import {
@@ -9,27 +8,32 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Warehouse, Minus, Triangle } from "lucide-react";
+import { Warehouse } from "lucide-react";
 import { cn, formatCurrencyNumber } from "@/lib/utils";
 import { type Column } from "../../components/data-table";
 import { SKUDisplay } from "@/components/sku-display";
 import { useRouter } from "next/navigation";
 import { SearchInput } from "@/components/search-input";
+import { SparklineChart } from "@/components/sparkline-chart";
+import { LineChart, Line, ResponsiveContainer } from "recharts";
 
-const ImageLoading = () => <Skeleton className="h-16 w-16 rounded-md" />;
-const ProductLoading = () => (
-  <div className="space-y-2">
-    <Skeleton className="h-4 w-[250px]" />
-    <Skeleton className="h-4 w-[200px]" />
-  </div>
-);
-const DefaultLoading = () => <Skeleton className="h-4 w-24" />;
+const SparklineCell = ({
+  inventoryItem,
+}: {
+  inventoryItem: InventoryItemResponse;
+}) => {
+  return (
+    <SparklineChart
+      data={inventoryItem.price_history_7d || []}
+      isLoading={false}
+    />
+  );
+};
 
 export const columns: Column<InventoryItemResponse, any>[] = [
   {
     accessorKey: "sku.product.image_url",
     header: "Image",
-    loading: ImageLoading,
     cell: ({ row }) => {
       const imageUrl = row.original.sku.product.image_url;
 
@@ -47,7 +51,6 @@ export const columns: Column<InventoryItemResponse, any>[] = [
   {
     accessorKey: "sku.product.name",
     header: "Product",
-    loading: ProductLoading,
     cell: ({ row }) => {
       return <SKUDisplay sku={row.original.sku} />;
     },
@@ -56,7 +59,6 @@ export const columns: Column<InventoryItemResponse, any>[] = [
     accessorKey: "quantity",
     header: "Quantity",
     align: "right",
-    loading: DefaultLoading,
     cell: ({ row }) => {
       return (
         <div className="font-medium text-right tabular-nums">
@@ -97,78 +99,68 @@ export const columns: Column<InventoryItemResponse, any>[] = [
     },
   },
   {
-    accessorKey: "price_change_24h_amount.amount",
-    header: "24h Change",
+    id: "price_chart_7d",
+    header: "7-Day Change",
     align: "right",
     cell: ({ row }) => {
-      const changeAmount = row.original.price_change_24h_amount;
-      const changePercentage = row.original.price_change_24h_percentage;
+      return <SparklineCell inventoryItem={row.original} />;
+    },
+  },
+  {
+    id: "price_chart_sparkline",
+    header: "",
+    align: "right",
+    cell: ({ row }) => {
+      const inventoryItem = row.original;
+      const data = inventoryItem.price_history_7d || [];
 
-      if (!changeAmount || changePercentage === null) {
-        return <div className="text-muted-foreground text-right">N/A</div>;
+      if (!data || data.length === 0) {
+        return <div className="w-24 h-8 ml-auto" />;
       }
 
-      const amount = changeAmount.amount;
+      const chartData = data.map((item, index) => ({
+        index,
+        price: item.price.amount,
+      }));
 
-      // Show "—" for zero change
-      if (changePercentage === 0) {
-        return (
-          <div className="text-muted-foreground flex items-center justify-end gap-1">
-            <Minus className="h-3 w-3" />
-            <span>—</span>
-          </div>
-        );
-      }
-
-      const formattedNumber = new Intl.NumberFormat("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-        signDisplay: "never",
-      }).format(Math.abs(amount));
-
-      const formattedPercentage = new Intl.NumberFormat("en-US", {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-        signDisplay: "never",
-      }).format(Math.abs(changePercentage));
-
-      const isPositive = amount > 0;
-      const isNegative = amount < 0;
-      const sign = isPositive ? "+" : "-";
+      const firstPrice = data[0]?.price?.amount || 0;
+      const lastPrice = data[data.length - 1]?.price?.amount || 0;
+      const absoluteChange = lastPrice - firstPrice;
+      const isPositive = absoluteChange > 0;
+      const isNegative = absoluteChange < 0;
+      const lineColor = isPositive
+        ? "#16a34a"
+        : isNegative
+          ? "#dc2626"
+          : "#6b7280";
 
       return (
-        <div
-          className={cn(
-            "font-medium flex items-center justify-end gap-1",
-            isPositive
-              ? "text-green-600"
-              : isNegative
-                ? "text-red-600"
-                : "text-muted-foreground",
-          )}
-        >
-          <div className="flex flex-col items-end">
-            <div className="flex items-baseline gap-0.5">
-              <span className="text-xs">{sign}$</span>
-              <span className="tabular-nums">{formattedNumber}</span>
-            </div>
-            <span className="text-sm tabular-nums">
-              <span className="text-xs">{sign}</span>
-              {formattedPercentage}%
-            </span>
-          </div>
-          {isPositive ? (
-            <Triangle className="h-3 w-3 flex-shrink-0 fill-current" />
-          ) : (
-            <Triangle className="h-3 w-3 flex-shrink-0 rotate-180 fill-current" />
-          )}
+        <div className="w-24 h-8 ml-auto">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{ top: 2, right: 2, left: 2, bottom: 2 }}
+              syncId={undefined}
+              compact={true}
+            >
+              <Line
+                type="monotone"
+                dataKey="price"
+                stroke={lineColor}
+                strokeWidth={1.5}
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       );
     },
   },
   {
     id: "unrealized_profit",
-    header: "Unrealized Profit",
+    header: "Unrealized P&L",
     align: "right",
     cell: ({ row }) => {
       const lowestListingPrice = row.original.lowest_listing_price;
@@ -206,11 +198,11 @@ export const columns: Column<InventoryItemResponse, any>[] = [
           )}
         >
           <div className="flex items-baseline gap-0.5">
-            <span className="text-xs">{sign}$</span>
+            <span>{sign}$</span>
             <span className="tabular-nums">{formattedNumber}</span>
           </div>
           <span className="text-sm tabular-nums">
-            <span className="text-xs">{sign}</span>
+            <span>{sign}</span>
             {percentFormatted}%
           </span>
         </div>

@@ -87,7 +87,7 @@ export function DataTable<TData, TValue>({
                       key={header.id}
                       className={cn(
                         align === "center" && "text-center",
-                        align === "right" && "text-right",
+                        align === "right" && "text-right pr-4",
                       )}
                     >
                       {header.isPlaceholder
@@ -111,7 +111,7 @@ export function DataTable<TData, TValue>({
                       key={columnIndex}
                       className={cn(
                         column.align === "center" && "text-center",
-                        column.align === "right" && "text-right",
+                        column.align === "right" && "text-right pr-4",
                       )}
                     >
                       {column.loading ? (
@@ -149,7 +149,7 @@ export function DataTable<TData, TValue>({
                         key={cell.id}
                         className={cn(
                           align === "center" && "text-center",
-                          align === "right" && "text-right",
+                          align === "right" && "text-right pr-4",
                         )}
                       >
                         {flexRender(
