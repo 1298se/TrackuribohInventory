@@ -1,7 +1,7 @@
 # secrets.tf
 
 resource "aws_secretsmanager_secret" "db_credentials" {
-  name = "${var.project_name}/db_credentials" # e.g., trackuriboh/db_credentials
+  name = "${var.project_name}/db_credentials" # e.g., codex-tcg/db_credentials
 
   tags = {
     Name      = "${var.project_name}-db-credentials"
@@ -13,9 +13,9 @@ resource "aws_secretsmanager_secret_version" "db_credentials_version" {
   secret_id     = aws_secretsmanager_secret.db_credentials.id
   secret_string = jsonencode({
     # We get username, host, port directly from the RDS instance resource
-    username = aws_db_instance.trackuriboh_db.username
-    host     = aws_db_instance.trackuriboh_db.address
-    port     = aws_db_instance.trackuriboh_db.port
+    username = aws_db_instance.codex_tcg_db.username
+    host     = aws_db_instance.codex_tcg_db.address
+    port     = aws_db_instance.codex_tcg_db.port
     dbname   = var.db_name
     # The password comes from the sensitive input variable
     password = var.db_password
@@ -29,7 +29,7 @@ resource "aws_secretsmanager_secret_version" "db_credentials_version" {
 }
 
 resource "aws_secretsmanager_secret" "tcgplayer_credentials" {
-  name = "${var.project_name}/tcgplayer_credentials" # e.g., trackuriboh/tcgplayer_credentials
+  name = "${var.project_name}/tcgplayer_credentials" # e.g., codex-tcg/tcgplayer_credentials
 
   tags = {
     Name      = "${var.project_name}-tcgplayer-credentials"

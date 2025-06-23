@@ -33,7 +33,7 @@ export function TopNav() {
         <div className="flex items-center space-x-2 md:space-x-4">
           <Link href="/inventory" className="flex items-center space-x-2">
             <Package2 className="h-5 w-5 md:h-6 md:w-6" />
-            <span className="font-bold text-sm md:text-base">TrackUriboh</span>
+            <span className="font-bold text-sm md:text-base">Codex.tcg</span>
           </Link>
         </div>
 

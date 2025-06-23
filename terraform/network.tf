@@ -3,7 +3,7 @@
 # Define a security group for the Fargate task
 resource "aws_security_group" "cron_task_sg" {
   name        = "${var.project_name}-cron-task-sg"
-  description = "Allow outbound HTTPS, outbound PG to RDS, and allow RDS ingress from this SG"
+  description = "Security group for Codex.tcg cron tasks"
   vpc_id      = var.vpc_id # Use the VPC ID variable
 
   # Allow all outbound traffic (common for tasks needing internet/AWS APIs)
@@ -43,7 +43,7 @@ resource "aws_security_group" "cron_task_sg" {
   protocol                 = "tcp"
   security_group_id        = local.rds_security_group_ids[count.index] # Target existing RDS SG
   source_security_group_id = aws_security_group.cron_task_sg.id        # Allow from our new task SG
-  description              = "Allow Ingress from Trackuriboh Cron Task SG"
+  description              = "Allow Ingress from Codex.tcg Cron Task SG"
 } */
 
 
@@ -69,7 +69,7 @@ resource "aws_security_group" "rds_local_dev_access" {
   }
 
   ingress {
-    description      = "Allow Ingress from Trackuriboh Cron Task SG"
+    description      = "Allow Ingress from Codex.tcg Cron Task SG"
     from_port        = 5432
     to_port          = 5432
     protocol         = "tcp"

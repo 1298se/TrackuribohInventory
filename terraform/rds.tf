@@ -1,13 +1,13 @@
 # rds.tf
 
 # Define the existing RDS instance to manage with Terraform
-resource "aws_db_instance" "trackuriboh_db" {
-  identifier             = "trackuriboh-inventory-db" # The actual name of the DB instance in AWS
+resource "aws_db_instance" "codex_tcg_db" {
+  identifier             = "codex-tcg-inventory-db" # The actual name of the DB instance in AWS
   instance_class         = "db.t3.micro"
   allocated_storage      = 20
   storage_type           = "gp2"
   engine                 = "postgres"
-  engine_version         = "16.4"
+  engine_version         = "16.8"
   username               = "postgres"
   # NOTE: The password should NOT be stored here.
   # It should be managed outside Terraform or rotated after import if unknown.
@@ -43,7 +43,7 @@ resource "aws_db_instance" "trackuriboh_db" {
   }
 
   tags = {
-    Name        = "trackuriboh-inventory-db"
+    Name        = "codex-tcg-inventory-db"
     ManagedBy   = "Terraform"
     # Add any other existing tags or desired tags
   }
@@ -52,10 +52,10 @@ resource "aws_db_instance" "trackuriboh_db" {
 # Output the database endpoint for reference (useful for other resources)
 output "db_endpoint" {
   description = "The connection endpoint for the RDS instance"
-  value       = aws_db_instance.trackuriboh_db.endpoint
+  value       = aws_db_instance.codex_tcg_db.endpoint
 }
 
 output "db_port" {
   description = "The port for the RDS instance"
-  value       = aws_db_instance.trackuriboh_db.port
+  value       = aws_db_instance.codex_tcg_db.port
 } 

@@ -60,9 +60,9 @@ endef
 
 # Generic run function
 define docker_run
-	docker stop trackuriboh-$(1) || true
-	docker rm trackuriboh-$(1) || true
-	docker run -d --name trackuriboh-$(1) $(2) --env-file .env $(3):$(IMAGE_TAG)
+	docker stop codex-tcg-$(1) || true
+	docker rm codex-tcg-$(1) || true
+	docker run -d --name codex-tcg-$(1) $(2) --env-file .env $(3):$(IMAGE_TAG)
 endef
 
 # Build targets

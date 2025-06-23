@@ -1,4 +1,4 @@
-# Trackuriboh Inventory
+# Codex.tcg
 
 ## Development Setup with uv
 
@@ -49,4 +49,4 @@ uvicorn app.main:app --reload
 
 ## Lock file strategy
 
-The authoritative lock file is `uv.lock`, committed to version control for deterministic builds. Other `requirements*.txt` files are no longer used. 
+The authoritative lock file is `uv.lock`, committed to version control for deterministic builds. Other `requirements*.txt` files are no longer used.

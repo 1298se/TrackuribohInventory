@@ -34,9 +34,9 @@ variable "tcgplayer_client_secret" {
 }
 
 variable "project_name" {
-  description = "The base name for resources (e.g., trackuriboh)"
+  description = "The base name for resources (e.g., codex-tcg)"
   type        = string
-  default     = "trackuriboh"
+  default     = "codex-tcg"
 }
 
 variable "vpc_id" {
@@ -84,13 +84,13 @@ variable "task_memory" {
 variable "ecs_cluster_name" {
   description = "Name of the ECS Cluster for cron tasks"
   type        = string
-  default     = "trackuriboh-cron-cluster"
+  default     = "codex-tcg-cron-cluster"
 }
 
 variable "ecr_repo_name" {
   description = "Name of the ECR repository for the cron image"
   type        = string
-  default     = "trackuriboh/cron"
+  default     = "codex-tcg/cron"
 }
 
 variable "image_tag" {
