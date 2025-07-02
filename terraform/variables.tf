@@ -43,7 +43,7 @@ variable "vpc_id" {
   description = "VPC ID for security groups"
   type        = string
   # Add your VPC ID here
-  default = "vpc-02274d401b22e3095" # Example VPC ID, replace with yours
+  default = "vpc-060ba3276b2147be2" # Actual VPC ID matching terraform.tfvars
 }
 
 variable "private_subnet_ids" {
@@ -60,7 +60,7 @@ variable "task_security_group_ids" {
   # default = [aws_security_group.cron_task_sg.id] # Cannot use resource refs in defaults
   # Provide this via tfvars or command line if not using a default created SG ID
   # For now, using the known SG ID based on previous commands
-  default = ["sg-07591221a4fcad611"]
+  default = ["sg-00ec8440724857d7d"]
 }
 
 variable "task_schedule_expression" {

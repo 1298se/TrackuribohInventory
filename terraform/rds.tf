@@ -13,7 +13,7 @@ resource "aws_db_instance" "codex_tcg_db" {
   # It should be managed outside Terraform or rotated after import if unknown.
   # Since we're importing, Terraform won't set the initial password anyway.
 
-  db_subnet_group_name   = "default-vpc-060ba3276b2147be2"
+  db_subnet_group_name   = "default-${var.vpc_id}"
   parameter_group_name   = "default.postgres16"
   vpc_security_group_ids = [
     aws_security_group.cron_task_sg.id,        # Allow access from the cron tasks
