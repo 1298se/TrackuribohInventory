@@ -609,6 +609,7 @@ export function TransactionTable({
     {
       id: "transaction_comment",
       header: "Comment",
+      size: 500,
       loading: DefaultLoading,
       cell: ({ row }) => (
         <div className="font-medium max-w-[400px] truncate">

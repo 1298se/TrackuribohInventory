@@ -25,6 +25,7 @@ import { SearchInput } from "./search-input";
 export type Column<TData, TValue> = ColumnDef<TData, TValue> & {
   loading?: React.ComponentType;
   align?: "left" | "center" | "right";
+  size?: number;
 };
 
 interface DataTableProps<TData, TValue> {
@@ -66,9 +67,15 @@ export function DataTable<TData, TValue>({
     enableRowSelection: rowSelectionProps?.enableRowSelection,
     onRowSelectionChange: rowSelectionProps?.onRowSelectionStateChange,
     onColumnFiltersChange,
+    enableColumnResizing: false,
     getRowId: getRowId,
     // Enable manual filtering for server-side filtering
     manualFiltering: true,
+    defaultColumn: {
+      size: undefined,
+      minSize: 0,
+      maxSize: Number.MAX_SAFE_INTEGER,
+    },
   });
 
   return (
@@ -89,6 +96,15 @@ export function DataTable<TData, TValue>({
                         align === "center" && "text-center",
                         align === "right" && "text-right pr-4",
                       )}
+                      style={
+                        (header.column.columnDef as Column<TData, any>).size
+                          ? {
+                              width: `${(header.column.columnDef as Column<TData, any>).size}px`,
+                              minWidth: `${(header.column.columnDef as Column<TData, any>).size}px`,
+                              maxWidth: `${(header.column.columnDef as Column<TData, any>).size}px`,
+                            }
+                          : undefined
+                      }
                     >
                       {header.isPlaceholder
                         ? null
@@ -113,6 +129,15 @@ export function DataTable<TData, TValue>({
                         column.align === "center" && "text-center",
                         column.align === "right" && "text-right pr-4",
                       )}
+                      style={
+                        (column as Column<TData, any>).size
+                          ? {
+                              width: `${(column as Column<TData, any>).size}px`,
+                              minWidth: `${(column as Column<TData, any>).size}px`,
+                              maxWidth: `${(column as Column<TData, any>).size}px`,
+                            }
+                          : undefined
+                      }
                     >
                       {column.loading ? (
                         <column.loading />
@@ -151,6 +176,15 @@ export function DataTable<TData, TValue>({
                           align === "center" && "text-center",
                           align === "right" && "text-right pr-4",
                         )}
+                        style={
+                          (cell.column.columnDef as Column<TData, any>).size
+                            ? {
+                                width: `${(cell.column.columnDef as Column<TData, any>).size}px`,
+                                minWidth: `${(cell.column.columnDef as Column<TData, any>).size}px`,
+                                maxWidth: `${(cell.column.columnDef as Column<TData, any>).size}px`,
+                              }
+                            : undefined
+                        }
                       >
                         {flexRender(
                           cell.column.columnDef.cell,

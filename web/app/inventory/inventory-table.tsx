@@ -32,25 +32,9 @@ const SparklineCell = ({
 
 export const columns: Column<InventoryItemResponse, any>[] = [
   {
-    accessorKey: "sku.product.image_url",
-    header: "Image",
-    cell: ({ row }) => {
-      const imageUrl = row.original.sku.product.image_url;
-
-      return (
-        <div className="h-16 w-16">
-          <img
-            src={imageUrl}
-            alt={row.original.sku.product.name}
-            className="h-full w-full object-contain rounded-md"
-          />
-        </div>
-      );
-    },
-  },
-  {
     accessorKey: "sku.product.name",
     header: "Product",
+    size: 400,
     cell: ({ row }) => {
       return <SKUDisplay sku={row.original.sku} />;
     },
