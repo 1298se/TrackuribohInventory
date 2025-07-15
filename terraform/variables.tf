@@ -6,12 +6,6 @@ variable "region" {
   default     = "us-east-2" # From your .env
 }
 
-variable "db_password" {
-  description = "Password for the RDS database user"
-  type        = string
-  sensitive   = true # Mark as sensitive
-  # No default - must be provided securely
-}
 
 variable "db_name" {
   description = "Name of the database within the RDS instance"
@@ -19,19 +13,6 @@ variable "db_name" {
   default     = "postgres" # Assuming default, change if needed
 }
 
-variable "tcgplayer_client_id" {
-  description = "TCGPlayer API Client ID"
-  type        = string
-  sensitive   = true # Mark as sensitive
-  # No default - must be provided securely
-}
-
-variable "tcgplayer_client_secret" {
-  description = "TCGPlayer API Client Secret"
-  type        = string
-  sensitive   = true # Mark as sensitive
-  # No default - must be provided securely
-}
 
 variable "project_name" {
   description = "The base name for resources (e.g., codex-tcg)"

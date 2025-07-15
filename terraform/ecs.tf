@@ -58,35 +58,35 @@ resource "aws_ecs_task_definition" "snapshot_inventory_sku_prices_task" {
         }
       }
 
-      # Use the same secrets as the catalog task
+      # Use secrets from AWS Secrets Manager
       secrets = [
         {
           name      = "db_username"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
         },
         {
           name      = "db_password"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
         },
         {
           name      = "db_endpoint"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
         },
         {
           name      = "db_port"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
         },
         {
           name      = "db_name"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
         },
         {
           name      = "TCGPLAYER_CLIENT_ID"
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
         },
         {
           name      = "TCGPLAYER_CLIENT_SECRET"
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
         }
       ]
 
@@ -136,31 +136,31 @@ resource "aws_ecs_task_definition" "snapshot_product_sku_prices_task" {
       secrets = [
         {
           name      = "db_username"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
         },
         {
           name      = "db_password"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
         },
         {
           name      = "db_endpoint"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
         },
         {
           name      = "db_port"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
         },
         {
           name      = "db_name"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
         },
         {
           name      = "TCGPLAYER_CLIENT_ID"
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
         },
         {
           name      = "TCGPLAYER_CLIENT_SECRET"
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
         }
       ]
 
@@ -209,31 +209,31 @@ resource "aws_ecs_task_definition" "snapshot_inventory_task" {
       secrets = [
         {
           name      = "db_username"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
         },
         {
           name      = "db_password"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
         },
         {
           name      = "db_endpoint"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
         },
         {
           name      = "db_port"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
         },
         {
           name      = "db_name"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
         },
         {
           name      = "TCGPLAYER_CLIENT_ID"
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
         },
         {
           name      = "TCGPLAYER_CLIENT_SECRET"
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
         }
       ]
 
@@ -282,31 +282,31 @@ resource "aws_ecs_task_definition" "update_catalog_db_task" {
       secrets = [
         {
           name      = "db_username"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:username::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
         },
         {
           name      = "db_password"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:password::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
         },
         {
           name      = "db_endpoint"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:host::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
         },
         {
           name      = "db_port"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:port::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
         },
         {
           name      = "db_name"
-          valueFrom = "${aws_secretsmanager_secret.db_credentials.arn}:dbname::"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
         },
         {
           name      = "TCGPLAYER_CLIENT_ID"
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
         },
         {
           name      = "TCGPLAYER_CLIENT_SECRET"
-          valueFrom = "${aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
         }
       ]
 
