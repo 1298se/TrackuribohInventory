@@ -11,6 +11,7 @@ from core.models.base import Base
 from core.models.catalog import sku_tablename
 from core.models.catalog import SKU
 from core.models.types import MoneyAmount
+from core.models.user import User
 
 transaction_tablename = "transaction"
 line_item_tablename = "line_item"
@@ -23,14 +24,21 @@ class Platform(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     name: Mapped[str]
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
 
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="platform")
+    user: Mapped[User] = relationship()
 
 
 class LineItemConsumption(Base):
     __tablename__ = line_item_consumption_tablename
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
 
     # The sale line item that consumes some quantity
     sale_line_item_id: Mapped[uuid.UUID] = mapped_column(
@@ -49,11 +57,16 @@ class LineItemConsumption(Base):
     # How many units were taken from that purchase line item
     quantity: Mapped[int]
 
+    user: Mapped[User] = relationship()
+
 
 class LineItem(Base):
     __tablename__ = line_item_tablename
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
     sku_id: Mapped[uuid.UUID] = mapped_column(ForeignKey(f"{sku_tablename}.id"))
     sku: Mapped[SKU] = relationship()
     quantity: Mapped[int]
@@ -68,6 +81,8 @@ class LineItem(Base):
     )
     transaction: Mapped["Transaction"] = relationship(back_populates="line_items")
 
+    user: Mapped[User] = relationship()
+
 
 class TransactionType(StrEnum):
     PURCHASE = "PURCHASE"
@@ -78,6 +93,9 @@ class Transaction(Base):
     __tablename__ = transaction_tablename
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
     date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     type: Mapped[TransactionType]
     counterparty_name: Mapped[str | None]
@@ -91,3 +109,5 @@ class Transaction(Base):
     currency: Mapped[str] = mapped_column(server_default="USD")
     shipping_cost_amount: Mapped[MoneyAmount] = mapped_column(server_default="0")
     tax_amount: Mapped[MoneyAmount] = mapped_column(server_default="0")
+
+    user: Mapped[User] = relationship()
