@@ -29,11 +29,13 @@ class InventoryHistoryEntry(TypedDict):
 
 
 def get_inventory_metrics(
-    session: Session, catalog_id: Optional[UUID] = None
+    session: Session, user_id: UUID, catalog_id: Optional[UUID] = None
 ) -> InventoryMetrics:
-    """Return aggregate inventory metrics for a given catalogue (or all)."""
+    """Return aggregate inventory metrics for a given user and catalogue (or all user's catalogues)."""
 
-    inventory_subq = build_inventory_query(query=None, catalog_id=catalog_id).subquery()
+    inventory_subq = build_inventory_query(
+        user_id=user_id, query=None, catalog_id=catalog_id
+    ).subquery()
 
     stmt = select(
         func.coalesce(func.sum(inventory_subq.c.total_quantity), 0).label(
@@ -68,11 +70,11 @@ def get_inventory_metrics(
 
 
 def get_inventory_history(
-    session: Session, catalog_id: UUID | None, days: int | None = None
+    session: Session, user_id: UUID, catalog_id: UUID | None, days: int | None = None
 ) -> list[InventoryHistoryEntry]:
-    """Return historical snapshot rows for the given catalogue.
+    """Return historical snapshot rows for the given user and catalogue.
 
-    If `catalog_id` is None we aggregate across catalogues for each date.
+    If `catalog_id` is None we aggregate across all user's catalogues for each date.
     `days` can be None to indicate *all time*.
     """
 
@@ -83,7 +85,7 @@ def get_inventory_history(
         since = None
 
     if catalog_id is None:
-        # Aggregate totals across all catalogues per date
+        # Aggregate totals across all user's catalogues per date
         stmt = (
             select(
                 InventorySnapshot.snapshot_date.label("snapshot_date"),
@@ -95,6 +97,7 @@ def get_inventory_history(
                     "unrealised_profit"
                 ),
             )
+            .where(InventorySnapshot.user_id == user_id)
             .group_by(InventorySnapshot.snapshot_date)
             .order_by(InventorySnapshot.snapshot_date)
         )
@@ -105,9 +108,10 @@ def get_inventory_history(
         rows = session.execute(stmt).mappings().all()
         return [dict(row) for row in rows]
 
-    # Specific catalogue – return raw rows for that catalogue
+    # Specific catalogue – return raw rows for that user's catalogue
     stmt = (
         select(InventorySnapshot)
+        .where(InventorySnapshot.user_id == user_id)
         .where(InventorySnapshot.catalog_id == catalog_id)
         .order_by(InventorySnapshot.snapshot_date)
     )

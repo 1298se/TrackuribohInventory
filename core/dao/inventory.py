@@ -9,7 +9,7 @@ from core.dao.price import latest_price_subquery, price_24h_ago_subquery
 from core.dao.catalog import create_product_set_fts_vector, create_ts_query
 
 
-def get_sku_cost_quantity_cte() -> CTE:
+def get_sku_cost_quantity_cte(user_id: UUID) -> CTE:
     total_quantity = func.sum(
         LineItem.remaining_quantity,
     ).label("total_quantity")
@@ -25,6 +25,7 @@ def get_sku_cost_quantity_cte() -> CTE:
             total_cost,
         )
         .join(Transaction)
+        .where(LineItem.user_id == user_id)
         .group_by(LineItem.sku_id)
         .having(total_quantity > 0)
     ).cte()
@@ -37,9 +38,11 @@ class InventoryQueryResultRow(TypedDict):
     total_cost: Decimal
 
 
-def query_inventory_catalogs() -> Select:
+def query_inventory_catalogs(user_id: UUID) -> Select:
     # Select only sku ids from the inventory items query as a subquery
-    sku_ids_subquery = query_inventory_items().with_only_columns(SKU.id).subquery()
+    sku_ids_subquery = (
+        query_inventory_items(user_id=user_id).with_only_columns(SKU.id).subquery()
+    )
 
     # Find which catalogs these SKUs belong to using the subquery
     catalogs_query = (
@@ -54,15 +57,18 @@ def query_inventory_catalogs() -> Select:
     return catalogs_query
 
 
-def query_inventory_items() -> Select[InventoryQueryResultRow]:
+def query_inventory_items(user_id: UUID) -> Select[InventoryQueryResultRow]:
     """
-    Query inventory items with their quantities and costs. Doesn't include FTS or price data.
+    Query inventory items with their quantities and costs for a specific user. Doesn't include FTS or price data.
+
+    Args:
+        user_id: UUID of the user whose inventory to query
 
     Returns:
         Select query that returns rows matching InventoryItem TypedDict structure
         when executed
     """
-    inventory_sku_quantity_cte = get_sku_cost_quantity_cte()
+    inventory_sku_quantity_cte = get_sku_cost_quantity_cte(user_id)
 
     sql_query = select(
         SKU,
@@ -74,16 +80,21 @@ def query_inventory_items() -> Select[InventoryQueryResultRow]:
 
 
 def build_inventory_query(
-    query: Optional[str] = None, catalog_id: Optional[UUID] = None
+    user_id: UUID, query: Optional[str] = None, catalog_id: Optional[UUID] = None
 ):
     """Return a SQLAlchemy selectable that replicates the joins and filters used by
     `get_inventory` in app.routes.inventory.api .
+
+    Args:
+        user_id: UUID of the user whose inventory to query
+        query: Optional text search query
+        catalog_id: Optional catalog filter
 
     The returned query starts from `query_inventory_items()` which returns pure inventory data
     (SKU, quantity, cost), then adds latest price data and applies optional catalogue or
     full-text search filters.
     """
-    inventory_query = query_inventory_items()
+    inventory_query = query_inventory_items(user_id)
 
     # Add latest price data join
     latest_price = latest_price_subquery()
