@@ -2,11 +2,11 @@
 #    uv pip compile pyproject.toml -o uv.lock
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.11.18
+aiohttp==3.12.14
     # via codex-tcg (pyproject.toml)
-aiosignal==1.3.2
+aiosignal==1.4.0
     # via aiohttp
-alembic==1.15.2
+alembic==1.16.4
     # via codex-tcg (pyproject.toml)
 annotated-types==0.7.0
     # via pydantic
@@ -19,32 +19,46 @@ apscheduler==3.11.0
     # via codex-tcg (pyproject.toml)
 attrs==25.3.0
     # via aiohttp
-certifi==2025.1.31
+certifi==2025.7.14
     # via
     #   httpcore
     #   httpx
     #   sentry-sdk
-click==8.1.8
+click==8.2.1
     # via
     #   rich-toolkit
     #   typer
     #   uvicorn
+deprecation==2.1.0
+    # via
+    #   postgrest
+    #   storage3
 dnspython==2.7.0
     # via email-validator
 email-validator==2.2.0
-    # via fastapi
-fastapi==0.115.12
+    # via
+    #   fastapi
+    #   pydantic
+fastapi==0.116.1
     # via codex-tcg (pyproject.toml)
-fastapi-cli==0.0.7
+fastapi-cli==0.0.8
     # via fastapi
-frozenlist==1.6.0
+fastapi-cloud-cli==0.1.4
+    # via fastapi-cli
+frozenlist==1.7.0
     # via
     #   aiohttp
     #   aiosignal
+gotrue==2.12.3
+    # via supabase
 h11==0.16.0
     # via
     #   httpcore
     #   uvicorn
+h2==4.2.0
+    # via httpx
+hpack==4.1.0
+    # via h2
 httpcore==1.0.9
     # via httpx
 httptools==0.6.4
@@ -53,6 +67,14 @@ httpx==0.28.1
     # via
     #   codex-tcg (pyproject.toml)
     #   fastapi
+    #   fastapi-cloud-cli
+    #   gotrue
+    #   postgrest
+    #   storage3
+    #   supabase
+    #   supafunc
+hyperframe==6.1.0
+    # via h2
 idna==3.10
     # via
     #   anyio
@@ -71,27 +93,39 @@ markupsafe==3.0.2
     #   mako
 mdurl==0.1.2
     # via markdown-it-py
-multidict==6.4.3
+multidict==6.6.3
     # via
     #   aiohttp
     #   yarl
-propcache==0.3.1
+packaging==25.0
+    # via deprecation
+postgrest==1.1.1
+    # via supabase
+propcache==0.3.2
     # via
     #   aiohttp
     #   yarl
 psycopg2-binary==2.9.10
     # via codex-tcg (pyproject.toml)
-pydantic==2.11.3
+pydantic==2.11.7
     # via
     #   fastapi
+    #   fastapi-cloud-cli
+    #   gotrue
+    #   postgrest
     #   pydantic-settings
-pydantic-core==2.33.1
+    #   realtime
+pydantic-core==2.33.2
     # via pydantic
-pydantic-settings==2.9.1
+pydantic-settings==2.10.1
     # via codex-tcg (pyproject.toml)
-pygments==2.19.1
+pygments==2.19.2
     # via rich
-python-dotenv==1.1.0
+pyjwt==2.10.1
+    # via gotrue
+python-dateutil==2.9.0.post0
+    # via storage3
+python-dotenv==1.1.1
     # via
     #   pydantic-settings
     #   uvicorn
@@ -101,57 +135,83 @@ pytz==2025.2
     # via codex-tcg (pyproject.toml)
 pyyaml==6.0.2
     # via uvicorn
+realtime==2.6.0
+    # via supabase
 rich==14.0.0
     # via
     #   rich-toolkit
     #   typer
-rich-toolkit==0.14.3
-    # via fastapi-cli
-sentry-sdk==2.27.0
-    # via codex-tcg (pyproject.toml)
+rich-toolkit==0.14.8
+    # via
+    #   fastapi-cli
+    #   fastapi-cloud-cli
+rignore==0.6.4
+    # via fastapi-cloud-cli
+sentry-sdk==2.33.2
+    # via
+    #   codex-tcg (pyproject.toml)
+    #   fastapi-cloud-cli
 shellingham==1.5.4
     # via typer
+six==1.17.0
+    # via python-dateutil
 sniffio==1.3.1
     # via anyio
-sqlalchemy==2.0.40
+sqlalchemy==2.0.41
     # via
     #   codex-tcg (pyproject.toml)
     #   alembic
-starlette==0.46.2
+starlette==0.47.2
     # via fastapi
-typer==0.15.2
-    # via fastapi-cli
-typing-extensions==4.13.2
+storage3==0.12.0
+    # via supabase
+strenum==0.4.15
+    # via supafunc
+supabase==2.17.0
+    # via codex-tcg (pyproject.toml)
+supafunc==0.10.1
+    # via supabase
+typer==0.16.0
     # via
+    #   fastapi-cli
+    #   fastapi-cloud-cli
+typing-extensions==4.14.1
+    # via
+    #   aiosignal
     #   alembic
     #   anyio
     #   fastapi
     #   pydantic
     #   pydantic-core
+    #   realtime
     #   rich-toolkit
     #   sqlalchemy
+    #   starlette
     #   typer
     #   typing-inspection
-typing-inspection==0.4.0
+typing-inspection==0.4.1
     # via
     #   pydantic
     #   pydantic-settings
 tzlocal==5.3.1
     # via apscheduler
-urllib3==2.4.0
+urllib3==2.5.0
     # via sentry-sdk
 uuid7==0.1.0
     # via codex-tcg (pyproject.toml)
-uvicorn==0.34.2
+uvicorn==0.35.0
     # via
     #   codex-tcg (pyproject.toml)
     #   fastapi
     #   fastapi-cli
+    #   fastapi-cloud-cli
 uvloop==0.21.0
     # via uvicorn
-watchfiles==1.0.5
+watchfiles==1.1.0
     # via uvicorn
 websockets==15.0.1
-    # via uvicorn
-yarl==1.20.0
+    # via
+    #   realtime
+    #   uvicorn
+yarl==1.20.1
     # via aiohttp

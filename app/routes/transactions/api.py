@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from core.auth import get_current_user
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -52,6 +53,7 @@ from core.services.tcgplayer_catalog_service import (
 
 router = APIRouter(
     prefix="/transactions",
+    dependencies=[Depends(get_current_user)],  # All routes require authentication
 )
 
 

@@ -11,8 +11,8 @@ from app.routes.catalog.schemas import (
     SKUWithProductResponseSchema,
     CatalogsResponseSchema,
 )
+from core.auth import User, get_current_user
 from core.dao.inventory import (
-    query_inventory_items,
     InventoryQueryResultRow,
     get_sku_cost_quantity_cte,
     build_inventory_query,
@@ -30,7 +30,7 @@ from app.routes.inventory.schemas import (
 )
 from app.routes.utils import MoneySchema
 from core.database import get_db_session
-from core.models.catalog import SKU, Catalog, Product, Set
+from core.models.catalog import SKU, Product
 from core.dao.price import (
     latest_price_subquery,
     price_24h_ago_subquery,
@@ -43,9 +43,15 @@ from core.services.tcgplayer_catalog_service import get_tcgplayer_catalog_servic
 from core.models.transaction import Transaction, LineItem, TransactionType
 from core.services.inventory_service import get_inventory_metrics, get_inventory_history
 
+
 router = APIRouter(
     prefix="/inventory",
+    dependencies=[Depends(get_current_user)],  # All routes require authentication
 )
+
+
+# Authentication is handled at router level
+# Individual endpoints can still access current_user via Depends(get_current_user)
 
 
 # -------------------------------------------------------------------------
@@ -58,17 +64,22 @@ def get_inventory_performance_endpoint(
     catalog_id: UUID | None = None,
     days: int | None = None,
     session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """Return historical inventory performance data for visualization.
 
-    If ``catalog_id`` is omitted the response aggregates across catalogues. When
+    If ``catalog_id`` is omitted the response aggregates across user's catalogues. When
     ``days`` is omitted, all available history is returned.
     """
 
     # 1) Load persisted end-of-day snapshots
-    history = get_inventory_history(session=session, catalog_id=catalog_id, days=days)
+    history = get_inventory_history(
+        session=session, user_id=current_user.id, catalog_id=catalog_id, days=days
+    )
     # 2) Fetch live metrics for today
-    metrics = get_inventory_metrics(session=session, catalog_id=catalog_id)
+    metrics = get_inventory_metrics(
+        session=session, user_id=current_user.id, catalog_id=catalog_id
+    )
     # 3) Build today's snapshot row
     today_snapshot = InventoryHistoryItemSchema(
         snapshot_date=date.today(),
@@ -84,36 +95,27 @@ def get_inventory_performance_endpoint(
 def get_inventory_metrics_endpoint(
     catalog_id: UUID | None = None,
     session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    """Return aggregate metrics for the selected catalogue (or all)."""
-    metrics = get_inventory_metrics(session=session, catalog_id=catalog_id)
+    """Return aggregate metrics for the selected catalogue (or all user's catalogues)."""
+    metrics = get_inventory_metrics(
+        session=session, user_id=current_user.id, catalog_id=catalog_id
+    )
     return InventoryMetricsResponseSchema(**metrics)
 
 
 @router.get("/catalogs", response_model=CatalogsResponseSchema)
 def get_inventory_catalogs(
     session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Get all catalogs that have items in the inventory.
+    Get all catalogs that have items in the user's inventory.
     """
-    # First get SKUs in inventory
-    inventory_query = query_inventory_items()
-    sku_ids_with_inventory = [
-        sku.id for sku, _, _ in session.execute(inventory_query).all()
-    ]
+    # Use the updated user-aware query
+    from core.dao.inventory import query_inventory_catalogs
 
-    # Now find which catalogs these SKUs belong to
-    catalogs_query = (
-        select(Catalog)
-        .distinct()
-        .join(Set, Catalog.id == Set.catalog_id)
-        .join(Product, Set.id == Product.set_id)
-        .join(SKU, Product.id == SKU.product_id)
-        .where(SKU.id.in_(sku_ids_with_inventory))
-        .order_by(Catalog.display_name)
-    )
-
+    catalogs_query = query_inventory_catalogs(user_id=current_user.id)
     catalogs = session.scalars(catalogs_query).all()
 
     return CatalogsResponseSchema(catalogs=catalogs)
@@ -122,12 +124,13 @@ def get_inventory_catalogs(
 @router.get("/", response_model=InventoryResponseSchema)
 async def get_inventory(
     session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
     query: str | None = None,
     catalog_id: UUID | None = None,
 ):
-    inventory_query = build_inventory_query(query=query, catalog_id=catalog_id).options(
-        *SKUWithProductResponseSchema.get_load_options()
-    )
+    inventory_query = build_inventory_query(
+        user_id=current_user.id, query=query, catalog_id=catalog_id
+    ).options(*SKUWithProductResponseSchema.get_load_options())
     skus_with_quantity: List[InventoryQueryResultRow] = session.execute(
         inventory_query
     ).all()
@@ -217,14 +220,15 @@ async def get_inventory(
 def get_inventory_item_details(
     sku_id: UUID,
     session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Get details for a specific inventory item identified by its SKU ID.
+    Get details for a specific inventory item identified by its SKU ID for the current user.
 
     An inventory item's quantity and cost are calculated dynamically based on
-    transaction line items with remaining quantities.
+    the user's transaction line items with remaining quantities.
     """
-    inventory_sku_quantity_cte = get_sku_cost_quantity_cte()
+    inventory_sku_quantity_cte = get_sku_cost_quantity_cte(user_id=current_user.id)
     latest_price = latest_price_subquery()
     price_24h_ago = price_24h_ago_subquery()
 
@@ -371,8 +375,9 @@ class SKUTransactionHistoryRow(TypedDict):
 def get_sku_transaction_history(
     sku_id: UUID,
     session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    """Get the transaction history for a specific SKU in inventory."""
+    """Get the transaction history for a specific SKU in the user's inventory."""
 
     # Query selecting specific columns using explicit joins
     query = (
@@ -384,6 +389,7 @@ def get_sku_transaction_history(
             joinedload(LineItem.transaction)
         )  # Eager load the transaction relationship
         .where(LineItem.sku_id == sku_id)
+        .where(LineItem.user_id == current_user.id)  # Filter by user
         .order_by(desc(Transaction.date))
     )
 
@@ -421,6 +427,7 @@ async def get_sku_price_history(
     days: int | None = None,
     marketplace: str | None = None,
     session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get the normalized price history for a specific SKU in inventory.
@@ -510,14 +517,15 @@ async def get_sku_price_history(
 def get_sku_marketplaces(
     sku_id: UUID,
     session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Get the list of marketplaces available for a specific SKU.
+    Get the list of marketplaces available for a specific SKU in the user's inventory.
 
     Returns a list of marketplace names that have data available for this SKU.
     """
-    # Verify SKU exists in inventory
-    inventory_sku_quantity_cte = get_sku_cost_quantity_cte()
+    # Verify SKU exists in user's inventory
+    inventory_sku_quantity_cte = get_sku_cost_quantity_cte(user_id=current_user.id)
 
     sku_check = session.execute(
         select(SKU.id)
@@ -526,7 +534,7 @@ def get_sku_marketplaces(
     ).scalar_one_or_none()
 
     if not sku_check:
-        raise HTTPException(status_code=404, detail="SKU not found in inventory")
+        raise HTTPException(status_code=404, detail="SKU not found in user inventory")
 
     # For now, return available marketplaces (currently only TCGPlayer)
     # TODO: In the future, this could query actual marketplace data availability

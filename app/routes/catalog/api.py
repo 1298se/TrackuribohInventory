@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from core.auth import get_current_user
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 import uuid
@@ -21,6 +22,7 @@ from core.services import market_data_service
 
 router = APIRouter(
     prefix="/catalog",
+    dependencies=[Depends(get_current_user)],  # All routes require authentication
 )
 
 
