@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime, date
 from dataclasses import dataclass
 
-from sqlalchemy import asc, desc, select, func, distinct, or_
+from sqlalchemy import asc, desc, select, func, distinct, or_, literal
 from sqlalchemy.orm import Session, aliased, Query
 
 from core.models.transaction import TransactionType, Platform
@@ -547,38 +547,28 @@ def build_filtered_transactions_query(
     session: Session, filters: TransactionFilterParams
 ) -> Query[Transaction]:
     """
-    Build a filtered query for transactions based on the provided parameters.
+    Build a filtered, de-duplicated base query using DISTINCT ON for transactions.
 
-    This centralizes all the filtering logic in the DAO layer for better
-    maintainability and testability.
-
-    Args:
-        session: The database session
-        filters: Dataclass containing all filter parameters
-
-    Returns:
-        A SQLAlchemy query object that can be executed or further modified
+    Returns a SELECT of (id, date, rank) ordered globally for pagination/consumption.
     """
     # Import here to avoid circular dependency
     from core.dao.catalog import create_product_set_fts_vector
 
-    # Start with base query including necessary joins
-    query = (
-        session.query(Transaction)
-        .join(Transaction.line_items)
-        .join(LineItem.sku)
-        .join(SKU.product)
-        .join(Product.set)  # Join Set table for full-text search vector fields
-        .distinct()
+    # Base FROM with necessary joins for filtering/search
+    base_from = (
+        Transaction.__table__.join(
+            LineItem.__table__, LineItem.transaction_id == Transaction.id
+        )
+        .join(SKU.__table__, SKU.id == LineItem.sku_id)
+        .join(Product.__table__, Product.id == SKU.product_id)
+        .join(Set.__table__, Set.id == Product.set_id)
     )
 
-    # Apply search filter using PostgreSQL full-text search
+    # Search rank
+    rank_expr = literal(0.0).label("rank")
     if filters.search_query:
-        # Split the search query into terms
         search_terms = filters.search_query.split()
-
         if search_terms:
-            # Define text search vectors with weights for different columns
             counterparty_ts_vector = func.setweight(
                 func.to_tsvector(
                     "english", func.coalesce(Transaction.counterparty_name, "")
@@ -586,34 +576,36 @@ def build_filtered_transactions_query(
                 "A",
             )
             product_ts_vector = create_product_set_fts_vector()
-
-            # Combine the vectors
             combined_ts_vector = counterparty_ts_vector.op("||")(product_ts_vector)
-
-            # Create TS query with prefix matching support
             prefix_terms = [term + ":*" for term in search_terms]
             ts_query = func.to_tsquery("english", " & ".join(prefix_terms))
+            rank_expr = func.ts_rank(combined_ts_vector, ts_query).label("rank")
 
-            # Add text search condition to the query
-            query = query.filter(combined_ts_vector.op("@@")(ts_query))
+    # Build WHERE conditions
+    where_clauses = []
+    if filters.search_query:
+        search_terms = filters.search_query.split()
+        if search_terms:
+            counterparty_ts_vector = func.setweight(
+                func.to_tsvector(
+                    "english", func.coalesce(Transaction.counterparty_name, "")
+                ),
+                "A",
+            )
+            product_ts_vector = create_product_set_fts_vector()
+            combined_ts_vector = counterparty_ts_vector.op("||")(product_ts_vector)
+            prefix_terms = [term + ":*" for term in search_terms]
+            ts_query = func.to_tsquery("english", " & ".join(prefix_terms))
+            where_clauses.append(combined_ts_vector.op("@@")(ts_query))
 
-            # Calculate rank for sorting
-            combined_rank = func.ts_rank(combined_ts_vector, ts_query)
-
-            # We'll add this to the order_by at the end
-            query = query.order_by(combined_rank.desc())
-
-    # Apply date range filter
     if filters.date_start:
-        query = query.filter(Transaction.date >= filters.date_start)
+        where_clauses.append(Transaction.date >= filters.date_start)
     if filters.date_end:
-        query = query.filter(Transaction.date <= filters.date_end)
+        where_clauses.append(Transaction.date <= filters.date_end)
 
-    # Apply transaction type filter
     if filters.types:
-        query = query.filter(Transaction.type.in_(filters.types))
+        where_clauses.append(Transaction.type.in_(filters.types))
 
-    # Apply platform filter
     if filters.platform_ids or filters.include_no_platform:
         platform_conditions = []
         if filters.platform_ids:
@@ -622,14 +614,14 @@ def build_filtered_transactions_query(
             )
         if filters.include_no_platform:
             platform_conditions.append(Transaction.platform_id.is_(None))
-        query = query.filter(or_(*platform_conditions))
+        if platform_conditions:
+            where_clauses.append(or_(*platform_conditions))
 
-    # Apply amount range filter
+    # Amount filters via subquery
     if filters.amount_min is not None or filters.amount_max is not None:
-        # Create subquery to calculate total amount per transaction
-        amount_subquery = (
-            session.query(
-                LineItem.transaction_id,
+        amount_subq = (
+            select(
+                LineItem.transaction_id.label("tx_id"),
                 func.sum(LineItem.unit_price_amount * LineItem.quantity).label(
                     "total_amount"
                 ),
@@ -637,22 +629,38 @@ def build_filtered_transactions_query(
             .group_by(LineItem.transaction_id)
             .subquery()
         )
-
-        # Join with the subquery
-        query = query.join(
-            amount_subquery, Transaction.id == amount_subquery.c.transaction_id
-        )
-
-        # Apply min/max filters
+        base_from = base_from.join(amount_subq, amount_subq.c.tx_id == Transaction.id)
         if filters.amount_min is not None:
-            query = query.filter(amount_subquery.c.total_amount >= filters.amount_min)
+            where_clauses.append(amount_subq.c.total_amount >= filters.amount_min)
         if filters.amount_max is not None:
-            query = query.filter(amount_subquery.c.total_amount <= filters.amount_max)
+            where_clauses.append(amount_subq.c.total_amount <= filters.amount_max)
 
-    # Order by date descending (most recent first) as final sort
-    query = query.order_by(desc(Transaction.date), desc(Transaction.id))
+    # Inner: pick best row per transaction id
+    inner = select(
+        Transaction.id.label("id"),
+        Transaction.date.label("date"),
+        rank_expr,
+    ).select_from(base_from)
+    if where_clauses:
+        inner = inner.where(*where_clauses)
 
-    return query
+    inner = (
+        inner.order_by(
+            Transaction.id,  # required first for DISTINCT ON
+            desc(rank_expr),
+            desc(Transaction.date),
+            desc(Transaction.id),
+        )
+        .distinct(Transaction.id)  # DISTINCT ON (id)
+        .subquery()
+    )
+
+    # Outer: global order for pagination/consumption
+    base_page = select(inner.c.id, inner.c.date, inner.c.rank).order_by(
+        desc(inner.c.rank), desc(inner.c.date), desc(inner.c.id)
+    )
+
+    return base_page
 
 
 def get_transaction_filter_options(

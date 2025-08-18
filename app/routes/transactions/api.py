@@ -116,8 +116,17 @@ async def get_transactions(
     )
 
     # Build the filtered query and execute
-    query = build_filtered_transactions_query(session, filter_params)
-    transactions = query.options(*TransactionResponseSchema.get_load_options()).all()
+    base_page = build_filtered_transactions_query(session, filter_params)
+    inner = base_page.subquery()
+
+    stmt = (
+        select(Transaction)
+        .join(inner, inner.c.id == Transaction.id)
+        .options(*TransactionResponseSchema.get_load_options())
+        .order_by(inner.c.rank.desc(), inner.c.date.desc(), inner.c.id.desc())
+    )
+
+    transactions = session.execute(stmt).scalars().all()
 
     # Convert to response schema
     return TransactionsResponseSchema(
