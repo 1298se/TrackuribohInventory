@@ -46,9 +46,13 @@ def upsert(model: Type[Base], values: list[dict], index_elements=None) -> Insert
 def get_db_session() -> Generator[Session, None, None]:
     """
     Get a database session. You must explicitly begin/commit/rollback transactions.
+    Automatic rollback on errors.
     """
     session = SessionLocal()
     try:
         yield session
+    except Exception:
+        session.rollback()
+        raise
     finally:
         session.close()

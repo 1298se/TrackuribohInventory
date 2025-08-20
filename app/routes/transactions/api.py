@@ -76,10 +76,9 @@ async def create_platform(
     request: PlatformCreateRequestSchema, session: Session = Depends(get_db_session)
 ):
     """Create a new platform."""
-    with session.begin():
-        platform = Platform(name=request.name)
-        session.add(platform)
-
+    platform = Platform(name=request.name)
+    session.add(platform)
+    session.commit()
     session.refresh(platform)
     return platform
 
@@ -189,10 +188,11 @@ async def create_transaction(
 ):
     try:
         # Start a transaction explicitly
-        with session.begin():
-            transaction = await create_transaction_service(
-                request, catalog_service, session
-            )
+        transaction = await create_transaction_service(
+            request, catalog_service, session
+        )
+
+        session.commit()
 
         # Reload transaction with the appropriate load options
         transaction = session.scalar(
@@ -214,8 +214,8 @@ async def bulk_delete_transactions(
     session: Session = Depends(get_db_session),
 ):
     try:
-        with session.begin():
-            delete_transactions(session, request.transaction_ids)
+        delete_transactions(session, request.transaction_ids)
+        session.commit()
     except TransactionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except InsufficientInventoryError as e:
@@ -228,8 +228,7 @@ async def update_transaction(
     request: TransactionUpdateRequestSchema,
     session: Session = Depends(get_db_session),
 ):
-    # Start a transaction explicitly
-    with session.begin():
+    try:
         # Step 1: Retrieve the transaction
         # Eager load line items to avoid extra queries
         transaction = session.get(
@@ -327,18 +326,24 @@ async def update_transaction(
                     )
 
             except (InsufficientInventoryError, NotImplementedError) as e:
-                # Will be rollback by the session.begin() context manager
+                # Will be rollback by the manual rollback below
                 raise HTTPException(status_code=400, detail=str(e))
             except Exception as e:
-                # Will be rollback by the session.begin() context manager
+                # Will be rollback by the manual rollback below
                 # Log e
                 raise HTTPException(
                     status_code=500,
                     detail=f"An unexpected error occurred during transaction update: {e}",
                 )
 
+        # Commit all changes
+        session.commit()
+
+    except Exception:
+        session.rollback()
+        raise
+
     # Step 7: Reload transaction with the appropriate load options for the response
-    # Need to create a new transaction here since we're outside the previous one
     refreshed_transaction = session.scalar(
         select(Transaction)
         .options(*TransactionResponseSchema.get_load_options())

@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
@@ -46,38 +45,22 @@ class SupabaseAuthService:
                 raise AuthenticationError("Invalid or expired token")
 
             logger.info(f"JWT token verified for user: {response.user.id}")
-            return await self._get_or_create_local_user(response.user, session)
+
+            # Simply fetch the user - they should already exist
+            user = session.scalars(
+                select(User).where(User.id == response.user.id)
+            ).first()
+            if not user:
+                logger.error(f"User {response.user.id} not found in local database")
+                raise AuthenticationError("User not found in system")
+
+            return user
 
         except AuthenticationError:
             raise
         except Exception as e:
             logger.error(f"JWT verification failed: {str(e)}")
             raise AuthenticationError("Token verification failed")
-
-    async def _get_or_create_local_user(self, supabase_user, session: Session) -> User:
-        """Get existing local user or create new one from Supabase user data."""
-        user = session.scalars(select(User).where(User.id == supabase_user.id)).first()
-
-        if user:
-            if user.email != supabase_user.email:
-                user.email = supabase_user.email
-                session.commit()
-                session.refresh(user)
-                logger.info(f"Updated email for user {user.id}")
-            return user
-
-        new_user = User(
-            id=supabase_user.id,
-            email=supabase_user.email,
-            created_at=datetime.now(timezone.utc),
-        )
-
-        session.add(new_user)
-        session.commit()
-        session.refresh(new_user)
-
-        logger.info(f"Created new local user: {new_user.id} ({new_user.email})")
-        return new_user
 
 
 # Global auth service instance
