@@ -12,7 +12,7 @@ interface Option {
 }
 
 interface SelectProps {
-  value: string | null;
+  value: string | undefined;
   onChange: (option: Option) => void;
   options: Option[];
 }
@@ -24,7 +24,7 @@ export function Select({ value, onChange, options }: SelectProps) {
   };
 
   return (
-    <UISelect value={value || ""} onValueChange={handleChange}>
+    <UISelect value={value ?? ""} onValueChange={handleChange}>
       <SelectTrigger className="w-32 font-normal">
         <SelectValue />
       </SelectTrigger>

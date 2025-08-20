@@ -54,9 +54,7 @@ function formatCurrency(
 }
 
 // Helper function to convert string time range to API days parameter
-const timeRangeToDays = (timeRange: string | undefined): number | null => {
-  if (!timeRange) return null;
-
+const timeRangeToDays = (timeRange: string): number => {
   switch (timeRange) {
     case "7d":
       return 7;
@@ -66,10 +64,8 @@ const timeRangeToDays = (timeRange: string | undefined): number | null => {
       return 90;
     case "1y":
       return 365;
-    case "all":
-      return null;
     default:
-      return null;
+      return 30;
   }
 };
 
@@ -135,12 +131,10 @@ export function InventoryItemDetails({
   const router = useRouter();
 
   // State declarations first
-  const [marketAnalysisDays, setMarketAnalysisDays] = useState<string | null>(
-    "7d",
-  );
-  const [selectedMarketplace, setSelectedMarketplace] = useState<string | null>(
-    null,
-  );
+  const [marketAnalysisDays, setMarketAnalysisDays] = useState<string>("7d");
+  const [selectedMarketplace, setSelectedMarketplace] = useState<
+    string | undefined
+  >(undefined);
 
   // Data fetching hooks
   const {
@@ -161,9 +155,7 @@ export function InventoryItemDetails({
     error: marketError,
   } = useSkuMarketData(
     inventoryItem?.sku.id || null,
-    marketAnalysisDays
-      ? timeRangeToDays(marketAnalysisDays) || undefined
-      : undefined,
+    timeRangeToDays(marketAnalysisDays),
   );
 
   const {
@@ -178,10 +170,8 @@ export function InventoryItemDetails({
     error: priceHistoryError,
   } = useInventoryPriceHistory(
     inventoryItem?.sku.id && selectedMarketplace ? inventoryItem.sku.id : null,
-    marketAnalysisDays
-      ? timeRangeToDays(marketAnalysisDays) || undefined
-      : undefined,
-    selectedMarketplace,
+    timeRangeToDays(marketAnalysisDays),
+    selectedMarketplace ?? null,
   );
 
   // Get marketplace options from dedicated endpoint
