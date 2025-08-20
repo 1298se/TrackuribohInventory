@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { TopNav } from "@/components/top-nav";
 import { SWRConfig } from "swr";
+import { AuthProvider } from "./auth-provider";
+import { AuthGate } from "./auth-gate";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -18,12 +20,16 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-background text-foreground antialiased">
         <SWRConfig value={{ revalidateOnFocus: false }}>
-          <div className="flex min-h-screen flex-col">
-            <TopNav />
-            <main className="flex-1 p-6">
-              <div className="container">{children}</div>
-            </main>
-          </div>
+          <AuthProvider>
+            <AuthGate>
+              <div className="flex min-h-screen flex-col">
+                <TopNav />
+                <main className="flex-1 p-6">
+                  <div className="container">{children}</div>
+                </main>
+              </div>
+            </AuthGate>
+          </AuthProvider>
         </SWRConfig>
       </body>
     </html>

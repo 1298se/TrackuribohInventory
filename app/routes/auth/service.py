@@ -39,11 +39,7 @@ class AuthService:
                 user=AuthUserResponse(
                     id=response.user.id,
                     email=response.user.email,
-                    created_at=(
-                        response.user.created_at.isoformat()
-                        if hasattr(response.user.created_at, "isoformat")
-                        else str(response.user.created_at)
-                    ),
+                    created_at=response.user.created_at,
                 ),
                 access_token=response.session.access_token,
                 refresh_token=response.session.refresh_token,

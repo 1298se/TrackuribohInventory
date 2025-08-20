@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -41,9 +43,9 @@ class RefreshTokenRequest(BaseModel):
 class AuthUserResponse(BaseModel):
     """User data returned in auth responses"""
 
-    id: str
+    id: UUID
     email: str
-    created_at: str
+    created_at: datetime
 
     class Config:
         from_attributes = True

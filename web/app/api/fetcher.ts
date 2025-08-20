@@ -1,6 +1,9 @@
 import { z, ZodError } from "zod"; // Import ZodError for potential type checking if needed
+import { getAccessToken, isTokenExpired, clearTokens } from "./token";
+import { refresh as refreshTokens } from "./auth";
 
-export const API_URL = "http://localhost:8000";
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 export enum HTTPMethod {
   GET = "GET",
@@ -18,6 +21,29 @@ export interface FetcherParams<T extends z.ZodTypeAny> {
   init?: RequestInit;
   params?: Record<string, string | string[]>;
   schema: T;
+}
+
+// Deduplicate concurrent refresh requests
+let refreshInFlight: Promise<unknown> | null = null;
+async function ensureRefreshedOnce() {
+  if (!refreshInFlight) {
+    refreshInFlight = refreshTokens().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+async function doFetch(url: string, options: RequestInit) {
+  // Inject Authorization if we have an access token
+  const token = getAccessToken();
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+  // Always include credentials so the refresh cookie is sent
+  return fetch(url, { ...options, headers, credentials: "include" });
 }
 
 // Enhanced fetcher that supports GET and mutation operations
@@ -50,10 +76,6 @@ export const fetcher = async <T extends z.ZodTypeAny>({
   const fetchOptions: RequestInit = {
     ...init,
     method,
-    headers: {
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
   };
 
   // Add body for non-GET requests
@@ -61,8 +83,39 @@ export const fetcher = async <T extends z.ZodTypeAny>({
     fetchOptions.body = JSON.stringify(body);
   }
 
-  // Perform the fetch
-  const response = await fetch(url, fetchOptions);
+  const isRefreshCall = url.includes("/auth/refresh");
+
+  // Proactive token refresh - refresh before token expires to prevent 401s
+  // Skip for the refresh endpoint itself
+  if (!isRefreshCall && isTokenExpired()) {
+    try {
+      await ensureRefreshedOnce();
+    } catch (refreshError) {
+      console.error("Proactive token refresh failed:", refreshError);
+      // Continue with the request - it may fail with 401 and trigger reactive refresh
+    }
+  }
+
+  // Perform the fetch with one retry after refresh on 401
+  let response = await doFetch(url, fetchOptions);
+
+  if (response.status === 401) {
+    try {
+      // Attempt to refresh tokens (but never when we're already hitting the refresh endpoint)
+      if (!isRefreshCall) {
+        await ensureRefreshedOnce();
+        // Now retry the request with the new access token
+        response = await doFetch(url, fetchOptions);
+      }
+    } catch (refreshError) {
+      // If refresh fails, the user needs to log in again
+      console.error("Token refresh failed:", refreshError);
+      // Clear tokens since they're no longer valid
+      clearTokens();
+      // You could also trigger a redirect to login here
+      throw new Error("Authentication failed. Please log in again.");
+    }
+  }
 
   // Check for HTTP errors
   if (!response.ok) {

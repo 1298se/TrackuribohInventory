@@ -5,10 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus, Package2, CircleDollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/app/auth-provider";
 
 export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const { isAuthenticated, user, logout, loading } = useAuth();
 
   const navigation = [
     {
@@ -94,6 +96,31 @@ export function TopNav() {
               Add Transaction
             </span>
           </Button>
+
+          {/* Auth Controls */}
+          {isAuthenticated ? (
+            <div className="flex items-center space-x-2">
+              <span className="hidden sm:inline text-sm text-foreground/70">
+                {user?.email}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                onClick={logout}
+              >
+                Logout
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/login")}
+            >
+              Login
+            </Button>
+          )}
         </div>
       </div>
     </header>
