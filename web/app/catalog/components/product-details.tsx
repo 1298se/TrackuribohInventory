@@ -31,9 +31,9 @@ export function ProductDetails({ productId }: ProductDetailsProps) {
   } = useProductDetail(productId);
 
   // State for sales lookback days
-  const [salesLookbackDays, setSalesLookbackDays] = useState<number | null>(
-    null,
-  );
+  const [salesLookbackDays, setSalesLookbackDays] = useState<
+    number | undefined
+  >(undefined);
 
   // Fetch market data
   const {
