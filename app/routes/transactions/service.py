@@ -1,5 +1,6 @@
 from typing import List, TypedDict, Optional
 from datetime import date, timedelta
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, select, and_, case, Date
@@ -30,6 +31,7 @@ async def create_transaction_service(
     request: TransactionCreateRequestSchema,
     catalog_service: TCGPlayerCatalogService,
     session: Session,
+    user_id: UUID,
 ) -> Transaction:
     """
     Service function to create a transaction and its line items.
@@ -38,6 +40,7 @@ async def create_transaction_service(
         request: The transaction creation request
         catalog_service: The TCGPlayer catalog service for price information
         session: The database session
+        user_id: The ID of the user creating the transaction
 
     Returns:
         The created transaction with line items
@@ -56,6 +59,7 @@ async def create_transaction_service(
         tax_amount=request.tax_amount,
         platform_id=request.platform_id,
         platform_order_id=request.platform_order_id,
+        user_id=user_id,
     )
 
     # Calculate line item prices using the helper function
@@ -64,6 +68,7 @@ async def create_transaction_service(
         catalog_service=catalog_service,
         line_items=request.line_items,
         total_amount=request.total_amount,
+        user_id=user_id,
     )
 
     try:

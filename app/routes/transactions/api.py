@@ -50,6 +50,7 @@ from core.services.tcgplayer_catalog_service import (
     TCGPlayerCatalogService,
     get_tcgplayer_catalog_service,
 )
+from core.models.user import User
 
 router = APIRouter(
     prefix="/transactions",
@@ -73,10 +74,12 @@ async def get_platforms(session: Session = Depends(get_db_session)):
 
 @router.post("/platforms", response_model=PlatformResponseSchema, status_code=201)
 async def create_platform(
-    request: PlatformCreateRequestSchema, session: Session = Depends(get_db_session)
+    request: PlatformCreateRequestSchema,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new platform."""
-    platform = Platform(name=request.name)
+    platform = Platform(name=request.name, user_id=current_user.id)
     session.add(platform)
     session.commit()
     session.refresh(platform)
@@ -185,11 +188,12 @@ async def create_transaction(
     request: TransactionCreateRequestSchema,
     catalog_service: TCGPlayerCatalogService = Depends(get_tcgplayer_catalog_service),
     session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         # Start a transaction explicitly
         transaction = await create_transaction_service(
-            request, catalog_service, session
+            request, catalog_service, session, current_user.id
         )
 
         session.commit()
@@ -212,6 +216,7 @@ async def create_transaction(
 async def bulk_delete_transactions(
     request: BulkTransactionDeleteRequestSchema,
     session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         delete_transactions(session, request.transaction_ids)
@@ -361,6 +366,7 @@ async def calculate_weighted_prices(
     request: WeightedPriceCalculationRequestSchema,
     session: Session = Depends(get_db_session),
     catalog_service: TCGPlayerCatalogService = Depends(get_tcgplayer_catalog_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Calculate unit prices by distributing total amount based on market price weighting."""
 
@@ -376,6 +382,7 @@ async def calculate_weighted_prices(
             catalog_service=catalog_service,
             line_items=core_line_items,
             total_amount=request.total_amount,
+            user_id=current_user.id,
         )
     except Exception as e:
         # Log the error e

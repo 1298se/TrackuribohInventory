@@ -267,6 +267,7 @@ class TransactionData:
     currency: str
     shipping_cost_amount: MoneyAmount
     tax_amount: MoneyAmount
+    user_id: uuid.UUID
     comment: Optional[str] = None
     platform_id: Optional[uuid.UUID] = None
     platform_order_id: Optional[str] = None
@@ -277,6 +278,7 @@ class LineItemData:
     sku_id: uuid.UUID
     quantity: int
     unit_price_amount: MoneyAmount
+    user_id: uuid.UUID
     id: Optional[uuid.UUID] = None
 
 
@@ -313,6 +315,7 @@ def create_transaction_with_line_items(
         currency=transaction_data.currency,
         shipping_cost_amount=transaction_data.shipping_cost_amount,
         tax_amount=transaction_data.tax_amount,
+        user_id=transaction_data.user_id,
         platform_id=transaction_data.platform_id,
         platform_order_id=transaction_data.platform_order_id,
     )
@@ -339,6 +342,7 @@ def create_transaction_line_items(
             sku_id=item_data.sku_id,
             quantity=item_data.quantity,
             unit_price_amount=item_data.unit_price_amount,
+            user_id=item_data.user_id,
             # Use the id from dataclass if provided (relevant for updates later, though create doesn't use it)
             id=item_data.id,
         )

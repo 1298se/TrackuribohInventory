@@ -23,6 +23,7 @@ async def calculate_weighted_unit_prices(
     catalog_service: TCGPlayerCatalogService,
     line_items: List[LineItemInput],
     total_amount: Decimal,
+    user_id: uuid.UUID,
 ) -> list[LineItemData]:
     """Calculates unit prices for line items based on market price weighting.
 
@@ -31,6 +32,7 @@ async def calculate_weighted_unit_prices(
         catalog_service: TCGPlayer service.
         line_items: List of input line items (sku_id, quantity).
         total_amount: Total amount to distribute.
+        user_id: The ID of the user creating the transaction.
 
     Returns:
         List of LineItemData objects with calculated unit prices.
@@ -129,6 +131,7 @@ async def calculate_weighted_unit_prices(
                     tcgplayer_id, Decimal(0)
                 )
                 * ratio_for_priced_items,
+                user_id=user_id,
             )
         )
 
@@ -138,6 +141,7 @@ async def calculate_weighted_unit_prices(
                 sku_id=item.sku_id,
                 quantity=item.quantity,
                 unit_price_amount=unpriced_unit_price,
+                user_id=user_id,
             )
         )
 

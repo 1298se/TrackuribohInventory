@@ -84,6 +84,7 @@ async def get_current_user(
 
     try:
         user = await auth_service.verify_jwt_token(credentials.credentials, session)
+
         logger.debug(f"User authenticated successfully: {user.id}")
         return user
 
