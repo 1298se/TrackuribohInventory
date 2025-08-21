@@ -73,6 +73,7 @@ import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { FormFieldPlatformSelect } from "@/components/ui/platform-select";
 import { ProductDisplay } from "@/components/product-display";
 import { FixedFooter } from "@/components/ui/fixed-footer";
+import { mutate as globalMutate } from "swr";
 
 export const TransactionCreateFormLineItemSchema =
   LineItemCreateRequestSchema.extend({
@@ -304,6 +305,22 @@ export default function CreateTransactionFormDialog() {
       // Make sure we're passing the correct fields that match the schema
       const request = TransactionCreateRequestSchema.parse(data);
       const transaction = await createTransaction(request);
+
+      // Revalidate relevant SWR keys after successful creation
+      await Promise.all([
+        // Revalidate transaction data
+        globalMutate((key) => Array.isArray(key) && key[0] === "/transactions"),
+        globalMutate("/transactions/metrics"),
+
+        // Revalidate inventory data since transactions affect inventory
+        globalMutate((key) => Array.isArray(key) && key[0] === "/inventory"),
+        globalMutate(
+          (key) => Array.isArray(key) && key[0] === "/inventory/metrics",
+        ),
+        globalMutate(
+          (key) => Array.isArray(key) && key[0] === "/inventory/performance",
+        ),
+      ]);
 
       // On success, navigate to the transaction details page
       if (transaction && transaction.id) {

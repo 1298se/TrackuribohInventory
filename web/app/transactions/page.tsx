@@ -175,7 +175,7 @@ export default function TransactionsPage() {
   const handleDeleteSelected = async (ids: string[]) => {
     try {
       await deleteMutation.trigger(ids);
-      mutate();
+      await mutate();
     } catch (error) {
       console.error(error);
     }

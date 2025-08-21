@@ -122,12 +122,9 @@ export const fetcher = async <T extends z.ZodTypeAny>({
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  // For DELETE operations that don't return data
-  if (method === HTTPMethod.DELETE && response.status === 204) {
-    // If schema expects void or undefined, return it
-    if (schema === z.void() || schema === z.undefined()) {
-      return undefined as z.infer<T>;
-    }
+  // Handle 204 No Content responses for any HTTP method
+  if (response.status === 204) {
+    return undefined as z.infer<T>;
   }
 
   // Parse JSON - potential error source

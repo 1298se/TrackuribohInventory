@@ -1,30 +1,38 @@
-import { FormControl, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue, 
+import {
+  FormControl,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   SelectSeparator,
-  SelectLabel
+  SelectLabel,
 } from "@/components/ui/select";
-import * as SelectPrimitive from '@radix-ui/react-select';
+import * as SelectPrimitive from "@radix-ui/react-select";
 import { usePlatforms, useCreatePlatform } from "@/app/transactions/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FormField } from "@/components/ui/form";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle} from "@/components/ui/dialog";
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Control, FieldPath, FieldValues } from "react-hook-form";
 
 interface PlatformSelectProps {
   value: string | null | undefined;
@@ -45,13 +53,19 @@ export function PlatformSelect({
   placeholder = "Select a platform",
   showLabel = true,
   className,
-  displayValue
+  displayValue,
 }: PlatformSelectProps) {
-  const { data: platforms, isLoading, mutate: mutatePlatforms } = usePlatforms();
+  const {
+    data: platforms,
+    isLoading,
+    mutate: mutatePlatforms,
+  } = usePlatforms();
   const { trigger: createPlatform, isMutating } = useCreatePlatform();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newPlatformName, setNewPlatformName] = useState("");
   const [isSelectOpen, setIsSelectOpen] = useState(false);
+
+  const NONE_VALUE = "__none__";
 
   const handleAddPlatform = async () => {
     if (!newPlatformName.trim()) {
@@ -62,11 +76,11 @@ export function PlatformSelect({
     try {
       const result = await createPlatform({ name: newPlatformName.trim() });
       toast.success("Platform added successfully");
-      
+
       // Close dialog and clear input
       setIsAddDialogOpen(false);
       setNewPlatformName("");
-      
+
       // Refresh platforms and select the new one
       await mutatePlatforms();
       onChange(result.id);
@@ -95,13 +109,17 @@ export function PlatformSelect({
   }
 
   if (!isEditing) {
-    const selectedPlatform = platforms?.find(p => p.id === value);
+    const selectedPlatform = platforms?.find((p) => p.id === value);
     return (
       <div className={className}>
         {showLabel && <div className="text-sm font-medium mb-2">{label}</div>}
         <div className="mt-2">
-          {displayValue || (selectedPlatform ? selectedPlatform.name : 
-           <span className="text-muted-foreground italic">None</span>)}
+          {displayValue ||
+            (selectedPlatform ? (
+              selectedPlatform.name
+            ) : (
+              <span className="text-muted-foreground italic">None</span>
+            ))}
         </div>
       </div>
     );
@@ -110,21 +128,21 @@ export function PlatformSelect({
   return (
     <div className={className}>
       {showLabel && <div className="text-sm font-medium mb-2">{label}</div>}
-      
+
       <Dialog open={isAddDialogOpen} onOpenChange={handleDialogOpenChange}>
         <Select
           open={isSelectOpen}
           onOpenChange={setIsSelectOpen}
           onValueChange={(value) => {
-            onChange(value === "null" ? null : value);
+            onChange(value === NONE_VALUE ? null : value);
           }}
-          value={value ?? "null"}
+          value={value === null ? NONE_VALUE : value}
         >
           <SelectTrigger>
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="null">None</SelectItem>
+            <SelectItem value={NONE_VALUE}>None</SelectItem>
             {platforms?.map((platform) => (
               <SelectItem key={platform.id} value={platform.id}>
                 {platform.name}
@@ -135,7 +153,7 @@ export function PlatformSelect({
               role="button"
               className={cn(
                 "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-2 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground",
-                "text-primary font-medium justify-center"
+                "text-primary font-medium justify-center",
               )}
               onClick={() => {
                 setIsSelectOpen(false); // Close the dropdown
@@ -147,7 +165,7 @@ export function PlatformSelect({
             </div>
           </SelectContent>
         </Select>
-        
+
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Platform</DialogTitle>
@@ -155,7 +173,7 @@ export function PlatformSelect({
               Enter the name of the new platform.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
             <Input
               value={newPlatformName}
@@ -164,20 +182,17 @@ export function PlatformSelect({
               className="w-full"
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddPlatform();
+                if (e.key === "Enter") handleAddPlatform();
               }}
             />
           </div>
-          
+
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsAddDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleAddPlatform} 
+            <Button
+              onClick={handleAddPlatform}
               disabled={isMutating || !newPlatformName.trim()}
             >
               {isMutating ? "Adding..." : "Add Platform"}
@@ -189,21 +204,24 @@ export function PlatformSelect({
   );
 }
 
-export function FormFieldPlatformSelect({
+// Typed RHF wrapper for PlatformSelect
+type FormFieldPlatformSelectProps<TFieldValues extends FieldValues> = {
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
+  label?: string;
+  placeholder?: string;
+  isEditing?: boolean;
+  displayValue?: string;
+};
+
+export function FormFieldPlatformSelect<TFieldValues extends FieldValues>({
   control,
   name,
   label = "Platform",
   placeholder = "Select a platform",
   isEditing = true,
   displayValue,
-}: {
-  control: any;
-  name: string;
-  label?: string;
-  placeholder?: string;
-  isEditing?: boolean;
-  displayValue?: string;
-}) {
+}: FormFieldPlatformSelectProps<TFieldValues>) {
   return (
     <FormField
       control={control}
@@ -226,4 +244,4 @@ export function FormFieldPlatformSelect({
       )}
     />
   );
-} 
+}
