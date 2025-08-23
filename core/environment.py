@@ -22,16 +22,10 @@ class Environment(BaseSettings):
 
     # Supabase configuration for authentication
     supabase_url: str  # Required: Supabase project URL
-    supabase_service_key: str  # Required: Service role key for backend operations
     supabase_anon_key: str  # Public anon key for auth flows
 
     # Security configuration
     cors_origins: list[str] = ["http://localhost:3000", "https://localhost:3000"]
-
-    # Authentication settings
-    jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
-    refresh_token_expire_days: int = 7
 
     # We provide a fallback env_file so we can run the FastAPI app in Pycharm
     model_config = SettingsConfigDict(

@@ -50,3 +50,29 @@ uvicorn app.main:app --reload
 ## Lock file strategy
 
 The authoritative lock file is `uv.lock`, committed to version control for deterministic builds. Other `requirements*.txt` files are no longer used.
+
+## Environment variables
+
+Create a `.env` file at the repository root (used by `core/environment.py`). You can copy and adjust the following template:
+
+```env
+# Application environment
+ENV=DEBUG  # or PROD
+
+# Database connection
+DB_USERNAME=your_db_user
+DB_PASSWORD=your_db_password
+DB_ENDPOINT=localhost
+DB_PORT=5432
+
+# TCGPlayer API credentials
+TCGPLAYER_CLIENT_ID=your_tcgplayer_client_id
+TCGPLAYER_CLIENT_SECRET=your_tcgplayer_client_secret
+
+# Supabase authentication (client-side usage)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# CORS (optional; leave unset to use defaults)
+# CORS_ORIGINS=["http://localhost:3000","https://localhost:3000"]
+```
