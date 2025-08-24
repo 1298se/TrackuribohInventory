@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM mcr.microsoft.com/playwright/python:v1.54.0-jammy
 
 # Install uv
 RUN pip install --no-cache-dir uv

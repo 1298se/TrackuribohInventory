@@ -65,11 +65,19 @@ DB_PASSWORD=your_db_password
 DB_ENDPOINT=localhost
 DB_PORT=5432
 
-# TCGPlayer API credentials
+# TCGPlayer API credentials (server-to-server token grant)
 TCGPLAYER_CLIENT_ID=your_tcgplayer_client_id
 TCGPLAYER_CLIENT_SECRET=your_tcgplayer_client_secret
 
-# Supabase authentication (client-side usage)
+# TCGPlayer login (used by cron/tasks/refresh_tcg_cookie.py)
+TCGPLAYER_EMAIL=you@example.com
+TCGPLAYER_PASSWORD=your_password
+
+# AWS (for Secrets Manager cookie storage)
+AWS_REGION=us-east-1
+AWS_SECRETSMANAGER_SECRET_NAME=your-secret-name-or-arn
+
+# Supabase authentication (backend uses anon key)
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_supabase_anon_key
 

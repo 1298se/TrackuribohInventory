@@ -5,6 +5,8 @@ from typing import List, TypedDict, Any
 import aiohttp
 from pydantic import BaseModel
 
+from core.environment import get_environment
+
 
 class CardListingRequestData(TypedDict):
     """Payload for TCGPlayer listing requests."""
@@ -97,15 +99,20 @@ DEFAULT_SALES_CONFIG = {
 }
 
 # Use MappingProxyType to make immutable
-BASE_HEADERS = MappingProxyType(
-    {
-        "origin": "https://www.tcgplayer.com",
-        "Referer": "https://www.tcgplayer.com",
-        "accept": "application/json",
-        "content-type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Mobile Safari/537.36",
-    }
-)
+_base_headers = {
+    "origin": "https://www.tcgplayer.com",
+    "Referer": "https://www.tcgplayer.com",
+    "accept": "application/json",
+    "content-type": "application/json",
+    "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Mobile Safari/537.36",
+}
+
+_env = get_environment()
+_cookie = _env.get_tcgplayer_cookie()
+if _cookie:
+    _base_headers["Cookie"] = _cookie
+
+BASE_HEADERS = MappingProxyType(_base_headers)
 
 
 def get_product_active_listings_request_payload(

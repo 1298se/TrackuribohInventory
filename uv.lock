@@ -19,6 +19,12 @@ apscheduler==3.11.0
     # via codex-tcg (pyproject.toml)
 attrs==25.3.0
     # via aiohttp
+boto3==1.40.16
+    # via codex-tcg (pyproject.toml)
+botocore==1.40.16
+    # via
+    #   boto3
+    #   s3transfer
 certifi==2025.7.14
     # via
     #   httpcore
@@ -51,6 +57,8 @@ frozenlist==1.7.0
     #   aiosignal
 gotrue==2.12.3
     # via supabase
+greenlet==3.2.4
+    # via playwright
 h11==0.16.0
     # via
     #   httpcore
@@ -83,6 +91,10 @@ idna==3.10
     #   yarl
 jinja2==3.1.6
     # via fastapi
+jmespath==1.0.1
+    # via
+    #   boto3
+    #   botocore
 mako==1.3.10
     # via alembic
 markdown-it-py==3.0.0
@@ -99,6 +111,8 @@ multidict==6.6.3
     #   yarl
 packaging==25.0
     # via deprecation
+playwright==1.54.0
+    # via codex-tcg (pyproject.toml)
 postgrest==1.1.1
     # via supabase
 propcache==0.3.2
@@ -119,12 +133,16 @@ pydantic-core==2.33.2
     # via pydantic
 pydantic-settings==2.10.1
     # via codex-tcg (pyproject.toml)
+pyee==13.0.0
+    # via playwright
 pygments==2.19.2
     # via rich
 pyjwt==2.10.1
     # via gotrue
 python-dateutil==2.9.0.post0
-    # via storage3
+    # via
+    #   botocore
+    #   storage3
 python-dotenv==1.1.1
     # via
     #   pydantic-settings
@@ -147,6 +165,8 @@ rich-toolkit==0.14.8
     #   fastapi-cloud-cli
 rignore==0.6.4
     # via fastapi-cloud-cli
+s3transfer==0.13.1
+    # via boto3
 sentry-sdk==2.33.2
     # via
     #   codex-tcg (pyproject.toml)
@@ -183,6 +203,7 @@ typing-extensions==4.14.1
     #   fastapi
     #   pydantic
     #   pydantic-core
+    #   pyee
     #   realtime
     #   rich-toolkit
     #   sqlalchemy
@@ -196,7 +217,9 @@ typing-inspection==0.4.1
 tzlocal==5.3.1
     # via apscheduler
 urllib3==2.5.0
-    # via sentry-sdk
+    # via
+    #   botocore
+    #   sentry-sdk
 uuid7==0.1.0
     # via codex-tcg (pyproject.toml)
 uvicorn==0.35.0

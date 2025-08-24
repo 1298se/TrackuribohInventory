@@ -62,7 +62,12 @@ endef
 define docker_run
 	docker stop codex-tcg-$(1) || true
 	docker rm codex-tcg-$(1) || true
-	docker run -d --name codex-tcg-$(1) $(2) --env-file .env $(3):$(IMAGE_TAG)
+	docker run -d --name codex-tcg-$(1) $(2) \
+		--env-file .env \
+		-e AWS_REGION=$(REGION) \
+		-e AWS_DEFAULT_REGION=$(REGION) \
+		-v $(HOME)/.aws:/root/.aws:ro \
+		$(3):$(IMAGE_TAG)
 endef
 
 # Build targets
@@ -78,7 +83,10 @@ build-api: ensure-uv-lock
 # Run targets locally
 .PHONY: run-cron
 run-cron: build-cron
-	$(call docker_run,cron,-p 9000:8080,$(CRON_REPO))
+	@if [ -z "$(CRON_TASK)" ]; then echo "CRON_TASK is required, e.g. make run-cron CRON_TASK=refresh_tcg_cookie"; exit 1; fi
+	@echo "Running cron task: $(CRON_TASK)"
+	docker run --rm --name codex-tcg-$(CRON_TASK) --env-file .env $(CRON_REPO):$(IMAGE_TAG) \
+		python -m cron.tasks.$(CRON_TASK)
 
 .PHONY: run-api
 run-api: build-api

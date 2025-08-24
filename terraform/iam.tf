@@ -3,7 +3,8 @@
 # -------------------------------------
 # ECS Task Execution Role
 # -------------------------------------
-# Allows ECS tasks to call AWS services on your behalf (ECR pull, CloudWatch logs)
+# Used by the ECS agent (not your app code) to pull the image, write logs, and fetch
+# container-level injected secrets. Should be READ-ONLY for secrets injection.
 resource "aws_iam_role" "ecs_task_execution_role" {
   name               = "${var.project_name}-ecs-task-execution-role"
   assume_role_policy = jsonencode({
@@ -34,7 +35,8 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 # -------------------------------------
 # ECS Task Role
 # -------------------------------------
-# Permissions granted to the application running inside the container
+# Assumed by the application code running inside the container. This role grants runtime
+# permissions the app needs (e.g., read/write a specific secret).
 resource "aws_iam_role" "cron_task_role" {
   name               = "${var.project_name}-cron-task-role"
   assume_role_policy = jsonencode({
@@ -56,38 +58,73 @@ resource "aws_iam_role" "cron_task_role" {
   }
 }
 
-# Define the policy allowing read access to the specific secrets
-resource "aws_iam_policy" "cron_task_secrets_policy" {
-  name        = "${var.project_name}-cron-task-secrets-policy"
-  description = "Allow cron task to read required secrets from Secrets Manager"
+# Read-only policy for the ECS agent to inject container secrets (Get/Describe only)
+# Scope to the specific secrets referenced in terraform/ecs.tf
+resource "aws_iam_policy" "ecs_execution_read_secrets_policy" {
+  name        = "${var.project_name}-ecs-execution-read-secrets"
+  description = "Allow ECS execution role to read injected secrets for containers"
 
   policy = jsonencode({
     Version   = "2012-10-17",
     Statement = [
       {
-        Action = [
+        Effect   = "Allow",
+        Action   = [
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ],
-        Effect   = "Allow",
-        Resource = "*" # Allow access to ALL secrets
+        Resource = [
+          data.aws_secretsmanager_secret.db_credentials.arn,
+          data.aws_secretsmanager_secret.tcgplayer_credentials.arn,
+          data.aws_secretsmanager_secret.tcgplayer_account.arn
+        ]
       }
     ]
   })
 
   tags = {
-    Name      = "${var.project_name}-cron-task-secrets-policy"
+    Name      = "${var.project_name}-ecs-execution-read-secrets"
     ManagedBy = "Terraform"
   }
 }
 
-# Attach the secrets policy ALSO to the Task Execution Role
-# This is required because the ECS agent (using the execution role)
-# needs permission to fetch secrets specified in the task definition's
-# 'secrets' configuration block for injection.
+# Attach read-only secrets policy to the Execution Role
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_secrets_attachment" {
   role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = aws_iam_policy.cron_task_secrets_policy.arn # Reuse the same policy
+  policy_arn = aws_iam_policy.ecs_execution_read_secrets_policy.arn
+}
+
+# Read/write policy for the app to update the cookie secret at runtime
+# Scope writes only to the cookie secret; allow reads to the same if needed
+resource "aws_iam_policy" "cron_task_cookie_rw_policy" {
+  name        = "${var.project_name}-cron-task-cookie-rw"
+  description = "Allow cron task to read/write the TCG cookie secret"
+
+  policy = jsonencode({
+    Version   = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:PutSecretValue"
+        ],
+        Resource = data.aws_secretsmanager_secret.tcgplayer_cookie.arn
+      }
+    ]
+  })
+
+  tags = {
+    Name      = "${var.project_name}-cron-task-cookie-rw"
+    ManagedBy = "Terraform"
+  }
+}
+
+# Attach the cookie read/write policy to the Task Role so the container code can update it
+resource "aws_iam_role_policy_attachment" "cron_task_role_cookie_rw_attachment" {
+  role       = aws_iam_role.cron_task_role.name
+  policy_arn = aws_iam_policy.cron_task_cookie_rw_policy.arn
 }
 
 # --- Outputs ---
