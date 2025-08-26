@@ -1,23 +1,19 @@
 import asyncio
 import logging
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-# Database
 from core.database import SessionLocal
-
-# Models
-from core.models.catalog import SKU, Product, Set, Catalog, Condition, Language
+from core.models.catalog import Catalog, Condition, Language, Product, SKU, Set
 from core.services.price_service import update_latest_sku_prices
 from core.services.schemas.schema import ProductType
-
-# TCGPlayer Service
 from core.services.tcgplayer_catalog_service import tcgplayer_service_context
-
-# Utilities
 from core.utils.workers import process_task_queue
+from cron.telemetry import init_sentry
+
+init_sentry("snapshot_product_sku_prices")
 
 # from typing import Optional  # No longer used here
 
@@ -26,6 +22,7 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 # --- Constants ---
 SKU_BATCH_SIZE = 200  # TCGPlayer allows ~200 IDs per GET URL before length limits
@@ -142,15 +139,8 @@ async def main():
                     batch_ids = market_indicator_tcgplayer_ids[i : i + SKU_BATCH_SIZE]
                     await task_queue.put(process_sku_batch_for_history(batch_ids))
 
-                successes, failures = await process_task_queue(task_queue)
+                successes = await process_task_queue(task_queue)
                 inserted_snapshots = sum(successes)
-
-                if failures:
-                    logger.error(
-                        "%s: %d batch tasks failed during execution.",
-                        JOB_NAME,
-                        len(failures),
-                    )
 
                 logger.info(
                     f"{JOB_NAME}: completed. SKUs targeted: {total_skus_targeted}, SKU price snapshots inserted: {inserted_snapshots}",

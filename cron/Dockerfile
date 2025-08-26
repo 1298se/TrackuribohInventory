@@ -1,7 +1,8 @@
-FROM mcr.microsoft.com/playwright/python:v1.54.0-jammy
+FROM python:3.12-slim-bullseye
 
-# Install uv
-RUN pip install --no-cache-dir uv
+# Install Playwright and Chromium (with OS deps), and uv
+RUN pip install --no-cache-dir playwright uv \
+  && python -m playwright install --with-deps chromium
 
 WORKDIR /code
 

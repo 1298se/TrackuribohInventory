@@ -1,14 +1,25 @@
 import asyncio
 import json
+import logging
 import re
 from datetime import datetime, timezone
 from typing import Optional
 
 import boto3
 from playwright.async_api import async_playwright
+
 from core.environment import get_environment
+from cron.telemetry import init_sentry
+
+init_sentry("refresh_tcg_cookie")
 
 TARGET_URL = "https://www.tcgplayer.com/product/593324?Language=English"
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 def _load_seed_cookie_from_secret(secret_id: str, region: str) -> str:
@@ -59,8 +70,9 @@ async def refresh_cookie_with_seed() -> Optional[tuple[str, bool]]:
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False, args=["--no-sandbox", "--disable-dev-shm-usage"]
+            headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
         )
+
         context = await browser.new_context(
             viewport={"width": 1280, "height": 800}, device_scale_factor=1
         )
@@ -79,10 +91,9 @@ async def refresh_cookie_with_seed() -> Optional[tuple[str, bool]]:
         except Exception:
             html = await page.content()
             if email not in html:
-                print(
-                    "Email not found on product page; session may not be authenticated."
+                logger.error(
+                    "Email not found on product page; session may not be authenticated.",
                 )
-                await browser.close()
                 return None
 
         # Read cookies and build new header
@@ -117,13 +128,15 @@ def store_cookie_in_secrets_manager(cookie_value: str) -> None:
     data["TCGPLAYER_COOKIE_LAST_REFRESHED"] = datetime.now(timezone.utc).isoformat()
 
     client.put_secret_value(SecretId=secret_id, SecretString=json.dumps(data))
-    print("Updated secret with new cookie at", data["TCGPLAYER_COOKIE_LAST_REFRESHED"])
+    logger.info(
+        "Updated secret with new cookie at %s", data["TCGPLAYER_COOKIE_LAST_REFRESHED"]
+    )
 
 
 async def main() -> None:
     result = await refresh_cookie_with_seed()
     if not result:
-        print("Cookie refresh/validation failed.")
+        logger.error("Cookie refresh/validation failed.")
         return
 
     cookie, changed = result
@@ -131,7 +144,7 @@ async def main() -> None:
     if changed:
         store_cookie_in_secrets_manager(cookie)
     else:
-        print("Cookie unchanged; not updating secret.")
+        logger.info("Cookie unchanged; not updating secret.")
 
 
 if __name__ == "__main__":

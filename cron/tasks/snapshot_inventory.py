@@ -1,12 +1,16 @@
 import logging
 from datetime import date, datetime, timedelta, timezone
+
 from sqlalchemy import select
 
 from core.dao.inventory import query_inventory_catalogs
-from core.services.inventory_service import get_inventory_metrics
 from core.database import SessionLocal
 from core.models.inventory_snapshot import InventorySnapshot
 from core.models.user import User
+from core.services.inventory_service import get_inventory_metrics
+from cron.telemetry import init_sentry
+
+init_sentry("snapshot_inventory")
 
 # Configure logging
 logging.basicConfig(

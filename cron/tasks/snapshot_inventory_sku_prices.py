@@ -1,20 +1,26 @@
 import asyncio
 import logging
-from datetime import datetime, UTC
 import uuid
+from datetime import UTC, datetime
+
+from sqlalchemy import select
 
 from core.dao.inventory import query_inventory_items
-from core.services.price_service import update_latest_sku_prices
 from core.database import SessionLocal
+from core.models.user import User
+from core.services.price_service import update_latest_sku_prices
 from core.services.tcgplayer_catalog_service import tcgplayer_service_context
 from core.utils.workers import process_task_queue
+from cron.telemetry import init_sentry
 
-# Logging setup (align with other cron tasks)
+init_sentry("snapshot_inventory_sku_prices")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
 
 PARTITION_SIZE = 200  # Process results in chunks
 JOB_NAME = "inventory_price_update"
@@ -22,77 +28,72 @@ JOB_NAME = "inventory_price_update"
 
 async def snapshot_inventory_sku_price_data():
     logger.info("Starting %s...", JOB_NAME)
-    job_start_time = datetime.now(UTC)
+    datetime.now(UTC)
 
     async with tcgplayer_service_context() as service:
         with SessionLocal() as session:
-            try:
-                # 1. Gather all SKUs currently in inventory
-                all_sku_ids: list[uuid.UUID] = [
+            # 1. Get all users
+            users = session.scalars(select(User)).all()
+
+            logger.info(f"Found {len(users)} users to process")
+
+            all_sku_ids: list[uuid.UUID] = []
+
+            # 2. Gather all SKUs currently in inventory across all users
+            for user in users:
+                user_sku_ids = [
                     sku.id
-                    for (sku, _, _) in session.execute(query_inventory_items()).all()
+                    for (sku, _, _) in session.execute(
+                        query_inventory_items(user.id)
+                    ).all()
                 ]
+                logger.info(f"User {user.email}: {len(user_sku_ids)} SKUs in inventory")
+                all_sku_ids.extend(user_sku_ids)
 
-                total_skus_targeted = len(all_sku_ids)
+            # Remove duplicates since multiple users might own the same SKU
+            unique_sku_ids = list(set(all_sku_ids))
+            total_skus_targeted = len(unique_sku_ids)
 
-                if not all_sku_ids:
-                    logger.info("No SKUs in inventory to update prices for.")
-                    return
+            if not unique_sku_ids:
+                logger.info("No SKUs in inventory to update prices for.")
+                return
 
-                # 2. Build async tasks per batch
-                task_queue = asyncio.Queue()
+            logger.info(f"Total unique SKUs across all users: {total_skus_targeted}")
 
-                for i in range(0, len(all_sku_ids), PARTITION_SIZE):
-                    batch_sku_ids = all_sku_ids[i : i + PARTITION_SIZE]
+            # 2. Build async tasks per batch
+            task_queue = asyncio.Queue()
 
-                    async def _process_batch(batch_ids=batch_sku_ids):
-                        with SessionLocal() as batch_session:
-                            inserted_cnt = await update_latest_sku_prices(
-                                session=batch_session,
-                                catalog_service=service,
-                                sku_ids=batch_ids,
-                            )
-                            logger.debug(
-                                "%s: batch of %d SKUs inserted %d snapshots",
-                                JOB_NAME,
-                                len(batch_ids),
-                                inserted_cnt,
-                            )
-                            return inserted_cnt
+            for i in range(0, len(unique_sku_ids), PARTITION_SIZE):
+                batch_sku_ids = unique_sku_ids[i : i + PARTITION_SIZE]
 
-                    await task_queue.put(_process_batch())
+                async def _process_batch(batch_ids=batch_sku_ids):
+                    with SessionLocal() as batch_session:
+                        inserted_cnt = await update_latest_sku_prices(
+                            session=batch_session,
+                            catalog_service=service,
+                            sku_ids=batch_ids,
+                        )
+                        logger.debug(
+                            "%s: batch of %d SKUs inserted %d snapshots",
+                            JOB_NAME,
+                            len(batch_ids),
+                            inserted_cnt,
+                        )
+                        return inserted_cnt
 
-                # 3. Process all tasks concurrently
-                successes, failures = await process_task_queue(task_queue)
+                await task_queue.put(_process_batch())
 
-                inserted_snapshots = sum(successes)
+            # 3. Process all tasks concurrently
+            successes = await process_task_queue(task_queue)
 
-                if failures:
-                    logger.error(
-                        "%s: %d batch tasks failed during execution.",
-                        JOB_NAME,
-                        len(failures),
-                    )
+            inserted_snapshots = sum(successes)
 
-                logger.info(
-                    "%s: completed. SKUs targeted: %d, SKU price snapshots inserted: %d",
-                    JOB_NAME,
-                    total_skus_targeted,
-                    inserted_snapshots,
-                )
-            except ValueError as ve:
-                logger.error("%s: Setup failed - %s", JOB_NAME, ve)
-            except Exception as e:
-                logger.exception(
-                    "%s: Unhandled error during orchestration: %s", JOB_NAME, e
-                )
-            finally:
-                job_end_time = datetime.now(UTC)
-                logger.info(
-                    "%s: finished in %.2fs",
-                    JOB_NAME,
-                    (job_end_time - job_start_time).total_seconds(),
-                )
+            logger.info(
+                "%s: completed. SKUs targeted: %d, SKU price snapshots inserted: %d",
+                JOB_NAME,
+                total_skus_targeted,
+                inserted_snapshots,
+            )
 
 
 if __name__ == "__main__":

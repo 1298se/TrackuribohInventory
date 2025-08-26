@@ -23,8 +23,8 @@ class Environment(BaseSettings):
     tcgplayer_client_secret: str
 
     # TCGplayer login (for cookie refresh task)
-    tcgplayer_email: str
-    tcgplayer_password: str
+    tcgplayer_email: str | None = None
+    tcgplayer_password: str | None = None
 
     # Optional: browser session cookie and feature param for TCGplayer web API
     tcgplayer_cookie: str | None = None
@@ -32,15 +32,15 @@ class Environment(BaseSettings):
     # AWS Secrets Manager integration to pull/store cookie in dev/prod
     aws_region: str
     tcgplayer_cookie_secret_name: (
-        str  # Secret may contain TCGPLAYER_COOKIE key or raw string
-    )
+        str | None  # Secret may contain TCGPLAYER_COOKIE key or raw string
+    ) = None
     tcgplayer_storage_state_secret_name: str | None = (
         None  # JSON storage state for session refresh
     )
 
     # Supabase configuration for authentication
-    supabase_url: str  # Required: Supabase project URL
-    supabase_anon_key: str  # Public anon key for auth flows
+    supabase_url: str | None = None  # Required for API/auth paths
+    supabase_anon_key: str | None = None  # Public anon key for auth flows
 
     # Security configuration
     cors_origins: list[str] = ["http://localhost:3000", "https://localhost:3000"]
@@ -62,6 +62,9 @@ class Environment(BaseSettings):
         """Return cookie from env var, or fall back to AWS Secrets Manager if configured."""
         if self.tcgplayer_cookie:
             return self.tcgplayer_cookie
+
+        if not self.tcgplayer_cookie_secret_name:
+            return None
 
         session = boto3.session.Session(region_name=self.aws_region)
         client = session.client("secretsmanager")

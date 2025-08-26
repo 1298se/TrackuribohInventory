@@ -87,6 +87,10 @@ resource "aws_ecs_task_definition" "snapshot_inventory_sku_prices_task" {
         {
           name      = "TCGPLAYER_CLIENT_SECRET"
           valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+        },
+        {
+          name      = "SENTRY_DSN"
+          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
         }
       ]
 
@@ -161,6 +165,10 @@ resource "aws_ecs_task_definition" "snapshot_product_sku_prices_task" {
         {
           name      = "TCGPLAYER_CLIENT_SECRET"
           valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+        },
+        {
+          name      = "SENTRY_DSN"
+          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
         }
       ]
 
@@ -234,6 +242,10 @@ resource "aws_ecs_task_definition" "snapshot_inventory_task" {
         {
           name      = "TCGPLAYER_CLIENT_SECRET"
           valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+        },
+        {
+          name      = "SENTRY_DSN"
+          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
         }
       ]
 
@@ -307,6 +319,10 @@ resource "aws_ecs_task_definition" "update_catalog_db_task" {
         {
           name      = "TCGPLAYER_CLIENT_SECRET"
           valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+        },
+        {
+          name      = "SENTRY_DSN"
+          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
         }
       ]
 
@@ -392,6 +408,11 @@ resource "aws_ecs_task_definition" "refresh_tcg_cookie_task" {
         {
           name      = "TCGPLAYER_PASSWORD"
           valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_account.arn}:TCGPLAYER_PASSWORD::"
+        },
+        # Sentry DSN for error monitoring
+        {
+          name      = "SENTRY_DSN"
+          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
         }
       ]
 

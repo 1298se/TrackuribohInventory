@@ -6,14 +6,16 @@ from datetime import timezone
 
 from sqlalchemy import select
 
-from core.database import upsert, SessionLocal
-from core.models.catalog import Set
-from core.models.catalog import Product
-from core.models.catalog import SKU
-from core.models.catalog import Catalog
-from core.models.catalog import Printing
-from core.models.catalog import Condition
-from core.models.catalog import Language
+from core.database import SessionLocal, upsert
+from core.models.catalog import (
+    Catalog,
+    Condition,
+    Language,
+    Printing,
+    Product,
+    SKU,
+    Set,
+)
 from core.services.schemas.schema import (
     CatalogSetSchema,
     TCGPlayerProductType,
@@ -24,12 +26,16 @@ from core.services.tcgplayer_catalog_service import (
     tcgplayer_service_context,
 )
 from core.utils.workers import process_task_queue
+from cron.telemetry import init_sentry
+
+init_sentry("update_catalog_db")
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 JOB_NAME = "update_catalog_db"
 
@@ -342,14 +348,7 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
                     f"Skipping set {response_set.tcgplayer_id} - {response_set.name}"
                 )
 
-        successes, failures = await process_task_queue(task_queue)
-        if failures:
-            logger.error(
-                "%s: %d tasks failed during catalog update for catalog ID %s.",
-                JOB_NAME,  # Assuming JOB_NAME is defined in this module
-                len(failures),
-                catalog.id,
-            )
+        await process_task_queue(task_queue)
 
 
 async def update_card_database():
@@ -383,8 +382,8 @@ async def update_card_database():
                 await update_catalog(service=service, catalog=catalog)
 
         logger.info("Database update completed successfully")
-    except Exception as e:
-        logger.error(f"Error updating card database: {str(e)}")
+    except Exception:
+        logger.exception("Error updating card database")
         raise
 
 

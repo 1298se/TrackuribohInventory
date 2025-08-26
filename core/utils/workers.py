@@ -2,9 +2,7 @@ import asyncio
 from typing import Any
 
 
-async def process_task_queue(
-    queue: asyncio.Queue, num_workers: int = 10
-) -> tuple[list[Any], list[Exception]]:
+async def process_task_queue(queue: asyncio.Queue, num_workers: int = 10) -> list[Any]:
     worker_tasks = []
 
     for i in range(num_workers):
@@ -15,30 +13,31 @@ async def process_task_queue(
     for task in worker_tasks:
         task.cancel()
 
-    # Wait for cancellation to finish, collecting per-worker successes and failures
+    # Wait for cancellation to finish, collecting per-worker successes
+    # Use return_exceptions=True to handle CancelledError gracefully
     raw_results = await asyncio.gather(*worker_tasks, return_exceptions=True)
     successes: list[Any] = []
-    failures: list[Exception] = []
+    exceptions: list[BaseException] = []
+
     for res in raw_results:
         if isinstance(res, asyncio.CancelledError):
-            # Worker was cancelled, this is an expected part of shutdown for this function.
-            # The _worker function itself will return its (successes, failures) tuple.
-            # If gather returns CancelledError directly, it means the worker didn't even get to its return statement.
-            pass
+            # Worker was cancelled, this is expected during shutdown
+            continue
         elif isinstance(res, Exception):
-            # Other unexpected exception from the worker task itself (should be rare if _worker catches all internal task exceptions)
-            failures.append(res)
+            # Worker encountered an exception
+            exceptions.append(res)
         else:
-            # Expected tuple of (worker_successes, worker_failures)
-            worker_successes, worker_failures = res
-            successes.extend(worker_successes)
-            failures.extend(worker_failures)
-    return successes, failures
+            # Expected list of worker successes from _worker
+            successes.extend(res)
+
+    if exceptions:
+        raise ExceptionGroup("process_task_queue failures", exceptions)
+
+    return successes
 
 
 async def _worker(queue, name=None):
     successes: list[Any] = []
-    failures: list[Exception] = []
     try:
         while True:
             coro = await queue.get()
@@ -46,11 +45,11 @@ async def _worker(queue, name=None):
                 result = await coro
                 successes.append(result)
             except Exception as exc:
-                # Log the exception and record failure
+                # Log the exception and immediately re-raise it to stop processing
                 print(f"[{name}] task failed: {exc!r}")
-                failures.append(exc)
+                raise exc
             finally:
                 queue.task_done()
     except asyncio.CancelledError:
-        # Worker was cancelled, return both successes and failures
-        return successes, failures
+        # Worker was cancelled, return successes accumulated so far
+        return successes

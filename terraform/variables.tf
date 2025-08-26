@@ -90,14 +90,4 @@ variable "refresh_tcg_cookie_schedule_expression" {
   description = "Schedule for refreshing the TCG cookie"
   type        = string
   default     = "cron(0 */6 * * ? *)" # Every 6 hours
-}
-
-variable "tcgplayer_cookie_secret_name" {
-  description = "Name of the Secrets Manager secret that stores the TCG cookie"
-  type        = string
-}
-
-variable "tcgplayer_account_secret_name" {
-  description = "Name of the Secrets Manager secret that stores TCG account login (email/password)"
-  type        = string
 } 
