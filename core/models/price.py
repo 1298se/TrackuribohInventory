@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from core.models.base import Base
 from core.models.catalog import sku_tablename
+from core.models.types import TextEnum
 # from core.models.types import Money, MoneyAmount # No longer used in this file
 
 sku_price_snapshot_job_tablename = "sku_price_snapshot_job"
@@ -24,11 +25,18 @@ class SnapshotSource(enum.Enum):
     INVENTORY_UPDATE = "inventory_update"
 
 
+class Marketplace(enum.StrEnum):
+    TCGPLAYER = "tcgplayer"
+
+
 class SKUPriceDataSnapshot(Base):
     __tablename__ = sku_price_data_snapshot_tablename
 
     sku_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(f"{sku_tablename}.id"), primary_key=True
+    )
+    marketplace: Mapped[Marketplace] = mapped_column(
+        TextEnum(Marketplace), nullable=False, primary_key=True
     )
     snapshot_datetime: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True
@@ -37,12 +45,13 @@ class SKUPriceDataSnapshot(Base):
         Numeric(10, 2), nullable=False
     )
 
-    # Add composite index for efficient retrieval of latest price per SKU
+    # Add composite index for efficient retrieval of latest price per SKU per marketplace
     __table_args__ = (
         # Covering index that includes the price data to avoid table lookups
         Index(
             "ix_sku_price_snapshot_covering",
             "sku_id",
+            "marketplace",
             snapshot_datetime.desc(),
             "lowest_listing_price_total",
         ),

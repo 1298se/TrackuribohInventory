@@ -6,8 +6,8 @@ import { z } from "zod";
  * ----------------------------------------------------- */
 // Define product type constants
 export const PRODUCT_TYPES = {
-  CARDS: "Cards",
-  SEALED: "Sealed Products",
+  CARDS: "CARDS",
+  SEALED: "SEALED",
 } as const;
 
 // Define the schema using the values from PRODUCT_TYPES
@@ -57,7 +57,7 @@ export const ProductBaseResponseSchema = z.object({
   name: z.string(),
   tcgplayer_url: z.string(),
   image_url: z.string(),
-  product_type: z.enum(["Cards", "Sealed Products"]), // Assuming enum values
+  product_type: z.enum(["CARDS", "SEALED"]), // Matches backend enum values
   data: z.array(z.record(z.string())), // Generic list of dicts
   rarity: z.string().nullable(),
   number: z.string().nullable(),

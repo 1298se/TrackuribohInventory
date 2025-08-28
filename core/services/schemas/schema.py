@@ -175,8 +175,8 @@ class SKUPricingResponseSchema(BaseModel):
 
 
 class ProductType(StrEnum):
-    CARDS = "Cards"
-    SEALED = "Sealed Products"
+    CARDS = "CARDS"
+    SEALED = "SEALED"
 
 
 def map_tcgplayer_product_type_to_product_type(

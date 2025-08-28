@@ -10,7 +10,7 @@ from uuid_extensions import uuid7
 from core.models.base import Base
 from core.models.catalog import sku_tablename
 from core.models.catalog import SKU
-from core.models.types import MoneyAmount
+from core.models.types import MoneyAmount, TextEnum
 from core.models.user import User
 
 transaction_tablename = "transaction"
@@ -97,7 +97,9 @@ class Transaction(Base):
         ForeignKey("users.id"), nullable=False, index=True
     )
     date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    type: Mapped[TransactionType]
+    type: Mapped[TransactionType] = mapped_column(
+        TextEnum(TransactionType), nullable=False
+    )
     counterparty_name: Mapped[str | None]
     comment: Mapped[str | None]  # Add comment column for transactions
     line_items: Mapped[list[LineItem]] = relationship(back_populates="transaction")

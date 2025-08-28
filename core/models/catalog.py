@@ -9,6 +9,7 @@ from typing_extensions import Optional
 from uuid_extensions import uuid7
 
 from core.models.base import Base
+from core.models.types import TextEnum
 from core.services.schemas.schema import ProductType
 
 catalog_tablename = "catalog"
@@ -63,7 +64,9 @@ class Product(Base):
     set_id: Mapped[int] = mapped_column(ForeignKey(f"{set_tablename}.id"))
     set: Mapped["Set"] = relationship(back_populates="products")
     skus: Mapped[List["SKU"]] = relationship(back_populates="product")
-    product_type: Mapped[ProductType]
+    product_type: Mapped[ProductType] = mapped_column(
+        TextEnum(ProductType), nullable=False
+    )
     data: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
 
     # New columns for performance-backed full-text search
