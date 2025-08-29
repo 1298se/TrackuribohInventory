@@ -1,36 +1,36 @@
 # terraform/events.tf
 
-# --- Update Inventory Schedule (Hourly) ---
-resource "aws_cloudwatch_event_rule" "update_inventory_schedule" {
-  name                = "${var.project_name}-snapshot-inventory-sku-prices-rule"
-  description         = "Runs cron.tasks.snapshot_inventory_sku_prices every hour (top of the hour) to snapshot current inventory SKU prices"
-  schedule_expression = "cron(0 * * * ? *)" # Runs at the start of every hour
-
-  tags = {
-    Name      = "${var.project_name}-snapshot-inventory-sku-prices-rule"
-    ManagedBy = "Terraform"
-  }
-}
-
-resource "aws_cloudwatch_event_target" "ecs_inventory_task_target" {
-  rule      = aws_cloudwatch_event_rule.update_inventory_schedule.name
-  arn       = aws_ecs_cluster.cron_cluster.arn
-  role_arn  = aws_iam_role.event_bridge_role.arn
-  target_id = "${var.project_name}-snapshot-inventory-sku-prices-target"
-
-  ecs_target {
-    launch_type         = "FARGATE"
-    task_count          = 1
-    task_definition_arn = aws_ecs_task_definition.snapshot_inventory_sku_prices_task.arn
-    platform_version    = "LATEST"
-
-    network_configuration {
-      subnets          = var.private_subnet_ids
-      security_groups  = var.task_security_group_ids
-      assign_public_ip = true
-    }
-  }
-}
+# --- Update Inventory Schedule (Hourly) --- DISABLED: No users yet
+# resource "aws_cloudwatch_event_rule" "update_inventory_schedule" {
+#   name                = "${var.project_name}-snapshot-inventory-sku-prices-rule"
+#   description         = "Runs cron.tasks.snapshot_inventory_sku_prices every hour (top of the hour) to snapshot current inventory SKU prices"
+#   schedule_expression = "cron(0 * * * ? *)" # Runs at the start of every hour
+# 
+#   tags = {
+#     Name      = "${var.project_name}-snapshot-inventory-sku-prices-rule"
+#     ManagedBy = "Terraform"
+#   }
+# }
+# 
+# resource "aws_cloudwatch_event_target" "ecs_inventory_task_target" {
+#   rule      = aws_cloudwatch_event_rule.update_inventory_schedule.name
+#   arn       = aws_ecs_cluster.cron_cluster.arn
+#   role_arn  = aws_iam_role.event_bridge_role.arn
+#   target_id = "${var.project_name}-snapshot-inventory-sku-prices-target"
+# 
+#   ecs_target {
+#     launch_type         = "FARGATE"
+#     task_count          = 1
+#     task_definition_arn = aws_ecs_task_definition.snapshot_inventory_sku_prices_task.arn
+#     platform_version    = "LATEST"
+# 
+#     network_configuration {
+#       subnets          = var.private_subnet_ids
+#       security_groups  = var.task_security_group_ids
+#       assign_public_ip = true
+#     }
+#   }
+# }
 
 # --- SKU Price History Snapshot Schedule (Phase 1) ---
 resource "aws_cloudwatch_event_rule" "snapshot_product_sku_prices_schedule" {
@@ -195,7 +195,7 @@ resource "aws_iam_policy" "event_bridge_policy" {
         Effect   = "Allow",
         Action   = "ecs:RunTask",
         Resource = [
-          aws_ecs_task_definition.snapshot_inventory_sku_prices_task.arn,
+          # aws_ecs_task_definition.snapshot_inventory_sku_prices_task.arn, # DISABLED: No users yet
           aws_ecs_task_definition.snapshot_product_sku_prices_task.arn,
           aws_ecs_task_definition.snapshot_inventory_task.arn,
           aws_ecs_task_definition.update_catalog_db_task.arn,
