@@ -9,7 +9,8 @@ def init_sentry(task_name: str | None = None) -> None:
     """Initialize Sentry for cron tasks if SENTRY_DSN is provided.
 
     - Captures ERROR-level log records as Sentry events
-    - Records WARNING+ logs as breadcrumbs (excludes INFO)
+    - Records INFO+ logs as breadcrumbs
+    - Sends INFO+ logs to Sentry Logs when enabled
     - Leaves Sentry disabled if DSN is not set
     """
     dsn = os.getenv("SENTRY_DSN")
@@ -20,8 +21,13 @@ def init_sentry(task_name: str | None = None) -> None:
     # Configure Sentry with logging integration
     sentry_sdk.init(
         dsn=dsn,
+        enable_logs=True,
         integrations=[
-            LoggingIntegration(level=logging.WARNING, event_level=logging.ERROR),
+            LoggingIntegration(
+                level=logging.INFO,  # breadcrumbs threshold
+                event_level=logging.ERROR,  # events (issues) threshold
+                sentry_logs_level=logging.INFO,  # logs → Sentry Logs threshold
+            ),
         ],
         send_default_pii=False,
     )

@@ -92,7 +92,9 @@ async def update_set(
             total = None
 
             while total is None or current_offset < total:
-                logger.info(f"Updating set id: {current_set_id} - {tcgplayer_set.name}")
+                logger.debug(
+                    f"Processing page for set {current_set_id} - {tcgplayer_set.name} (offset: {current_offset})"
+                )
                 sets_response = await service.get_products(
                     tcgplayer_set_id=tcgplayer_set.tcgplayer_id,
                     offset=current_offset,
@@ -101,8 +103,8 @@ async def update_set(
                 )
 
                 if "No products were found." in sets_response.errors:
-                    logger.info(
-                        f"No products were found for product type: {product_type}"
+                    logger.debug(
+                        f"No products found for product type: {product_type} in set {tcgplayer_set.name}"
                     )
                     break
 
@@ -297,6 +299,8 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
     mappings = await fetch_catalog_mappings(service, catalog)
 
     task_queue = asyncio.Queue()
+    updated_sets = []
+    added_sets = []
 
     current_offset = 0
     total = None
@@ -333,6 +337,11 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
                 or response_set.modified_on.replace(tzinfo=timezone.utc)
                 > existing_set.modified_date
             ):
+                if existing_set is None:
+                    added_sets.append(response_set.tcgplayer_id)
+                else:
+                    updated_sets.append(response_set.tcgplayer_id)
+
                 await task_queue.put(
                     update_set(
                         service=service,
@@ -344,16 +353,22 @@ async def update_catalog(service: TCGPlayerCatalogService, catalog: Catalog):
                     )
                 )
             else:
-                logger.info(
-                    f"Skipping set {response_set.tcgplayer_id} - {response_set.name}"
+                logger.debug(
+                    f"Skipping set {response_set.tcgplayer_id} - {response_set.name} (no changes)"
                 )
 
         await process_task_queue(task_queue)
 
+    if added_sets or updated_sets:
+        logger.info(
+            f"Catalog {catalog.display_name}: Added {len(added_sets)} sets {added_sets}, "
+            f"Updated {len(updated_sets)} sets {updated_sets}"
+        )
+
 
 async def update_card_database():
     """Update the entire card database by fetching all catalogs and their sets from TCGPlayer."""
-    logger.info("Starting update of card database")
+    logger.info("Starting TCGPlayer catalog database update")
     try:
         async with tcgplayer_service_context() as service:
             with SessionLocal() as session, session.begin():
@@ -378,16 +393,14 @@ async def update_card_database():
                 )
 
             for catalog in session.scalars(select(Catalog)).all():
-                logger.info(f"Processing catalog: {catalog.display_name}")
+                logger.debug(f"Processing catalog: {catalog.display_name}")
                 await update_catalog(service=service, catalog=catalog)
 
-        logger.info("Database update completed successfully")
+        logger.info("Completed TCGPlayer catalog database update")
     except Exception:
         logger.exception("Error updating card database")
         raise
 
 
 if __name__ == "__main__":
-    logger.info("Starting TCGPlayer catalog database update")
     asyncio.run(update_card_database())
-    logger.info("Completed TCGPlayer catalog database update")

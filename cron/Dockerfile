@@ -1,20 +1,23 @@
 FROM python:3.12-slim-bullseye
 
-# Install Playwright and Chromium (with OS deps), and uv
-RUN pip install --no-cache-dir playwright uv \
-  && python -m playwright install --with-deps chromium
+# Install uv (Python package manager)
+RUN pip install --no-cache-dir uv
 
 WORKDIR /code
 
 # Copy dependency definition and lock file first for caching
 COPY pyproject.toml uv.lock ./
 
+# Install dependencies from the lock file (should include playwright)
+RUN uv pip sync uv.lock --system
+
+# Install Playwright browsers matching the installed Playwright version
+# This must run AFTER deps are installed to avoid version mismatch errors
+RUN python -m playwright install --with-deps chromium
+
 # Copy application code
 COPY ./cron /code/cron
 COPY ./core /code/core
-
-# Install dependencies from the lock file
-RUN uv pip sync uv.lock --system
 
 # Default CMD changed to bash for easier interactive debugging.
 # ECS task definitions explicitly override the command to run specific tasks.

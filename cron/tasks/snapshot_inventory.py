@@ -39,7 +39,9 @@ def snapshot_inventory():
 
         # Get all users
         users = session.scalars(select(User)).all()
-        logger.info(f"Found {len(users)} users to create snapshots for")
+        logger.info(f"Creating inventory snapshots for {len(users)} users")
+
+        users_with_inventory = 0
 
         for user in users:
             # Find all catalogs with inventory for this user
@@ -58,8 +60,8 @@ def snapshot_inventory():
                     continue
 
                 total_cost = metrics["total_inventory_cost"]
-                # Log summary
-                logger.info(
+
+                logger.debug(
                     f"Snapshot for user_id={user.id}, catalog_id={catalog.id}: "
                     f"{metrics['number_of_items']} units, "
                     f"cost={total_cost:.2f}, "
@@ -78,10 +80,23 @@ def snapshot_inventory():
                 session.add(snapshot)
                 snapshots_created += 1
 
+            # Count users who had inventory
+            if any(
+                get_inventory_metrics(session, user_id=user.id, catalog_id=cat.id)[
+                    "number_of_items"
+                ]
+                > 0
+                for cat in inventory_catalogs
+            ):
+                users_with_inventory += 1
+
         # Commit all snapshots in one transaction
         session.commit()
 
-    logger.info(f"Created {snapshots_created} snapshots for {snapshot_date}")
+    logger.info(
+        f"Created {snapshots_created} inventory snapshots for {snapshot_date}: "
+        f"{users_with_inventory}/{len(users)} users with inventory"
+    )
 
 
 if __name__ == "__main__":

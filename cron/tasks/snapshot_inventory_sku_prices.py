@@ -27,7 +27,7 @@ JOB_NAME = "inventory_price_update"
 
 
 async def snapshot_inventory_sku_price_data():
-    logger.info("Starting %s...", JOB_NAME)
+    logger.info(f"Starting {JOB_NAME}...")
     datetime.now(UTC)
 
     async with tcgplayer_service_context() as service:
@@ -35,9 +35,10 @@ async def snapshot_inventory_sku_price_data():
             # 1. Get all users
             users = session.scalars(select(User)).all()
 
-            logger.info(f"Found {len(users)} users to process")
+            logger.info(f"Processing inventory price snapshots for {len(users)} users")
 
             all_sku_ids: list[uuid.UUID] = []
+            users_with_inventory = 0
 
             # 2. Gather all SKUs currently in inventory across all users
             for user in users:
@@ -47,7 +48,11 @@ async def snapshot_inventory_sku_price_data():
                         query_inventory_items(user.id)
                     ).all()
                 ]
-                logger.info(f"User {user.email}: {len(user_sku_ids)} SKUs in inventory")
+                if user_sku_ids:
+                    users_with_inventory += 1
+                    logger.debug(
+                        f"User {user.email}: {len(user_sku_ids)} SKUs in inventory"
+                    )
                 all_sku_ids.extend(user_sku_ids)
 
             # Remove duplicates since multiple users might own the same SKU
@@ -74,10 +79,7 @@ async def snapshot_inventory_sku_price_data():
                             sku_ids=batch_ids,
                         )
                         logger.debug(
-                            "%s: batch of %d SKUs inserted %d snapshots",
-                            JOB_NAME,
-                            len(batch_ids),
-                            inserted_cnt,
+                            f"{JOB_NAME}: batch of {len(batch_ids)} SKUs inserted {inserted_cnt} snapshots"
                         )
                         return inserted_cnt
 
@@ -89,10 +91,8 @@ async def snapshot_inventory_sku_price_data():
             inserted_snapshots = sum(successes)
 
             logger.info(
-                "%s: completed. SKUs targeted: %d, SKU price snapshots inserted: %d",
-                JOB_NAME,
-                total_skus_targeted,
-                inserted_snapshots,
+                f"{JOB_NAME}: completed. {users_with_inventory} users with inventory, "
+                f"{total_skus_targeted} unique SKUs targeted, {inserted_snapshots} price snapshots inserted"
             )
 
 

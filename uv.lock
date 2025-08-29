@@ -167,7 +167,7 @@ rignore==0.6.4
     # via fastapi-cloud-cli
 s3transfer==0.13.1
     # via boto3
-sentry-sdk==2.33.2
+sentry-sdk==2.35.1
     # via
     #   codex-tcg (pyproject.toml)
     #   fastapi-cloud-cli

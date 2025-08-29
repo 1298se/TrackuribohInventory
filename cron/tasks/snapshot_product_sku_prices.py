@@ -29,7 +29,9 @@ SKU_BATCH_SIZE = 200  # TCGPlayer allows ~200 IDs per GET URL before length limi
 JOB_NAME = "sku_price_history_snapshot"
 
 
-async def get_market_indicator_sku_tcgplayer_ids(session: Session) -> list[int]:
+async def get_market_indicator_sku_tcgplayer_ids(
+    session: Session,
+) -> tuple[list[int], int]:
     nm_condition_uuid = session.execute(
         select(Condition.id).where(Condition.abbreviation == "NM")
     ).scalar_one()
@@ -48,8 +50,9 @@ async def get_market_indicator_sku_tcgplayer_ids(session: Session) -> list[int]:
 
     catalog_ids = session.execute(select(Catalog.id).distinct()).scalars().all()
 
+    # Get SKU IDs and Product IDs for counting
     card_skus_stmt = (
-        select(SKU.tcgplayer_id)
+        select(SKU.tcgplayer_id, SKU.product_id)
         .join(Product, SKU.product_id == Product.id)
         .join(Set, Product.set_id == Set.id)
         .where(
@@ -61,7 +64,7 @@ async def get_market_indicator_sku_tcgplayer_ids(session: Session) -> list[int]:
     )
 
     sealed_skus_stmt = (
-        select(SKU.tcgplayer_id)
+        select(SKU.tcgplayer_id, SKU.product_id)
         .join(Product, SKU.product_id == Product.id)
         .join(Set, Product.set_id == Set.id)
         .where(
@@ -70,13 +73,22 @@ async def get_market_indicator_sku_tcgplayer_ids(session: Session) -> list[int]:
             SKU.condition_id == unopened_condition_uuid,
         )
     )
-    card_tcgplayer_ids = session.execute(card_skus_stmt).scalars().all()
-    sealed_tcgplayer_ids = session.execute(sealed_skus_stmt).scalars().all()
-    combined_ids = list(set(card_tcgplayer_ids + sealed_tcgplayer_ids))
 
-    logger.info("Market Indicator SKUs: %s", len(combined_ids))
+    card_results = session.execute(card_skus_stmt).all()
+    sealed_results = session.execute(sealed_skus_stmt).all()
 
-    return combined_ids
+    # Extract SKU IDs and Product IDs
+    card_tcgplayer_ids = [row.tcgplayer_id for row in card_results]
+    sealed_tcgplayer_ids = [row.tcgplayer_id for row in sealed_results]
+
+    card_product_ids = {row.product_id for row in card_results}
+    sealed_product_ids = {row.product_id for row in sealed_results}
+
+    # Combine and deduplicate
+    combined_sku_ids = list(set(card_tcgplayer_ids + sealed_tcgplayer_ids))
+    unique_product_count = len(card_product_ids | sealed_product_ids)
+
+    return combined_sku_ids, unique_product_count
 
 
 async def process_sku_batch_for_history(
@@ -115,18 +127,19 @@ async def process_sku_batch_for_history(
 
 
 async def main():
-    logger.info("Starting %s...", JOB_NAME)
-    job_start_time = datetime.now(UTC)
+    datetime.now(UTC)
 
     total_skus_targeted = 0
+    product_count = 0
 
     # keep one orchestration session alive for the whole job
     with SessionLocal(expire_on_commit=False) as session:
         try:
             # fetch Market Indicator SKUs using same session
-            market_indicator_tcgplayer_ids = (
-                await get_market_indicator_sku_tcgplayer_ids(session)
-            )
+            (
+                market_indicator_tcgplayer_ids,
+                product_count,
+            ) = await get_market_indicator_sku_tcgplayer_ids(session)
 
             total_skus_targeted = len(market_indicator_tcgplayer_ids)
 
@@ -143,7 +156,7 @@ async def main():
                 inserted_snapshots = sum(successes)
 
                 logger.info(
-                    f"{JOB_NAME}: completed. SKUs targeted: {total_skus_targeted}, SKU price snapshots inserted: {inserted_snapshots}",
+                    f"{JOB_NAME}: completed. {product_count} products, {total_skus_targeted} SKUs targeted, {inserted_snapshots} price snapshots inserted"
                 )
 
         except ValueError as ve:
@@ -151,12 +164,7 @@ async def main():
         except Exception as e:
             logger.exception(f"%s: Unhandled error during orchestration: {e}", JOB_NAME)
         finally:
-            job_end_time = datetime.now(UTC)
-            logger.info(
-                "%s: finished in %.2fs",
-                JOB_NAME,
-                (job_end_time - job_start_time).total_seconds(),
-            )
+            pass
 
 
 if __name__ == "__main__":
