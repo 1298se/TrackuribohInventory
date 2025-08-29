@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from sqlalchemy import select, insert
 from sqlalchemy.orm import Session
 
-from core.models.price import SKUPriceDataSnapshot
+from core.models.price import SKUPriceDataSnapshot, Marketplace
 
 
 def latest_price_subquery():
@@ -31,6 +31,7 @@ def latest_price_subquery():
             SKUPriceDataSnapshot.sku_id,
             SKUPriceDataSnapshot.lowest_listing_price_total,
         )
+        .where(SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER)
         .distinct(SKUPriceDataSnapshot.sku_id)
         .order_by(
             SKUPriceDataSnapshot.sku_id,
@@ -81,6 +82,7 @@ async def insert_price_snapshots_if_changed(
                 SKUPriceDataSnapshot.lowest_listing_price_total,
             )
             .where(SKUPriceDataSnapshot.sku_id.in_(sku_ids))
+            .where(SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER)
             .distinct(SKUPriceDataSnapshot.sku_id)
             .order_by(
                 SKUPriceDataSnapshot.sku_id,
@@ -98,6 +100,7 @@ async def insert_price_snapshots_if_changed(
             rows.append(
                 {
                     "sku_id": rec.sku_id,
+                    "marketplace": Marketplace.TCGPLAYER,
                     "snapshot_datetime": snapshot_datetime,
                     "lowest_listing_price_total": rec.lowest_listing_price_total,
                 }
@@ -127,8 +130,9 @@ def price_24h_ago_subquery():
             SKUPriceDataSnapshot.sku_id,
             SKUPriceDataSnapshot.lowest_listing_price_total,
         )
-        .distinct(SKUPriceDataSnapshot.sku_id)
+        .where(SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER)
         .where(SKUPriceDataSnapshot.snapshot_datetime <= twenty_four_hours_ago)
+        .distinct(SKUPriceDataSnapshot.sku_id)
         .order_by(
             SKUPriceDataSnapshot.sku_id,
             SKUPriceDataSnapshot.snapshot_datetime.desc(),
@@ -195,6 +199,7 @@ def fetch_sku_price_snapshots(
     initial_price_query = (
         select(SKUPriceDataSnapshot)
         .where(SKUPriceDataSnapshot.sku_id == sku_id)
+        .where(SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER)
         .where(SKUPriceDataSnapshot.snapshot_datetime <= start_date)
         .order_by(SKUPriceDataSnapshot.snapshot_datetime.desc())
         .limit(1)
@@ -213,6 +218,7 @@ def fetch_sku_price_snapshots(
     changes_query = (
         select(SKUPriceDataSnapshot)
         .where(SKUPriceDataSnapshot.sku_id == sku_id)
+        .where(SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER)
         .where(SKUPriceDataSnapshot.snapshot_datetime > start_date)
         .where(SKUPriceDataSnapshot.snapshot_datetime <= end_date)
         .order_by(SKUPriceDataSnapshot.snapshot_datetime.asc())
@@ -329,6 +335,7 @@ def fetch_bulk_sku_price_histories(
         select(SKUPriceDataSnapshot)
         .where(
             SKUPriceDataSnapshot.sku_id.in_(sku_ids),
+            SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER,
             SKUPriceDataSnapshot.snapshot_datetime > start_date,
             SKUPriceDataSnapshot.snapshot_datetime <= end_date,
         )
@@ -352,6 +359,7 @@ def fetch_bulk_sku_price_histories(
             .label("rn"),
         ).where(
             SKUPriceDataSnapshot.sku_id.in_(sku_ids),
+            SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER,
             SKUPriceDataSnapshot.snapshot_datetime <= start_date,
         )
     ).subquery()
