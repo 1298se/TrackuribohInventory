@@ -1,13 +1,13 @@
 import asyncio
 import logging
 import uuid
-from datetime import UTC, datetime
 
 from sqlalchemy import select
 
 from core.dao.inventory import query_inventory_items
 from core.database import SessionLocal
 from core.models.user import User
+from core.models.price import Marketplace
 from core.services.price_service import update_latest_sku_prices
 from core.services.tcgplayer_catalog_service import tcgplayer_service_context
 from core.utils.workers import process_task_queue
@@ -28,14 +28,13 @@ JOB_NAME = "inventory_price_update"
 
 async def snapshot_inventory_sku_price_data():
     logger.info(f"Starting {JOB_NAME}...")
-    datetime.now(UTC)
 
     async with tcgplayer_service_context() as service:
         with SessionLocal() as session:
             # 1. Get all users
             users = session.scalars(select(User)).all()
 
-            logger.info(f"Processing inventory price snapshots for {len(users)} users")
+            logger.info(f"Processing inventory price updates for {len(users)} users")
 
             all_sku_ids: list[uuid.UUID] = []
             users_with_inventory = 0
@@ -73,26 +72,28 @@ async def snapshot_inventory_sku_price_data():
 
                 async def _process_batch(batch_ids=batch_sku_ids):
                     with SessionLocal() as batch_session:
-                        inserted_cnt = await update_latest_sku_prices(
+                        updated_cnt = await update_latest_sku_prices(
                             session=batch_session,
                             catalog_service=service,
                             sku_ids=batch_ids,
+                            marketplace=Marketplace.TCGPLAYER,
+                            write_through=False,
                         )
                         logger.debug(
-                            f"{JOB_NAME}: batch of {len(batch_ids)} SKUs inserted {inserted_cnt} snapshots"
+                            f"{JOB_NAME}: batch of {len(batch_ids)} SKUs updated {updated_cnt} cache entries"
                         )
-                        return inserted_cnt
+                        return updated_cnt
 
                 await task_queue.put(_process_batch())
 
             # 3. Process all tasks concurrently
             successes = await process_task_queue(task_queue)
 
-            inserted_snapshots = sum(successes)
+            updated_cache_entries = sum(successes)
 
             logger.info(
                 f"{JOB_NAME}: completed. {users_with_inventory} users with inventory, "
-                f"{total_skus_targeted} unique SKUs targeted, {inserted_snapshots} price snapshots inserted"
+                f"{total_skus_targeted} unique SKUs targeted, {updated_cache_entries} cache entries updated"
             )
 
 
