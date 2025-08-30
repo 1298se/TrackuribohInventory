@@ -129,7 +129,7 @@ def store_cookie_in_secrets_manager(cookie_value: str) -> None:
 
     client.put_secret_value(SecretId=secret_id, SecretString=json.dumps(data))
     logger.info(
-        "Updated secret with new cookie at %s", data["TCGPLAYER_COOKIE_LAST_REFRESHED"]
+        f"Updated TCG session secret at {data['TCGPLAYER_COOKIE_LAST_REFRESHED']}"
     )
 
 
@@ -144,7 +144,7 @@ async def main() -> None:
     if changed:
         store_cookie_in_secrets_manager(cookie)
     else:
-        logger.info("Cookie unchanged; not updating secret.")
+        logger.info("TCG session secret unchanged; not updating.")
 
 
 if __name__ == "__main__":

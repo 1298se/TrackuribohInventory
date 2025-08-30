@@ -8,35 +8,27 @@ from dataclasses import dataclass
 from sqlalchemy import select, insert
 from sqlalchemy.orm import Session
 
-from core.models.price import SKUPriceDataSnapshot, Marketplace
+from core.models.price import SKUPriceDataSnapshot, SKULatestPrice, Marketplace
 
 
 def latest_price_subquery():
     """
-    Returns a subquery with the most recent price snapshot per SKU.
-    Uses PostgreSQL DISTINCT ON to efficiently retrieve the latest price.
+    Returns a subquery with the most recent price per SKU.
 
-    This query is optimized by the covering index 'ix_sku_price_snapshot_covering'
-    which includes (sku_id, snapshot_datetime DESC, lowest_listing_price_total),
-    allowing PostgreSQL to satisfy the entire query from the index without
-    accessing the table data.
+    Now uses the sku_latest_price cache table for better performance
+    instead of scanning historical snapshots.
 
     Returns:
         A SQLAlchemy subquery that can be used in joins, containing:
         - sku_id: The SKU identifier
-        - lowest_listing_price_total: The price from the most recent snapshot
+        - lowest_listing_price_total: The cached latest price
     """
     return (
         select(
-            SKUPriceDataSnapshot.sku_id,
-            SKUPriceDataSnapshot.lowest_listing_price_total,
+            SKULatestPrice.sku_id,
+            SKULatestPrice.lowest_listing_price_total,
         )
-        .where(SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER)
-        .distinct(SKUPriceDataSnapshot.sku_id)
-        .order_by(
-            SKUPriceDataSnapshot.sku_id,
-            SKUPriceDataSnapshot.snapshot_datetime.desc(),
-        )
+        .where(SKULatestPrice.marketplace == Marketplace.TCGPLAYER)
         .subquery()
     )
 
@@ -52,6 +44,7 @@ class SKUPriceRecord:
 async def insert_price_snapshots_if_changed(
     session: Session,
     price_records: Sequence[SKUPriceRecord],
+    marketplace: Marketplace = Marketplace.TCGPLAYER,
     snapshot_dt: datetime | None = None,
 ) -> int:
     """Insert `SKUPriceDataSnapshot` rows when the price has changed.
@@ -62,6 +55,8 @@ async def insert_price_snapshots_if_changed(
         Active SQLAlchemy session.
     price_records : Sequence[SKUPriceRecord]
         Iterable of records with the latest price per SKU.
+    marketplace : Marketplace
+        The marketplace to write snapshots for.
     snapshot_dt : datetime | None
         Timestamp for the snapshots (defaults to now, UTC).
     """
@@ -82,7 +77,7 @@ async def insert_price_snapshots_if_changed(
                 SKUPriceDataSnapshot.lowest_listing_price_total,
             )
             .where(SKUPriceDataSnapshot.sku_id.in_(sku_ids))
-            .where(SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER)
+            .where(SKUPriceDataSnapshot.marketplace == marketplace)
             .distinct(SKUPriceDataSnapshot.sku_id)
             .order_by(
                 SKUPriceDataSnapshot.sku_id,
@@ -100,7 +95,7 @@ async def insert_price_snapshots_if_changed(
             rows.append(
                 {
                     "sku_id": rec.sku_id,
-                    "marketplace": Marketplace.TCGPLAYER,
+                    "marketplace": marketplace,
                     "snapshot_datetime": snapshot_datetime,
                     "lowest_listing_price_total": rec.lowest_listing_price_total,
                 }

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, DateTime, Numeric, Index
+from sqlalchemy import ForeignKey, DateTime, Numeric, Index, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.models.base import Base
@@ -15,6 +15,7 @@ sku_price_snapshot_job_tablename = "sku_price_snapshot_job"
 # sku_price_snapshot_tablename = "sku_price_snapshot" # Mark for removal
 # sku_listing_snapshot_tablename = "sku_listing_snapshot" # Mark for removal
 sku_price_data_snapshot_tablename = "sku_price_data_snapshot"
+sku_latest_price_tablename = "sku_latest_price"
 
 
 # class SKULatestPriceData(Base): ... # Entire class removed
@@ -27,6 +28,34 @@ class SnapshotSource(enum.Enum):
 
 class Marketplace(enum.StrEnum):
     TCGPLAYER = "tcgplayer"
+
+
+class SKULatestPrice(Base):
+    __tablename__ = sku_latest_price_tablename
+
+    sku_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{sku_tablename}.id"), primary_key=True
+    )
+    marketplace: Mapped[Marketplace] = mapped_column(
+        TextEnum(Marketplace), nullable=False, primary_key=True
+    )
+    lowest_listing_price_total: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        server_onupdate=func.now(),
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_sku_latest_price_marketplace_updated_at",
+            "marketplace",
+            updated_at.desc(),
+        ),
+    )
 
 
 class SKUPriceDataSnapshot(Base):
@@ -56,8 +85,3 @@ class SKUPriceDataSnapshot(Base):
             "lowest_listing_price_total",
         ),
     )
-
-    # Composite primary key is defined by setting primary_key=True on the respective columns.
-    # For an explicit named constraint (optional, usually not needed if PK definition is sufficient):
-    # from sqlalchemy import UniqueConstraint
-    # __table_args__ = (UniqueConstraint('sku_id', 'snapshot_date', name='uq_sku_price_data_snapshot_sku_date'),)
