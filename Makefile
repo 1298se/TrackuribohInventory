@@ -31,13 +31,9 @@ login:
 	@echo "Logging into ECR $(ECR_URL)..."
 	aws ecr get-login-password --region $(REGION) | docker login --username AWS --password-stdin $(ECR_URL)
 
-# Generate uv.lock if it doesn't exist
-.PHONY: ensure-uv-lock
-ensure-uv-lock:
-	@if [ ! -f uv.lock ]; then \
-		echo "Generating uv.lock..."; \
-		uv pip compile pyproject.toml -o uv.lock; \
-	fi
+# Regenerate lockfile when pyproject.toml changes
+uv.lock: pyproject.toml
+	uv pip compile pyproject.toml -o uv.lock
 
 # Generic build function
 # We use --provenance false so that it only pushes one image - otherwise it pushes an image index (3 total images)
@@ -72,11 +68,11 @@ endef
 
 # Build targets
 .PHONY: build-cron
-build-cron: ensure-uv-lock
+build-cron: uv.lock
 	$(call build_image,cron,$(CRON_REPO))
 
 .PHONY: build-api
-build-api: ensure-uv-lock
+build-api: uv.lock
 	$(call build_image,app,$(API_REPO))
 
 
@@ -112,7 +108,7 @@ push-api:
 
 # Local development targets (uv)
 .PHONY: setup
-setup: ensure-uv-lock
+setup:
 	uv venv
 	uv pip sync uv.lock
 

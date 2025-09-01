@@ -109,6 +109,8 @@ multidict==6.6.3
     # via
     #   aiohttp
     #   yarl
+numpy==2.3.2
+    # via codex-tcg (pyproject.toml)
 packaging==25.0
     # via deprecation
 playwright==1.54.0

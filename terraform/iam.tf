@@ -128,6 +128,34 @@ resource "aws_iam_role_policy_attachment" "cron_task_role_cookie_rw_attachment" 
   policy_arn = aws_iam_policy.cron_task_cookie_rw_policy.arn
 }
 
+# EventBridge publish policy for snapshot task to trigger compute task
+resource "aws_iam_policy" "cron_task_eventbridge_policy" {
+  name        = "${var.project_name}-cron-task-eventbridge"
+  description = "Allow cron task to publish EventBridge events"
+
+  policy = jsonencode({
+    Version   = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = "events:PutEvents",
+        Resource = "arn:aws:events:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:event-bus/default"
+      }
+    ]
+  })
+
+  tags = {
+    Name      = "${var.project_name}-cron-task-eventbridge"
+    ManagedBy = "Terraform"
+  }
+}
+
+# Attach EventBridge policy to the Task Role
+resource "aws_iam_role_policy_attachment" "cron_task_role_eventbridge_attachment" {
+  role       = aws_iam_role.cron_task_role.name
+  policy_arn = aws_iam_policy.cron_task_eventbridge_policy.arn
+}
+
 # --- Outputs ---
 output "ecs_task_execution_role_arn" {
   description = "ARN of the ECS Task Execution Role"

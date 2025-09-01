@@ -1,11 +1,10 @@
 from datetime import UTC, datetime, date, timedelta
-from typing import Union
+from typing import Union, Sequence, Dict, List
 import uuid
 from uuid import UUID
-from typing import Sequence, Dict
 from dataclasses import dataclass
 
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, func
 from sqlalchemy.orm import Session
 
 from core.models.price import SKUPriceDataSnapshot, SKULatestPrice, Marketplace
@@ -151,6 +150,14 @@ class PriceSnapshot:
     lowest_listing_price_total: float | None
 
 
+@dataclass
+class PriceHistoryPoint:
+    """Normalized daily price point."""
+
+    datetime_iso: str
+    price: float
+
+
 def fetch_sku_price_snapshots(
     session: Session,
     sku_id: uuid.UUID,
@@ -232,12 +239,92 @@ def fetch_sku_price_snapshots(
     return price_changes, initial_price
 
 
+# NEW: Bulk raw fetch of snapshot rows per SKU (no transformation)
+def fetch_bulk_sku_price_snapshots_raw(
+    session: Session,
+    sku_ids: list[UUID],
+    start_date: datetime,
+    end_date: datetime,
+) -> dict[UUID, list[SKUPriceDataSnapshot]]:
+    if not sku_ids:
+        return {}
+
+    query = (
+        select(SKUPriceDataSnapshot)
+        .where(
+            SKUPriceDataSnapshot.sku_id.in_(sku_ids),
+            SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER,
+            SKUPriceDataSnapshot.snapshot_datetime > start_date,
+            SKUPriceDataSnapshot.snapshot_datetime <= end_date,
+        )
+        .order_by(
+            SKUPriceDataSnapshot.sku_id,
+            SKUPriceDataSnapshot.snapshot_datetime.asc(),
+        )
+    )
+
+    rows = session.execute(query).scalars().all()
+
+    snapshots_by_sku: dict[UUID, list[SKUPriceDataSnapshot]] = {}
+    for row in rows:
+        snapshots_by_sku.setdefault(row.sku_id, []).append(row)
+
+    return snapshots_by_sku
+
+
+# NEW: Fetch the most recent snapshot on/before start_date for forward-fill
+def fetch_initial_sku_price_before(
+    session: Session,
+    sku_ids: list[UUID],
+    cutoff_datetime: datetime,
+) -> dict[UUID, PriceSnapshot | None]:
+    if not sku_ids:
+        return {}
+
+    initial_subq = (
+        select(
+            SKUPriceDataSnapshot,
+            func.row_number()
+            .over(
+                partition_by=SKUPriceDataSnapshot.sku_id,
+                order_by=SKUPriceDataSnapshot.snapshot_datetime.desc(),
+            )
+            .label("rn"),
+        )
+        .where(
+            SKUPriceDataSnapshot.sku_id.in_(sku_ids),
+            SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER,
+            SKUPriceDataSnapshot.snapshot_datetime <= cutoff_datetime,
+        )
+        .subquery()
+    )
+
+    rows = session.execute(
+        select(
+            initial_subq.c.sku_id,
+            initial_subq.c.snapshot_datetime,
+            initial_subq.c.lowest_listing_price_total,
+        ).where(initial_subq.c.rn == 1)
+    ).all()
+
+    initial_by_sku: dict[UUID, PriceSnapshot | None] = {
+        sku_id: None for sku_id in sku_ids
+    }
+    for sku_id, snapshot_datetime, lowest_listing_price_total in rows:
+        initial_by_sku[sku_id] = PriceSnapshot(
+            snapshot_datetime=snapshot_datetime,
+            lowest_listing_price_total=lowest_listing_price_total,
+        )
+
+    return initial_by_sku
+
+
 def normalize_price_history(
-    price_changes: list[PriceSnapshot],
+    price_changes: List[PriceSnapshot],
     initial_price: PriceSnapshot | None,
     start_date: datetime,
     end_date: datetime,
-) -> list[dict]:
+) -> List[PriceHistoryPoint]:
     """
     Normalize price history data into daily price points with forward-filling.
 
@@ -246,7 +333,7 @@ def normalize_price_history(
 
     Parameters
     ----------
-    price_changes : list[PriceSnapshot]
+    price_changes : List[PriceSnapshot]
         List of price snapshots within the date range, ordered by datetime ascending.
     initial_price : PriceSnapshot | None
         Initial price snapshot before the start date (for forward-filling), or None.
@@ -257,9 +344,8 @@ def normalize_price_history(
 
     Returns
     -------
-    list[dict]
-        List of price data points with 'datetime' and 'price' keys,
-        ordered by datetime ascending, with at most one entry per day.
+    List[PriceHistoryPoint]
+        List of normalized daily price points, ordered by datetime ascending.
     """
     result = []
     current_date = start_date.date()
@@ -271,10 +357,10 @@ def normalize_price_history(
     # Helper to add a price point
     def add_price_point(date_obj: date, price: float):
         result.append(
-            {
-                "datetime": date_to_datetime_utc(date_obj).isoformat(),
-                "price": float(price),
-            }
+            PriceHistoryPoint(
+                datetime_iso=date_to_datetime_utc(date_obj).isoformat(),
+                price=float(price),
+            )
         )
 
     # Add initial price if available

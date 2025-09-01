@@ -35,13 +35,13 @@ from core.dao.price import (
     latest_price_subquery,
     price_24h_ago_subquery,
     fetch_sku_price_snapshots,
-    fetch_bulk_sku_price_histories,
     normalize_price_history,
     date_to_datetime_utc,
 )
 from core.services.tcgplayer_catalog_service import get_tcgplayer_catalog_service
 from core.models.transaction import Transaction, LineItem, TransactionType
 from core.services.inventory_service import get_inventory_metrics, get_inventory_history
+from core.services.price_service import build_daily_price_series_for_skus
 
 
 router = APIRouter(
@@ -141,7 +141,7 @@ async def get_inventory(
     end_date = datetime.now(datetime_timezone.utc)
 
     try:
-        bulk_price_histories = fetch_bulk_sku_price_histories(
+        daily_series = build_daily_price_series_for_skus(
             session=session, sku_ids=sku_ids, start_date=start_date, end_date=end_date
         )
     except Exception as e:
@@ -149,7 +149,7 @@ async def get_inventory(
         import logging
 
         logging.warning(f"Failed to fetch bulk 7d price histories: {e}")
-        bulk_price_histories = {}
+        daily_series = {}
 
     inventory_items = []
     for (
@@ -164,25 +164,22 @@ async def get_inventory(
         price_change_7d_amount = None
         price_change_7d_percentage = None
 
-        price_data = bulk_price_histories.get(sku.id, [])
+        price_points = daily_series.get(sku.id, [])
 
         # Convert to schema format
-        if price_data:
+        if price_points:
             price_history_7d = [
                 InventoryPriceHistoryItemSchema(
-                    datetime=data_point["datetime"],
-                    price=MoneySchema(
-                        amount=data_point["price"],
-                        currency="USD",
-                    ),
+                    datetime=point.datetime_iso,
+                    price=MoneySchema(amount=point.price, currency="USD"),
                 )
-                for data_point in price_data
+                for point in price_points
             ]
 
             # Calculate 7-day change if we have enough data
-            if len(price_data) >= 2:
-                first_price = price_data[0]["price"]
-                last_price = price_data[-1]["price"]
+            if len(price_points) >= 2:
+                first_price = price_points[0].price
+                last_price = price_points[-1].price
                 if first_price != 0:
                     change_amount = last_price - first_price
                     change_percentage = (change_amount / first_price) * 100

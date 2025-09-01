@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, DateTime, Numeric, Index, func
+from sqlalchemy import ForeignKey, DateTime, Numeric, Index, func, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.models.base import Base
@@ -16,6 +16,7 @@ sku_price_snapshot_job_tablename = "sku_price_snapshot_job"
 # sku_listing_snapshot_tablename = "sku_listing_snapshot" # Mark for removal
 sku_price_data_snapshot_tablename = "sku_price_data_snapshot"
 sku_latest_price_tablename = "sku_latest_price"
+sku_listing_data_refresh_priority_tablename = "sku_listing_data_refresh_priority"
 
 
 # class SKULatestPriceData(Base): ... # Entire class removed
@@ -55,6 +56,10 @@ class SKULatestPrice(Base):
             "marketplace",
             updated_at.desc(),
         ),
+        CheckConstraint(
+            "lowest_listing_price_total > 0",
+            name="ck_sku_latest_price_total_gt_zero",
+        ),
     )
 
 
@@ -83,5 +88,52 @@ class SKUPriceDataSnapshot(Base):
             "marketplace",
             snapshot_datetime.desc(),
             "lowest_listing_price_total",
+        ),
+        CheckConstraint(
+            "lowest_listing_price_total > 0",
+            name="ck_sku_price_data_snapshot_price_gt_zero",
+        ),
+    )
+
+
+class SKUListingDataRefreshPriority(Base):
+    __tablename__ = sku_listing_data_refresh_priority_tablename
+
+    sku_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{sku_tablename}.id"), primary_key=True
+    )
+    marketplace: Mapped[Marketplace] = mapped_column(
+        TextEnum(Marketplace), nullable=False, primary_key=True
+    )
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    # Component scores (0.0 - 1.0)
+    uptrend_score: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False)
+    breakout_score: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False)
+    value_score: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False)
+    activity_score: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False)
+
+    # Combined scores
+    snapshot_score_raw: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False)
+    snapshot_score: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False)
+    sales_events_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    staleness_score: Mapped[float] = mapped_column(
+        Numeric(5, 4), nullable=False, default=0.0
+    )
+
+    # Final priority score (weighted combination)
+    priority_score: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False)
+
+    __table_args__ = (
+        Index(
+            "ix_sku_listing_data_refresh_priority_score",
+            "marketplace",
+            priority_score.desc(),
+        ),
+        Index(
+            "ix_sku_listing_data_refresh_priority_sku_id",
+            "sku_id",
         ),
     )

@@ -1,0 +1,75 @@
+import asyncio
+import logging
+import uuid
+
+from core.database import SessionLocal
+from core.models.price import Marketplace
+from core.services.snapshot_scoring_service import compute_and_store_scores
+from core.dao.market_indicators import get_market_indicator_sku_ids
+from core.utils.workers import process_task_queue
+from cron.telemetry import init_sentry
+
+init_sentry("compute_sku_listing_data_refresh_priority")
+
+# Logging setup
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+# Constants
+SCORE_BATCH_SIZE = 5000
+JOB_NAME = "compute_sku_listing_data_refresh_priority"
+
+
+async def process_scoring_batch(sku_batch: list[uuid.UUID]) -> int:
+    """
+    Process a batch of SKUs for priority scoring.
+
+    Args:
+        sku_batch: List of SKU IDs (UUIDs) to score
+
+    Returns:
+        Number of records updated
+    """
+    with SessionLocal(expire_on_commit=False) as session:
+        updated_count = await compute_and_store_scores(
+            session, sku_batch, Marketplace.TCGPLAYER
+        )
+        logger.debug(f"Updated {updated_count} priority scores in batch")
+        return updated_count
+
+
+async def main():
+    total_skus_targeted = 0
+    total_records_updated = 0
+
+    # Keep one orchestration session alive for the whole job
+    with SessionLocal(expire_on_commit=False) as session:
+        # 1. Select indicator SKUs (focus scope)
+        target_sku_ids = get_market_indicator_sku_ids(session)
+        total_skus_targeted = len(target_sku_ids)
+
+        if not target_sku_ids:
+            logger.info("No SKUs found to process.")
+            return
+
+        logger.info(f"Preparing to process {total_skus_targeted} market indicator SKUs")
+
+        # 2. Process in batches using existing worker patterns
+        task_queue = asyncio.Queue()
+        for i in range(0, len(target_sku_ids), SCORE_BATCH_SIZE):
+            batch = target_sku_ids[i : i + SCORE_BATCH_SIZE]
+            await task_queue.put(process_scoring_batch(batch))
+
+        successes = await process_task_queue(task_queue)
+        total_records_updated = sum(successes)
+
+        logger.info(
+            f"{JOB_NAME}: completed. {total_skus_targeted} SKUs targeted, "
+            f"{total_records_updated} priority records updated"
+        )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

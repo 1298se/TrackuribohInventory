@@ -1,0 +1,7 @@
+{
+  "projectStructure": "Python backend (FastAPI) in app/, core domain and models in core/, cron tasks in cron/tasks, Next.js frontend in web/",
+  "rpc": {
+    "clientToServer": "web/app/api/* => app/routes/* via REST",
+    "serverTasks": "cron/tasks run as ECS scheduled tasks"
+  }
+}

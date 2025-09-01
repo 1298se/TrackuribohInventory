@@ -1,5 +1,7 @@
 import uuid
-from typing import Sequence
+from typing import Sequence, List, Dict
+from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -7,7 +9,15 @@ from sqlalchemy.orm import Session
 from core.models.catalog import SKU
 from core.models.price import Marketplace
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
-from core.dao.price import insert_price_snapshots_if_changed, SKUPriceRecord
+from core.dao.price import (
+    insert_price_snapshots_if_changed,
+    SKUPriceRecord,
+    fetch_bulk_sku_price_snapshots_raw,
+    fetch_initial_sku_price_before,
+    PriceSnapshot,
+    PriceHistoryPoint,
+    normalize_price_history,
+)
 from core.dao.latest_price import upsert_latest_prices, LatestPriceRecord
 
 
@@ -99,3 +109,53 @@ async def update_latest_sku_prices(
         )
 
     return cache_updated
+
+
+def build_daily_price_series_for_skus(
+    session: Session,
+    sku_ids: List[UUID],
+    start_date: datetime,
+    end_date: datetime,
+) -> Dict[UUID, List[PriceHistoryPoint]]:
+    """
+    Build a daily, forward-filled price series for each SKU between start_date and end_date.
+
+    This returns one point per day per SKU, using the latest known price on or before each day.
+    If there is no in-window change yet, we carry forward the most recent price that occurred
+    before the window (the "starting price"). If no prior snapshot exists, the series begins
+    at the first in-window snapshot (i.e., no values are produced before that day).
+
+    Example (window Aug 1 → Aug 7):
+      Snapshots: Jul 28=$5.00, Aug 3=$6.00, Aug 5=$5.50
+      Series:    Aug 1=$5.00, Aug 2=$5.00, Aug 3=$6.00, Aug 4=$6.00,
+                 Aug 5=$5.50, Aug 6=$5.50, Aug 7=$5.50
+    """
+    if not sku_ids:
+        return {}
+
+    raw_by_sku = fetch_bulk_sku_price_snapshots_raw(
+        session, sku_ids, start_date, end_date
+    )
+    initial_by_sku = fetch_initial_sku_price_before(session, sku_ids, start_date)
+
+    result: Dict[UUID, List[PriceHistoryPoint]] = {}
+
+    for sku_id in sku_ids:
+        model_rows = raw_by_sku.get(sku_id, [])
+        price_changes: List[PriceSnapshot] = [
+            PriceSnapshot(
+                snapshot_datetime=row.snapshot_datetime,
+                lowest_listing_price_total=row.lowest_listing_price_total,
+            )
+            for row in model_rows
+        ]
+        initial_price = initial_by_sku.get(sku_id)
+
+        result[sku_id] = normalize_price_history(
+            price_changes=price_changes,
+            initial_price=initial_price,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    return result

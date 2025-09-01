@@ -1,16 +1,18 @@
 import asyncio
+import boto3
+import json
 import logging
+import os
 from datetime import UTC, datetime
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from core.database import SessionLocal
-from core.models.catalog import Catalog, Condition, Language, Product, SKU, Set
+from core.models.catalog import SKU
 from core.models.price import Marketplace
 from core.services.price_service import update_latest_sku_prices
 from core.dao.latest_price import get_today_updated_sku_ids
-from core.services.schemas.schema import ProductType
+from core.dao.market_indicators import get_market_indicator_sku_tcgplayer_ids
 from core.services.tcgplayer_catalog_service import tcgplayer_service_context
 from core.utils.workers import process_task_queue
 from cron.telemetry import init_sentry
@@ -29,68 +31,6 @@ logger = logging.getLogger(__name__)
 # --- Constants ---
 SKU_BATCH_SIZE = 200  # TCGPlayer allows ~200 IDs per GET URL before length limits
 JOB_NAME = "sku_price_history_snapshot"
-
-
-async def get_market_indicator_sku_tcgplayer_ids(
-    session: Session,
-) -> tuple[list[int], int]:
-    nm_condition_uuid = session.execute(
-        select(Condition.id).where(Condition.abbreviation == "NM")
-    ).scalar_one()
-
-    lp_condition_uuid = session.execute(
-        select(Condition.id).where(Condition.abbreviation == "LP")
-    ).scalar_one()
-
-    unopened_condition_uuid = session.execute(
-        select(Condition.id).where(Condition.abbreviation == "U")
-    ).scalar_one()
-
-    english_language_uuid = session.execute(
-        select(Language.id).where(Language.abbreviation == "EN")
-    ).scalar_one()
-
-    catalog_ids = session.execute(select(Catalog.id).distinct()).scalars().all()
-
-    # Get SKU IDs and Product IDs for counting
-    card_skus_stmt = (
-        select(SKU.tcgplayer_id, SKU.product_id)
-        .join(Product, SKU.product_id == Product.id)
-        .join(Set, Product.set_id == Set.id)
-        .where(
-            Product.product_type == ProductType.CARDS,
-            Set.catalog_id.in_(catalog_ids),
-            SKU.condition_id.in_([nm_condition_uuid, lp_condition_uuid]),
-            SKU.language_id == english_language_uuid,
-        )
-    )
-
-    sealed_skus_stmt = (
-        select(SKU.tcgplayer_id, SKU.product_id)
-        .join(Product, SKU.product_id == Product.id)
-        .join(Set, Product.set_id == Set.id)
-        .where(
-            Product.product_type.in_(ProductType),
-            Set.catalog_id.in_(catalog_ids),
-            SKU.condition_id == unopened_condition_uuid,
-        )
-    )
-
-    card_results = session.execute(card_skus_stmt).all()
-    sealed_results = session.execute(sealed_skus_stmt).all()
-
-    # Extract SKU IDs and Product IDs
-    card_tcgplayer_ids = [row.tcgplayer_id for row in card_results]
-    sealed_tcgplayer_ids = [row.tcgplayer_id for row in sealed_results]
-
-    card_product_ids = {row.product_id for row in card_results}
-    sealed_product_ids = {row.product_id for row in sealed_results}
-
-    # Combine and deduplicate
-    combined_sku_ids = list(set(card_tcgplayer_ids + sealed_tcgplayer_ids))
-    unique_product_count = len(card_product_ids | sealed_product_ids)
-
-    return combined_sku_ids, unique_product_count
 
 
 async def process_sku_batch_for_daily_flush(
@@ -137,22 +77,46 @@ async def process_sku_batch_for_daily_flush(
                 return 0
 
 
+async def publish_compute_trigger_event() -> None:
+    """
+    Publish EventBridge event to trigger compute_sku_listing_data_refresh_priority task.
+    """
+    region = os.getenv("AWS_REGION", "us-east-1")
+    events_client = boto3.client("events", region_name=region)
+
+    response = events_client.put_events(
+        Entries=[
+            {
+                "Source": "codex.jobs",
+                "DetailType": "ComputeSkuListingDataRefreshPriority",
+                "EventBusName": "default",
+                "Detail": json.dumps({"triggeredBy": "snapshot_product_sku_prices"}),
+            }
+        ]
+    )
+
+    if response.get("FailedEntryCount", 0) > 0:
+        logger.error(
+            f"Failed to publish EventBridge event: {response.get('Entries', [])}"
+        )
+    else:
+        logger.info("Published EventBridge event to trigger compute task")
+
+
 async def main():
     # Fixed snapshot datetime for day start (00:00:00 UTC today)
     snapshot_dt = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
     total_skus_targeted = 0
-    product_count = 0
     total_cache_updates = 0
 
     # keep one orchestration session alive for the whole job
     with SessionLocal(expire_on_commit=False) as session:
         try:
             # 1. Get Market Indicator SKUs (existing logic)
-            (
-                market_indicator_tcgplayer_ids,
-                product_count,
-            ) = await get_market_indicator_sku_tcgplayer_ids(session)
+            market_indicator_tcgplayer_ids = get_market_indicator_sku_tcgplayer_ids(
+                session
+            )
 
             # 2. Get SKUs that were updated today in the cache
             # (these are inventory SKUs that got price updates from the hourly job)
@@ -205,7 +169,7 @@ async def main():
             total_cache_updates = sum(successes)
 
             logger.info(
-                f"{JOB_NAME}: completed. {product_count} products, {total_skus_targeted} SKUs targeted, "
+                f"{JOB_NAME}: completed. {total_skus_targeted} SKUs targeted, "
                 f"{total_cache_updates} cache entries updated"
             )
 
@@ -215,6 +179,9 @@ async def main():
             logger.exception(f"{JOB_NAME}: Unhandled error during orchestration: {e}")
         finally:
             pass
+
+    if total_cache_updates > 0:
+        await publish_compute_trigger_event()
 
 
 if __name__ == "__main__":

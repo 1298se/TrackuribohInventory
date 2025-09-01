@@ -24,7 +24,7 @@ async def process_task_queue(queue: asyncio.Queue, num_workers: int = 10) -> lis
             # Worker was cancelled, this is expected during shutdown
             continue
         elif isinstance(res, Exception):
-            # Worker encountered an exception
+            # Keep nested ExceptionGroups as-is
             exceptions.append(res)
         else:
             # Expected list of worker successes from _worker
@@ -38,6 +38,7 @@ async def process_task_queue(queue: asyncio.Queue, num_workers: int = 10) -> lis
 
 async def _worker(queue, name=None):
     successes: list[Any] = []
+    failures: list[BaseException] = []
     try:
         while True:
             coro = await queue.get()
@@ -45,11 +46,12 @@ async def _worker(queue, name=None):
                 result = await coro
                 successes.append(result)
             except Exception as exc:
-                # Log the exception and immediately re-raise it to stop processing
-                print(f"[{name}] task failed: {exc!r}")
-                raise exc
+                # Log the exception and continue so the queue can drain
+                failures.append(exc)
             finally:
                 queue.task_done()
     except asyncio.CancelledError:
-        # Worker was cancelled, return successes accumulated so far
+        # On shutdown, surface any accumulated failures; otherwise return successes
+        if failures:
+            raise ExceptionGroup(f"{name or 'worker'} failures", failures)
         return successes

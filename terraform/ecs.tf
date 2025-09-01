@@ -442,6 +442,83 @@ resource "aws_ecs_task_definition" "refresh_tcg_cookie_task" {
   }
 }
 
+# --- Define ECS Task Definition for Computing SKU Listing Data Refresh Priority ---
+resource "aws_ecs_task_definition" "compute_sku_listing_data_refresh_priority_task" {
+  family                   = "${var.project_name}-compute-sku-listing-data-refresh-priority"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.task_cpu
+  memory                   = var.task_memory
+  task_role_arn            = aws_iam_role.cron_task_role.arn
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "${var.project_name}-compute-sku-listing-data-refresh-priority-container"
+      image     = local.image_uri
+      essential = true
+
+      command = ["python", "-m", "cron.tasks.compute_sku_listing_data_refresh_priority"]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.cron_log_group.name
+          "awslogs-region"        = data.aws_region.current.name
+          "awslogs-stream-prefix" = "ecs-sku-listing-data-refresh-priority"
+        }
+      }
+
+      secrets = [
+        {
+          name      = "SENTRY_DSN"
+          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+        },
+        {
+          name      = "db_endpoint"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "db_name"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
+        },
+        {
+          name      = "db_password"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "db_port"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
+        },
+        {
+          name      = "db_username"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
+        },
+        {
+          name      = "TCGPLAYER_CLIENT_ID"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
+        },
+        {
+          name      = "TCGPLAYER_CLIENT_SECRET"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+        },
+      ]
+
+      environment = [
+        {
+          name  = "ENV"
+          value = "PROD"
+        }
+      ]
+    }
+  ])
+
+  tags = {
+    Name      = "${var.project_name}-compute-sku-listing-data-refresh-priority-task-def"
+    ManagedBy = "Terraform"
+  }
+}
+
 # --- Outputs ---
 output "ecs_cluster_id" {
   description = "ID of the ECS Cluster"
@@ -471,6 +548,11 @@ output "ecs_task_definition_update_catalog_db_arn" {
 output "ecs_task_definition_refresh_tcg_cookie_arn" {
   description = "ARN of the Refresh TCG Cookie ECS Task Definition"
   value       = aws_ecs_task_definition.refresh_tcg_cookie_task.arn
+}
+
+output "ecs_task_definition_compute_sku_listing_data_refresh_priority_arn" {
+  description = "ARN of the Compute SKU Listing Data Refresh Priority ECS Task Definition"
+  value       = aws_ecs_task_definition.compute_sku_listing_data_refresh_priority_task.arn
 }
 
 output "cloudwatch_log_group_name" {
