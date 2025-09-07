@@ -3,11 +3,12 @@ import logging
 import uuid
 
 from core.database import SessionLocal
-from core.models.price import Marketplace
+from core.models.price import Marketplace, SKUListingDataRefreshPriority
 from core.services.snapshot_scoring_service import compute_and_store_scores
 from core.dao.market_indicators import get_market_indicator_sku_ids
 from core.utils.workers import process_task_queue
 from cron.telemetry import init_sentry
+from sqlalchemy import delete
 
 init_sentry("compute_sku_listing_data_refresh_priority")
 
@@ -46,7 +47,12 @@ async def main():
 
     # Keep one orchestration session alive for the whole job
     with SessionLocal(expire_on_commit=False) as session:
-        # 1. Select indicator SKUs (focus scope)
+        session.execute(delete(SKUListingDataRefreshPriority))
+        session.commit()
+        logger.info(
+            "Cleared SKUListingDataRefreshPriority table before recomputing scores"
+        )
+
         target_sku_ids = get_market_indicator_sku_ids(session)
         total_skus_targeted = len(target_sku_ids)
 
