@@ -117,7 +117,13 @@ update-deps:
 	uv pip compile pyproject.toml -o uv.lock
 
 .PHONY: run-local
-run-local:
+run-local: setup
+	@echo "Setting up web dependencies..."
+	cd web && npm install
+	@echo "Starting backend API and frontend web app..."
+	@echo "Backend will be available at http://localhost:8000"
+	@echo "Frontend will be available at http://localhost:3000"
+	cd web && npm run dev & \
 	uvicorn app.main:app --reload
 
 # New target to apply Terraform changes for cron

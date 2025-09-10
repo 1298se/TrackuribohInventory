@@ -9,8 +9,13 @@ import { useAuth } from "../auth-provider";
 export default function LoginPage() {
   const router = useRouter();
   const { login, loading } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+
+  // Prepopulate credentials in development mode
+  const isDevelopment = process.env.NODE_ENV === "development";
+  const [email, setEmail] = useState(
+    isDevelopment ? "oliversong7h@gmail.com" : "",
+  );
+  const [password, setPassword] = useState(isDevelopment ? "tangtang1" : "");
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = async (e: React.FormEvent) => {
