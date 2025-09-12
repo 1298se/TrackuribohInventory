@@ -14,7 +14,7 @@ init_sentry("compute_sku_listing_data_refresh_priority")
 
 # Logging setup
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -49,9 +49,7 @@ async def main():
     with SessionLocal(expire_on_commit=False) as session:
         session.execute(delete(SKUListingDataRefreshPriority))
         session.commit()
-        logger.info(
-            "Cleared SKUListingDataRefreshPriority table before recomputing scores"
-        )
+        logger.info("Cleared existing priority rows.")
 
         target_sku_ids = get_market_indicator_sku_ids(session)
         total_skus_targeted = len(target_sku_ids)

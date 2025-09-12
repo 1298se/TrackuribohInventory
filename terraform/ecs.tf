@@ -519,6 +519,100 @@ resource "aws_ecs_task_definition" "compute_sku_listing_data_refresh_priority_ta
   }
 }
 
+# --- Define ECS Task Definition for Purchase Decision Sweep ---
+resource "aws_ecs_task_definition" "purchase_decision_sweep_task" {
+  family                   = "${var.project_name}-purchase-decision-sweep"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.task_cpu
+  memory                   = var.task_memory
+  task_role_arn            = aws_iam_role.cron_task_role.arn
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "${var.project_name}-purchase-decision-sweep-container"
+      image     = local.image_uri
+      essential = true
+
+      command = ["python", "-m", "cron.tasks.purchase_decision_sweep"]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.cron_log_group.name
+          "awslogs-region"        = data.aws_region.current.name
+          "awslogs-stream-prefix" = "ecs-purchase-decision-sweep"
+        }
+      }
+
+      secrets = [
+        {
+          name      = "db_username"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
+        },
+        {
+          name      = "db_password"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
+        },
+        {
+          name      = "db_endpoint"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
+        },
+        {
+          name      = "db_port"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
+        },
+        {
+          name      = "db_name"
+          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
+        },
+        {
+          name      = "TCGPLAYER_CLIENT_ID"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
+        },
+        {
+          name      = "TCGPLAYER_CLIENT_SECRET"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+        },
+        # TCG account for web session
+        {
+          name      = "TCGPLAYER_EMAIL"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_account.arn}:TCGPLAYER_EMAIL::"
+        },
+        {
+          name      = "TCGPLAYER_PASSWORD"
+          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_account.arn}:TCGPLAYER_PASSWORD::"
+        },
+        {
+          name      = "SENTRY_DSN"
+          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+        }
+      ]
+
+      environment = [
+        {
+          name  = "ENV"
+          value = "PROD"
+        },
+        {
+          name  = "AWS_REGION"
+          value = data.aws_region.current.name
+        },
+        {
+          name  = "TCGPLAYER_COOKIE_SECRET_NAME"
+          value = data.aws_secretsmanager_secret.tcgplayer_cookie.name
+        }
+      ]
+    }
+  ])
+
+  tags = {
+    Name      = "${var.project_name}-purchase-decision-sweep-task-def"
+    ManagedBy = "Terraform"
+  }
+}
+
 # --- Outputs ---
 output "ecs_cluster_id" {
   description = "ID of the ECS Cluster"
@@ -553,6 +647,11 @@ output "ecs_task_definition_refresh_tcg_cookie_arn" {
 output "ecs_task_definition_compute_sku_listing_data_refresh_priority_arn" {
   description = "ARN of the Compute SKU Listing Data Refresh Priority ECS Task Definition"
   value       = aws_ecs_task_definition.compute_sku_listing_data_refresh_priority_task.arn
+}
+
+output "ecs_task_definition_purchase_decision_sweep_arn" {
+  description = "ARN of the Purchase Decision Sweep ECS Task Definition"
+  value       = aws_ecs_task_definition.purchase_decision_sweep_task.arn
 }
 
 output "cloudwatch_log_group_name" {
