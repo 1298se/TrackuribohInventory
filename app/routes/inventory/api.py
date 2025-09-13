@@ -37,6 +37,7 @@ from core.dao.price import (
     fetch_sku_price_snapshots,
     normalize_price_history,
     date_to_datetime_utc,
+    PriceHistoryPoint,
 )
 from core.services.tcgplayer_catalog_service import get_tcgplayer_catalog_service
 from core.models.transaction import Transaction, LineItem, TransactionType
@@ -478,11 +479,15 @@ async def get_sku_price_history(
                     today_iso = date_to_datetime_utc(date.today()).isoformat()
 
                     # Check if the last data point is today and update it, otherwise append
-                    if price_data and price_data[-1]["datetime"] == today_iso:
-                        price_data[-1]["price"] = float(fresh_price)
+                    if price_data and price_data[-1].datetime_iso == today_iso:
+                        price_data[-1] = PriceHistoryPoint(
+                            datetime_iso=today_iso, price=float(fresh_price)
+                        )
                     else:
                         price_data.append(
-                            {"datetime": today_iso, "price": float(fresh_price)}
+                            PriceHistoryPoint(
+                                datetime_iso=today_iso, price=float(fresh_price)
+                            )
                         )
 
     except Exception as e:
@@ -494,9 +499,9 @@ async def get_sku_price_history(
     # Convert to response schema
     history_items = [
         InventoryPriceHistoryItemSchema(
-            datetime=data_point["datetime"],
+            datetime=data_point.datetime_iso,
             price=MoneySchema(
-                amount=data_point["price"],
+                amount=data_point.price,
                 currency="USD",  # Assuming USD for now
             ),
         )

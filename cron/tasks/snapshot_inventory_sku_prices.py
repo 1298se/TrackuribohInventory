@@ -16,7 +16,7 @@ from cron.telemetry import init_sentry
 init_sentry("snapshot_inventory_sku_prices")
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)

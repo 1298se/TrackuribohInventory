@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 # Import core DAO types
 from core.dao.transaction import LineItemData
-from core.dao.skus import get_skus_by_id
+from core.dao.catalog import get_skus_by_id
 from core.services.tcgplayer_catalog_service import TCGPlayerCatalogService
 # Import the new core schema type
 

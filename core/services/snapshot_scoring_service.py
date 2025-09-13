@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from core.alpha.snapshot_scoring import (
     _compute_snapshot_score_raw,
-    calculate_lambda_hat,
     compute_final_priority_score,
     LOOKBACK_BASELINE_DAYS,
     LOOKBACK_SLOPE_DAYS,
@@ -24,6 +23,8 @@ from core.dao.listing_data_refresh_priority import (
     ListingDataRefreshPriorityRow,
     upsert_listing_data_refresh_priorities,
 )
+from core.dao.sales_listing import get_sales_event_counts_for_skus
+from core.dao.sync_state import get_sales_refresh_timestamps
 from core.services.price_service import build_daily_price_series_for_skus
 from core.models.price import Marketplace
 
@@ -50,34 +51,71 @@ class StalenessForSku:
     sales_events_count: int
 
 
-# NOTE: This helper is prepared for the future sales-refresh integration.
-# For now, we do not store last_sales_refresh_at on listing priorities, nor do we
-# fetch sales listings yet. As a stopgap, treat items as maximally stale.
-# When sales listing refresh metadata is available, compute per-SKU staleness
-# using real last refresh timestamps and observed sales activity.
-
-
 def compute_staleness_scores_for_skus(
+    session: Session,
     sku_ids: List[uuid.UUID],
+    marketplace: Marketplace,
     now: datetime,
 ) -> dict[str, StalenessForSku]:
     """
-    Temporary staleness computation.
+    Compute staleness scores using real sales refresh metadata and sales event rates.
 
-    Since we are not yet persisting sales listing refresh timestamps, treat every
-    SKU as maximally stale (1.0). Use a minimal lambda_hat derived from a 0 sales
-    rate over a 30-day window for completeness.
+    Args:
+        session: Database session
+        sku_ids: List of SKU IDs to compute staleness for
+        marketplace: Marketplace to query
+        now: Current datetime for staleness calculation
+
+    Returns:
+        Dict mapping sku_id (str) to StalenessForSku
     """
+    # Get sales refresh metadata for all SKUs
+    refresh_metadata = get_sales_refresh_timestamps(session, sku_ids, marketplace)
+
+    sales_counts = get_sales_event_counts_for_skus(
+        session=session,
+        sku_ids=sku_ids,
+        marketplace=marketplace,
+        days_back=30,
+    )
+
     result: dict[str, StalenessForSku] = {}
+
     for sku_id in sku_ids:
-        lambda_hat = calculate_lambda_hat(0, 30)
+        last_refresh_at = refresh_metadata.get(sku_id)
+
+        # Calculate delta_t_days since last refresh
+        if last_refresh_at:
+            delta_t_days = (now - last_refresh_at).total_seconds() / 86400
+        else:
+            # Never refreshed - use a large delta to indicate staleness
+            delta_t_days = 365.0  # 1 year default for never-refreshed items
+
+        # Use bulk total units sold for lambda_hat
+        total_units = sales_counts.get(sku_id, 0)
+        lambda_hat = total_units / 30.0
+
+        # Calculate staleness score using the alpha formula
+        # Higher lambda_hat and larger delta_t both increase staleness
+        staleness_score = min(
+            1.0, lambda_hat * delta_t_days / 10.0
+        )  # Scale factor to get reasonable range
+
+        # Fallback for items with no sales history - treat as moderately stale
+        if lambda_hat == 0.0:
+            staleness_score = 0.5 if last_refresh_at else 1.0
+
+        # Store total units in the count field
+        sales_events_count = int(total_units)
+
         result[str(sku_id)] = StalenessForSku(
-            staleness_score=1.0,
+            staleness_score=staleness_score,
             lambda_hat=lambda_hat,
-            delta_t_days=0.0,
-            last_sales_refresh_at=None,
-            sales_events_count=0,
+            delta_t_days=delta_t_days,
+            last_sales_refresh_at=last_refresh_at,
+            sales_events_count=sales_events_count,
         )
+
     return result
 
 
@@ -153,9 +191,11 @@ async def compute_and_store_scores(
     if not snapshot_scores_by_sku:
         return 0
 
-    # 4. Compute staleness (temporary: all 1.0 until sales listing refresh metadata is available)
+    # 4. Compute staleness using real sales refresh metadata
     now = datetime.now(UTC)
-    staleness_by_sku = compute_staleness_scores_for_skus(sku_ids=sku_ids, now=now)
+    staleness_by_sku = compute_staleness_scores_for_skus(
+        session=session, sku_ids=sku_ids, marketplace=marketplace, now=now
+    )
 
     # 5. Merge snapshot + staleness into final records
     records: List[ListingDataRefreshPriorityRow] = []

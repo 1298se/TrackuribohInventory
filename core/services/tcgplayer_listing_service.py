@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
-from typing import List, TypedDict, Any
+from typing import List, TypedDict, Any, Optional
 
 import aiohttp
 from pydantic import BaseModel
@@ -8,22 +8,22 @@ from pydantic import BaseModel
 from core.environment import get_environment
 
 
-class CardListingRequestData(TypedDict):
+class CardListingRequestData(TypedDict, total=False):
     """Payload for TCGPlayer listing requests."""
 
-    product_id: int
-    printings: List[str]
-    conditions: List[str]
-    languages: List[str]
+    product_id: int  # Required
+    printings: Optional[List[str]]  # Optional, defaults to None
+    conditions: Optional[List[str]]  # Optional, defaults to None
+    languages: Optional[List[str]]  # Optional, defaults to None
 
 
-class CardSaleRequestData(TypedDict):
+class CardSaleRequestData(TypedDict, total=False):
     """Payload for TCGPlayer sales requests."""
 
-    product_id: int
-    printings: List[int]
-    conditions: List[int]
-    languages: List[int]
+    product_id: int  # Required
+    printings: Optional[List[int]]  # Optional, defaults to None
+    conditions: Optional[List[int]]  # Optional, defaults to None
+    languages: Optional[List[int]]  # Optional, defaults to None
 
 
 class CardSaleResponse(BaseModel):
@@ -118,19 +118,28 @@ BASE_HEADERS = MappingProxyType(_base_headers)
 def get_product_active_listings_request_payload(
     offset: int,
     limit: int,
-    printings: List[str],
-    conditions: List[str],
+    printings: Optional[List[str]] = None,
+    conditions: Optional[List[str]] = None,
+    languages: Optional[List[str]] = None,
 ):
+    # Build term filters conditionally
+    term = {
+        "sellerStatus": "Live",
+        "channelId": 0,
+        "listingType": "standard",
+    }
+
+    # Only add filters if non-empty values provided
+    if languages:
+        term["language"] = languages
+    if printings:
+        term["printing"] = printings
+    if conditions:
+        term["condition"] = conditions
+
     return {
         "filters": {
-            "term": {
-                "sellerStatus": "Live",
-                "channelId": 0,
-                "language": ["English"],
-                "printing": printings,
-                "condition": conditions,
-                "listingType": "standard",
-            },
+            "term": term,
             "range": {"quantity": {"gte": 1}},
             "exclude": {"channelExclusion": 0, "listingType": "custom"},
         },
@@ -144,19 +153,26 @@ def get_product_active_listings_request_payload(
 def get_sales_request_payload(
     count: int,
     offset: int,
-    printings: List[str],
-    conditions: List[str],
-    languages: List[str],
+    printings: Optional[List[str]] = None,
+    conditions: Optional[List[str]] = None,
+    languages: Optional[List[str]] = None,
 ):
-    return {
+    payload = {
         "listingType": "ListingWithoutPhotos",
         "limit": count,
         "offset": offset,
-        "variants": printings,
         "time": datetime.now().timestamp() * 1000,
-        "conditions": conditions,
-        "languages": languages,
     }
+
+    # Only add filters if non-empty values provided
+    if printings:
+        payload["variants"] = printings
+    if conditions:
+        payload["conditions"] = conditions
+    if languages:
+        payload["languages"] = languages
+
+    return payload
 
 
 # Define Pydantic schemas for TCGPlayer listings API response
@@ -230,8 +246,9 @@ async def get_product_active_listings(
             payload = get_product_active_listings_request_payload(
                 offset=cur_offset,
                 limit=LISTING_PAGINATION_SIZE,
-                printings=request["printings"],
-                conditions=request["conditions"],
+                printings=request.get("printings"),
+                conditions=request.get("conditions"),
+                languages=request.get("languages"),
             )
 
             async with session.post(url, json=payload) as response:
@@ -267,9 +284,9 @@ async def get_sales(
             payload = get_sales_request_payload(
                 count=25,
                 offset=len(sales),
-                printings=request["printings"],
-                conditions=request["conditions"],
-                languages=request["languages"],
+                printings=request.get("printings"),
+                conditions=request.get("conditions"),
+                languages=request.get("languages"),
             )
 
             async with session.post(url, json=payload) as response:

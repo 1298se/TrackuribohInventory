@@ -1,6 +1,10 @@
-from sqlalchemy import func, String, select
+import uuid
+from typing import List
+from sqlalchemy import func, String, select, Sequence
+from sqlalchemy.orm import Session
 from sqlalchemy.sql import ColumnElement
-from core.models.catalog import Product, Set
+from core.models.catalog import Product, Set, SKU
+from core.services.sku_selection import ProcessingSKU
 
 
 def create_product_set_fts_vector() -> ColumnElement:
@@ -63,3 +67,51 @@ def build_product_search_query(query_text: str, prefix: bool = False):
         .order_by(func.ts_rank(vector, ts_query).desc())
     )
     return stmt
+
+
+def get_skus_by_id(session: Session, ids: list[uuid.UUID]) -> Sequence[SKU]:
+    return session.scalars(select(SKU).where(SKU.id.in_(ids))).all()
+
+
+def get_all_skus_by_product_ids(
+    session: Session, product_tcgplayer_ids: List[int]
+) -> List[ProcessingSKU]:
+    """
+    Query all SKUs for the given product TCGPlayer IDs.
+
+    Args:
+        session: Database session
+        product_tcgplayer_ids: List of TCGPlayer product IDs
+
+    Returns:
+        List of ProcessingSKU objects for all SKUs of those products
+    """
+    query = (
+        select(
+            SKU.id.label("sku_id"),
+            Product.tcgplayer_id.label("product_tcgplayer_id"),
+            Set.catalog_id,
+            SKU.condition_id,
+            SKU.printing_id,
+            SKU.language_id,
+        )
+        .join(Product, Product.id == SKU.product_id)
+        .join(Set, Set.id == Product.set_id)
+        .where(Product.tcgplayer_id.in_(product_tcgplayer_ids))
+    )
+
+    results = session.execute(query).all()
+
+    processing_skus = []
+    for row in results:
+        processing_sku = ProcessingSKU(
+            sku_id=row.sku_id,
+            product_tcgplayer_id=row.product_tcgplayer_id,
+            catalog_id=row.catalog_id,
+            condition_id=row.condition_id,
+            printing_id=row.printing_id,
+            language_id=row.language_id,
+        )
+        processing_skus.append(processing_sku)
+
+    return processing_skus
