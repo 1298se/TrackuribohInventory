@@ -28,49 +28,60 @@ import { ProductSearchResponse } from "../catalog/schemas";
 import { MoneyAmountSchema } from "../schemas";
 
 // Create reusable mutation functions using our helper
-const createTransaction = createMutation<
-  TransactionCreateRequest,
-  typeof TransactionResponseSchema
->("/transactions", HTTPMethod.POST, TransactionResponseSchema);
+const createTransaction = (token: string) =>
+  createMutation<TransactionCreateRequest, typeof TransactionResponseSchema>(
+    "/transactions",
+    HTTPMethod.POST,
+    TransactionResponseSchema,
+    token
+  );
 
-const updateTransaction = createMutation<
-  TransactionUpdateRequest,
-  typeof TransactionResponseSchema
->("/transactions", HTTPMethod.PATCH, TransactionResponseSchema);
+const updateTransaction = (token: string) =>
+  createMutation<TransactionUpdateRequest, typeof TransactionResponseSchema>(
+    "/transactions",
+    HTTPMethod.PATCH,
+    TransactionResponseSchema,
+    token
+  );
 
-const createPlatform = createMutation<
-  PlatformCreateRequest,
-  typeof PlatformResponseSchema
->("/transactions/platforms", HTTPMethod.POST, PlatformResponseSchema);
+const createPlatform = (token: string) =>
+  createMutation<PlatformCreateRequest, typeof PlatformResponseSchema>(
+    "/transactions/platforms",
+    HTTPMethod.POST,
+    PlatformResponseSchema,
+    token
+  );
 
-const calculateWeightedPrices = createMutation<
-  WeightedPriceCalculationRequest,
-  typeof WeightedPriceCalculationResponseSchema
->(
-  "/transactions/calculate-weighted-line-item-prices",
-  HTTPMethod.POST,
-  WeightedPriceCalculationResponseSchema,
-);
+const calculateWeightedPrices = (token: string) =>
+  createMutation<
+    WeightedPriceCalculationRequest,
+    typeof WeightedPriceCalculationResponseSchema
+  >(
+    "/transactions/calculate-weighted-line-item-prices",
+    HTTPMethod.POST,
+    WeightedPriceCalculationResponseSchema,
+    token
+  );
 
 // For DELETE, we create a specialized mutation function
-const deleteTransactionsRequest = async (
-  _: string,
-  { arg }: { arg: string[] },
-) => {
-  const payload = BulkTransactionDeleteRequestSchema.parse({
-    transaction_ids: arg,
-  });
+const deleteTransactionsRequest =
+  (token: string) =>
+  async (_: string, { arg }: { arg: string[] }) => {
+    const payload = BulkTransactionDeleteRequestSchema.parse({
+      transaction_ids: arg,
+    });
 
-  return fetcher({
-    url: `${API_URL}/transactions/bulk`,
-    method: HTTPMethod.POST,
-    body: payload,
-    schema: z.void(),
-  });
-};
+    return fetcher({
+      url: `${API_URL}/transactions/bulk`,
+      method: HTTPMethod.POST,
+      body: payload,
+      schema: z.void(),
+      token,
+    });
+  };
 
 // For GET requests, we use the standard fetcher
-export function useTransactions(filters?: TransactionFilter) {
+export function useTransactions(token: string, filters?: TransactionFilter) {
   // Build query parameters - no mapping needed, names match the API
   const params: Record<string, string | string[]> = {};
 
@@ -88,24 +99,25 @@ export function useTransactions(filters?: TransactionFilter) {
   return useSWR(["/transactions", params], ([path, params]) =>
     fetcher({
       url: `${API_URL}${path}`,
-      params,
       method: HTTPMethod.GET,
       schema: TransactionsResponseSchema,
-    }),
+      token: token || "",
+    })
   );
 }
 
-export function useTransaction(id: string) {
+export function useTransaction(id: string, token: string) {
   return useSWR(["/transactions", id], ([path, id]) =>
     fetcher({
       url: `${API_URL}${path}/${id}`,
       method: HTTPMethod.GET,
       schema: TransactionResponseSchema,
-    }),
+      token,
+    })
   );
 }
 
-export function usePlatforms() {
+export function usePlatforms(token: string) {
   const PlatformArraySchema = z.array(PlatformResponseSchema);
 
   return useSWR("/transactions/platforms", (path) =>
@@ -113,21 +125,22 @@ export function usePlatforms() {
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: PlatformArraySchema,
-    }),
+      token,
+    })
   );
 }
 
 // Export hooks using our mutation functions
-export function useCreateTransaction() {
+export function useCreateTransaction(token: string) {
   return useSWRMutation<
     TransactionResponse,
     Error,
     string,
     TransactionCreateRequest
-  >(`${API_URL}/transactions`, createTransaction);
+  >(`${API_URL}/transactions`, createTransaction(token));
 }
 
-export function useUpdateTransaction() {
+export function useUpdateTransaction(token: string) {
   // Note: we need to add handling for path parameter in the trigger
   return useSWRMutation<
     TransactionResponse,
@@ -138,33 +151,34 @@ export function useUpdateTransaction() {
     `${API_URL}/transactions`,
     async (
       _url: string,
-      { arg }: { arg: { id: string; data: TransactionUpdateRequest } },
+      { arg }: { arg: { id: string; data: TransactionUpdateRequest } }
     ) => {
       return fetcher({
         url: `${API_URL}/transactions/${arg.id}`,
         method: HTTPMethod.PATCH,
         body: arg.data,
         schema: TransactionResponseSchema,
+        token,
       });
-    },
+    }
   );
 }
 
-export function useDeleteTransactions() {
+export function useDeleteTransactions(token: string) {
   return useSWRMutation<void, Error, string, string[]>(
     `${API_URL}/transactions/bulk`,
-    deleteTransactionsRequest,
+    deleteTransactionsRequest(token)
   );
 }
 
-export function useCreatePlatform() {
+export function useCreatePlatform(token: string) {
   return useSWRMutation<PlatformResponse, Error, string, PlatformCreateRequest>(
     `${API_URL}/transactions/platforms`,
-    createPlatform,
+    createPlatform(token)
   );
 }
 
-export function useCalculateWeightedPrices() {
+export function useCalculateWeightedPrices(token: string) {
   return useSWRMutation<
     WeightedPriceCalculationResponse,
     Error,
@@ -172,21 +186,22 @@ export function useCalculateWeightedPrices() {
     WeightedPriceCalculationRequest
   >(
     `${API_URL}/transactions/calculate-weighted-line-item-prices`,
-    calculateWeightedPrices,
+    calculateWeightedPrices(token)
   );
 }
 
-export function useTransactionMetrics() {
+export function useTransactionMetrics(token: string) {
   return useSWR("/transactions/metrics", (path) =>
     fetcher({
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: TransactionMetricsResponseSchema,
-    }),
+      token,
+    })
   );
 }
 
-export function useTransactionFilterOptions(catalogId?: string) {
+export function useTransactionFilterOptions(token: string, catalogId?: string) {
   const params: { [key: string]: string } = {};
   if (catalogId) {
     params.catalog_id = catalogId;
@@ -198,11 +213,15 @@ export function useTransactionFilterOptions(catalogId?: string) {
       params,
       method: HTTPMethod.GET,
       schema: TransactionFilterOptionsResponseSchema,
-    }),
+      token: token || "",
+    })
   );
 }
 
-export function useTransactionPerformance(days: number | null = 30) {
+export function useTransactionPerformance(
+  days: number | null = 30,
+  token: string
+) {
   const params: { [key: string]: string } = {};
 
   // Only include days parameter if it's not null (null means "All time")
@@ -216,6 +235,7 @@ export function useTransactionPerformance(days: number | null = 30) {
       params,
       method: HTTPMethod.GET,
       schema: TransactionPerformanceResponseSchema,
-    }),
+      token,
+    })
   );
 }

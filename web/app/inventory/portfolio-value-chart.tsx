@@ -16,6 +16,7 @@ interface PortfolioValueChartProps {
   days: string | undefined;
   metricData?: any;
   metricLoading: boolean;
+  token: string;
 }
 
 // Helper function to convert string time range to API days parameter
@@ -43,15 +44,16 @@ export function PortfolioValueChart({
   days,
   metricData,
   metricLoading,
+  token,
 }: PortfolioValueChartProps) {
   const daysNumber = timeRangeToDays(days);
   const { data: currentMetrics, isLoading: metricsLoading } =
-    useInventoryMetrics(catalogId);
+    useInventoryMetrics(catalogId, token);
   const {
     data: performanceData,
     error: performanceError,
     isLoading: performanceLoading,
-  } = useInventoryPerformance(catalogId, daysNumber);
+  } = useInventoryPerformance(catalogId, daysNumber, token);
 
   // Combine historical data with current metrics for a complete chart
   const chartData = useMemo(() => {
