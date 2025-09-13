@@ -1,7 +1,6 @@
 import { z, ZodError } from "zod"; // Import ZodError for potential type checking if needed
 import { getAccessToken, isTokenExpired, clearTokens } from "./token";
 import { refresh as refreshTokens } from "./auth";
-import { handle401Error } from "../_core/auth-utils";
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
@@ -110,19 +109,16 @@ export const fetcher = async <T extends z.ZodTypeAny>({
 
         // If the retry still returns 401, handle logout
         if (response.status === 401) {
-          await handle401Error();
           throw new Error("Authentication failed. Please log in again.");
         }
       } else {
         // If we're hitting the refresh endpoint and get 401, handle logout
-        await handle401Error();
         throw new Error("Authentication failed. Please log in again.");
       }
     } catch (refreshError) {
       // If refresh fails, the user needs to log in again
       console.error("Token refresh failed:", refreshError);
       // Handle 401 by logging out and redirecting
-      await handle401Error();
       throw new Error("Authentication failed. Please log in again.");
     }
   }

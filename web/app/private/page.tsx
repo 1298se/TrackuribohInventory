@@ -20,6 +20,7 @@ export default async function PrivatePage() {
     credentials: "include",
   });
   const data2 = await response.json();
+  console.log(data2);
 
   return <p>Hello {data?.user?.email}</p>;
 }

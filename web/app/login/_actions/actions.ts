@@ -2,21 +2,9 @@
 
 import { API_URL } from "@/app/api/fetcher";
 import { createClient } from "@/lib/supabase/server";
-import { Session, User } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import "dotenv/config";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
-import { assertNotNullable } from "@/app/_core/utils";
-
-const db = drizzle(process.env.DATABASE_URL!);
-
-const usersTable = pgTable("users", {
-  id: varchar({ length: 255 }).primaryKey(),
-  email: varchar({ length: 255 }).notNull().unique(),
-  created_at: timestamp("created_at").notNull().defaultNow(),
-});
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -74,6 +62,7 @@ export async function signup(formData: FormData) {
     redirect("/error");
   }
 
+  // Sync user to your PostgreSQL database
   if (authData.user) {
     const response = await fetch(`${API_URL}/auth/create-user`, {
       method: "POST",
@@ -83,18 +72,6 @@ export async function signup(formData: FormData) {
         email: authData.user.email,
       }),
     });
-
-    const result = await response.json();
-
-    console.log("result", result);
-
-    // const user: typeof usersTable.$inferInsert = {
-    //   email: authData.user.email,
-    //   id: authData.user.id,
-    // };
-
-    // // Sync user to your PostgreSQL database
-    // await db.insert(usersTable).values(user);
   } else {
     console.log("User not created in database");
   }
