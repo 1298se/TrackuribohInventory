@@ -23,11 +23,11 @@ export function ProductHeader({
 }: ProductHeaderProps) {
   return (
     <div className="flex w-full items-start gap-4">
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <ProductImage
           src={imageUrl}
           alt={name}
-          containerClassName="h-24 w-auto max-w-[6rem] rounded-md overflow-hidden"
+          containerClassName="h-24 w-auto max-w-24 rounded-md overflow-hidden"
         />
       </div>
       <div className="flex flex-col items-start gap-2">

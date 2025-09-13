@@ -10,10 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  FormFieldError,
-  FormRootError,
-} from "@/shared/components/FormFieldError";
+import { FormFieldError, FormRootError } from "@/components/FormFieldError";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useHookFormAction } from "@next-safe-action/adapter-react-hook-form/hooks";

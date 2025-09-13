@@ -1,5 +1,6 @@
 import {
   Card,
+  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -8,6 +9,11 @@ import {
 import { IconTrendingDown, IconTrendingUp } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { API_URL } from "./api/fetcher";
+import { ProductBaseResponseSchema } from "./catalog/schemas";
+import { z } from "zod";
+import Image from "next/image";
+
+type ProductBaseResponseType = z.infer<typeof ProductBaseResponseSchema>;
 
 export default async function Home() {
   return <SectionCards />;
@@ -16,86 +22,45 @@ export default async function Home() {
 async function SectionCards() {
   const response = await fetch(`${API_URL}/market/products`);
   const data = await response.json();
-  console.log(data);
+  const products: ProductBaseResponseType[] =
+    ProductBaseResponseSchema.array().parse(data.results);
+
+  console.log(products);
 
   return (
-    <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
-      <Card className="@container/card">
-        <CardHeader>
-          <CardDescription>Total Revenue</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            $1,250.00
-          </CardTitle>
-          <Badge variant="outline">
-            <IconTrendingUp />
-            +12.5%
-          </Badge>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Trending up this month <IconTrendingUp className="size-4" />
-          </div>
-          <div className="text-muted-foreground">
-            Visitors for the last 6 months
-          </div>
-        </CardFooter>
-      </Card>
-      <Card className="@container/card">
-        <CardHeader>
-          <CardDescription>New Customers</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            1,234
-          </CardTitle>
-          <Badge variant="outline">
-            <IconTrendingDown />
-            -20%
-          </Badge>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Down 20% this period <IconTrendingDown className="size-4" />
-          </div>
-          <div className="text-muted-foreground">
-            Acquisition needs attention
-          </div>
-        </CardFooter>
-      </Card>
-      <Card className="@container/card">
-        <CardHeader>
-          <CardDescription>Active Accounts</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            45,678
-          </CardTitle>
-          <Badge variant="outline">
-            <IconTrendingUp />
-            +12.5%
-          </Badge>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Strong user retention <IconTrendingUp className="size-4" />
-          </div>
-          <div className="text-muted-foreground">Engagement exceed targets</div>
-        </CardFooter>
-      </Card>
-      <Card className="@container/card">
-        <CardHeader>
-          <CardDescription>Growth Rate</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            4.5%
-          </CardTitle>
-          <Badge variant="outline">
-            <IconTrendingUp />
-            +4.5%
-          </Badge>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Steady performance increase <IconTrendingUp className="size-4" />
-          </div>
-          <div className="text-muted-foreground">Meets growth projections</div>
-        </CardFooter>
-      </Card>
+    <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+      {products.map((product) => (
+        <DisplayCard key={product.id} product={product} />
+      ))}
     </div>
+  );
+}
+
+function DisplayCard({ product }: { product: ProductBaseResponseType }) {
+  console.log(product);
+  return (
+    <Card className="w-[225px] py-4">
+      <CardContent className="px-4 py-0">
+        <div className="w-full h-[200px] flex items-center justify-center bg-muted rounded-md border">
+          <Image
+            src={product.image_url}
+            alt={product.name}
+            width={100}
+            height={100}
+            className="rounded-sm border-card shadow-2xl"
+          />
+        </div>
+      </CardContent>
+      <CardHeader className="px-4 pb-0 pt-4">
+        <CardDescription>{product.name}</CardDescription>
+        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          $1,250.00
+        </CardTitle>
+        <div className="flex items-center gap-1 text-sm text-green-400">
+          <IconTrendingUp className="size-4" />
+          +12.5%
+        </div>
+      </CardHeader>
+    </Card>
   );
 }

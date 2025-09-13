@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plusJakartaSans.className} ${plusJakartaSans.variable}`}
+      className={`${plusJakartaSans.className} ${plusJakartaSans.variable} dark`}
     >
       <body className="min-h-screen dark mx-auto">
         <NextTopLoader />
