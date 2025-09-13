@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -683,7 +685,7 @@ export default function CreateTransactionFormDialog({
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
             <CardTitle>Line Items</CardTitle>
-            <SelectProductDialog onSelect={onProductSelected} />
+            <SelectProductDialog onSelect={onProductSelected} token={token} />
           </CardHeader>
           <Separator />
           <CardContent className="pt-6">

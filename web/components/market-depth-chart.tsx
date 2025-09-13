@@ -12,11 +12,11 @@ interface MarketDepthChartProps {
 
 function formatCurrency(
   amount: number | null | undefined,
-  currency: string = "USD",
+  currency: string = "USD"
 ): string {
   if (amount == null) return "N/A";
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-    amount,
+    amount
   );
 }
 
@@ -31,15 +31,15 @@ export function MarketDepthChart({
     new Set([
       ...listingsCumulativeDepth.map((d) => d.price),
       ...salesCumulativeDepth.map((d) => d.price),
-    ]),
+    ])
   ).sort((a, b) => a - b);
 
   const listingMap: Record<number, number> = Object.fromEntries(
-    listingsCumulativeDepth.map((d) => [d.price, d.cumulativeCount]),
+    listingsCumulativeDepth.map((d) => [d.price, d.cumulativeCount])
   );
 
   const salesMap: Record<number, number> = Object.fromEntries(
-    salesCumulativeDepth.map((d) => [d.price, d.cumulativeCount]),
+    salesCumulativeDepth.map((d) => [d.price, d.cumulativeCount])
   );
 
   const mergedData = prices.map((price) => ({
@@ -53,7 +53,7 @@ export function MarketDepthChart({
   return (
     <ChartContainer
       id="market-depth-chart"
-      className="h-[300px] w-full"
+      className="h-[300px] w-full bg-amber-200"
       config={{
         listingCumulativeCount: { label: "Listings", color: "#3B82F6" },
         salesCumulativeCount: { label: "Sales", color: "#F97316" },
