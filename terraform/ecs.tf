@@ -508,6 +508,10 @@ resource "aws_ecs_task_definition" "compute_sku_listing_data_refresh_priority_ta
         {
           name  = "ENV"
           value = "PROD"
+        },
+        {
+          name  = "AWS_REGION"
+          value = data.aws_region.current.name
         }
       ]
     }

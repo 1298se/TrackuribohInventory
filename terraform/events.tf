@@ -196,6 +196,38 @@ resource "aws_cloudwatch_event_target" "ecs_compute_sku_listing_data_refresh_pri
   }
 }
 
+# --- Scheduled Compute SKU Listing Data Refresh Priority every 3 hours ---
+resource "aws_cloudwatch_event_rule" "compute_sku_listing_data_refresh_priority_schedule" {
+  name                = "${var.project_name}-compute-priority-schedule"
+  description         = "Run compute_sku_listing_data_refresh_priority every 3 hours"
+  schedule_expression = "cron(0 */3 * * ? *)" # Every 3 hours at minute 0
+
+  tags = {
+    Name      = "${var.project_name}-compute-priority-schedule"
+    ManagedBy = "Terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "ecs_compute_sku_listing_data_refresh_priority_schedule_target" {
+  rule      = aws_cloudwatch_event_rule.compute_sku_listing_data_refresh_priority_schedule.name
+  arn       = aws_ecs_cluster.cron_cluster.arn
+  role_arn  = aws_iam_role.event_bridge_role.arn
+  target_id = "${var.project_name}-compute-priority-schedule"
+
+  ecs_target {
+    launch_type         = "FARGATE"
+    task_count          = 1
+    task_definition_arn = aws_ecs_task_definition.compute_sku_listing_data_refresh_priority_task.arn
+    platform_version    = "LATEST"
+
+    network_configuration {
+      subnets          = var.private_subnet_ids
+      security_groups  = var.task_security_group_ids
+      assign_public_ip = true
+    }
+  }
+}
+
 # --- Event-Driven Purchase Decision Sweep ---
 resource "aws_cloudwatch_event_rule" "purchase_decision_sweep_event" {
   name        = "${var.project_name}-purchase-decision-sweep-rule"
@@ -217,38 +249,6 @@ resource "aws_cloudwatch_event_target" "ecs_purchase_decision_sweep_target" {
   arn       = aws_ecs_cluster.cron_cluster.arn
   role_arn  = aws_iam_role.event_bridge_role.arn
   target_id = "${var.project_name}-purchase-decision-sweep-target"
-
-  ecs_target {
-    launch_type         = "FARGATE"
-    task_count          = 1
-    task_definition_arn = aws_ecs_task_definition.purchase_decision_sweep_task.arn
-    platform_version    = "LATEST"
-
-    network_configuration {
-      subnets          = var.private_subnet_ids
-      security_groups  = var.task_security_group_ids
-      assign_public_ip = true
-    }
-  }
-}
-
-# --- Scheduled Purchase Decision Sweep every 3 hours ---
-resource "aws_cloudwatch_event_rule" "purchase_decision_sweep_schedule" {
-  name                = "${var.project_name}-purchase-decision-sweep-schedule"
-  description         = "Run purchase decision sweep every 3 hours"
-  schedule_expression = "cron(0 */3 * * ? *)" # Every 3 hours at minute 0
-
-  tags = {
-    Name      = "${var.project_name}-purchase-decision-sweep-schedule"
-    ManagedBy = "Terraform"
-  }
-}
-
-resource "aws_cloudwatch_event_target" "ecs_purchase_decision_sweep_schedule_target" {
-  rule      = aws_cloudwatch_event_rule.purchase_decision_sweep_schedule.name
-  arn       = aws_ecs_cluster.cron_cluster.arn
-  role_arn  = aws_iam_role.event_bridge_role.arn
-  target_id = "${var.project_name}-purchase-decision-sweep-schedule-target"
 
   ecs_target {
     launch_type         = "FARGATE"

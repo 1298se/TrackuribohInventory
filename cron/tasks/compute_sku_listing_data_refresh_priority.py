@@ -1,6 +1,9 @@
 import asyncio
 import logging
 import uuid
+import os
+import json
+import boto3
 
 from core.database import SessionLocal
 from core.models.price import Marketplace, SKUListingDataRefreshPriority
@@ -41,6 +44,37 @@ async def process_scoring_batch(sku_batch: list[uuid.UUID]) -> int:
         return updated_count
 
 
+async def publish_purchase_decision_event(total_records_updated: int) -> None:
+    """
+    Publish EventBridge event to trigger purchase_decision_sweep task upon completion.
+    """
+    region = os.getenv("AWS_REGION", "us-east-2")
+    events_client = boto3.client("events", region_name=region)
+
+    response = events_client.put_events(
+        Entries=[
+            {
+                "Source": "codex.jobs",
+                "DetailType": "PurchaseDecisionSweep",
+                "EventBusName": "default",
+                "Detail": json.dumps(
+                    {
+                        "triggeredBy": JOB_NAME,
+                        "recordsUpdated": total_records_updated,
+                    }
+                ),
+            }
+        ]
+    )
+
+    if response.get("FailedEntryCount", 0) > 0:
+        logger.error(
+            f"Failed to publish PurchaseDecisionSweep event: {response.get('Entries', [])}"
+        )
+    else:
+        logger.info("Published EventBridge event to trigger purchase decision sweep")
+
+
 async def main():
     total_skus_targeted = 0
     total_records_updated = 0
@@ -73,6 +107,10 @@ async def main():
             f"{JOB_NAME}: completed. {total_skus_targeted} SKUs targeted, "
             f"{total_records_updated} priority records updated"
         )
+
+    # Trigger the purchase decision sweep if we updated any records
+    if total_records_updated > 0:
+        await publish_purchase_decision_event(total_records_updated)
 
 
 if __name__ == "__main__":
