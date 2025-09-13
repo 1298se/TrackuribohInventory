@@ -189,3 +189,12 @@ async def create_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create user"
         )
+
+@router.get("/home")
+async def home():
+    """Home endpoint for authentication service"""
+    return {
+        "status": "healthy",
+        "service": "authentication",
+        "supabase_configured": True,
+    }
