@@ -1,6 +1,4 @@
-import { z, ZodError } from "zod"; // Import ZodError for potential type checking if needed
-import { getAccessToken, isTokenExpired, clearTokens } from "./token";
-import { refresh as refreshTokens } from "./auth";
+import { z } from "zod"; // Import ZodError for potential type checking if needed
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
@@ -23,20 +21,16 @@ export interface FetcherParams<T extends z.ZodTypeAny> {
   schema: T;
 }
 
-// Deduplicate concurrent refresh requests
-let refreshInFlight: Promise<unknown> | null = null;
-async function ensureRefreshedOnce() {
-  if (!refreshInFlight) {
-    refreshInFlight = refreshTokens().finally(() => {
-      refreshInFlight = null;
-    });
-  }
-  return refreshInFlight;
-}
-
-async function doFetch(url: string, options: RequestInit) {
+async function doFetch({
+  url,
+  options,
+  token,
+}: {
+  url: string;
+  options: RequestInit;
+  token: string;
+}) {
   // Inject Authorization if we have an access token
-  const token = getAccessToken();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
@@ -54,7 +48,8 @@ export const fetcher = async <T extends z.ZodTypeAny>({
   init = {},
   params = undefined,
   schema,
-}: FetcherParams<T>): Promise<z.infer<T>> => {
+  token,
+}: FetcherParams<T> & { token: string }): Promise<z.infer<T>> => {
   // Append params if they exist
   if (params) {
     const queryParams = new URLSearchParams();
@@ -84,7 +79,7 @@ export const fetcher = async <T extends z.ZodTypeAny>({
   }
 
   // Perform the fetch with one retry after refresh on 401
-  let response = await doFetch(url, fetchOptions);
+  let response = await doFetch({ url, options: fetchOptions, token });
 
   if (response.status === 401) {
     throw new Error("Authentication failed. Please log in again.");
@@ -124,7 +119,8 @@ export const fetcher = async <T extends z.ZodTypeAny>({
 export function createMutation<RequestType, ResponseType extends z.ZodTypeAny>(
   endpoint: string,
   method: HTTPMethod,
-  responseSchema: ResponseType
+  responseSchema: ResponseType,
+  token: string
 ) {
   return async function (_: string, { arg }: { arg: RequestType }) {
     return fetcher({
@@ -132,6 +128,7 @@ export function createMutation<RequestType, ResponseType extends z.ZodTypeAny>(
       method,
       body: arg,
       schema: responseSchema,
+      token,
     });
   };
 }

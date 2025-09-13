@@ -14,12 +14,14 @@ interface PortfolioPerformanceProps {
   selectedCatalogId: string | null;
   metricData?: any;
   metricLoading: boolean;
+  token: string;
 }
 
 export function PortfolioPerformance({
   selectedCatalogId,
   metricData,
   metricLoading,
+  token,
 }: PortfolioPerformanceProps) {
   const [days, setDays] = useState<string | undefined>(undefined);
 
@@ -61,6 +63,7 @@ export function PortfolioPerformance({
           days={days}
           metricData={metricData}
           metricLoading={metricLoading}
+          token={token}
         />
       </CardContent>
     </Card>

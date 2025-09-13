@@ -21,18 +21,19 @@ import {
   TrendingDown,
   BarChart as BarChartIcon,
 } from "lucide-react";
-import { cn, formatCurrencyNumber } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
 interface TransactionPerformanceChartProps {
   metricData?: any;
   metricLoading: boolean;
+  token: string;
 }
 
 export function TransactionPerformanceChart({
   metricData,
   metricLoading,
+  token,
 }: TransactionPerformanceChartProps) {
   const [days, setDays] = useState<string | undefined>(undefined);
 
@@ -61,7 +62,7 @@ export function TransactionPerformanceChart({
     data: performanceData,
     error,
     isLoading,
-  } = useTransactionPerformance(daysNumber);
+  } = useTransactionPerformance(daysNumber, token);
 
   // Process data for chart visualization
   const chartData = useMemo(() => {
@@ -95,7 +96,7 @@ export function TransactionPerformanceChart({
         total_expenses: acc.total_expenses + point.expenses,
         net_profit: acc.net_profit + point.net_profit,
       }),
-      { total_revenue: 0, total_expenses: 0, net_profit: 0 },
+      { total_revenue: 0, total_expenses: 0, net_profit: 0 }
     );
 
     return summary;
@@ -258,7 +259,7 @@ export function TransactionPerformanceChart({
                 tickFormatter={(dateStr) =>
                   format(
                     parseISO(dateStr),
-                    daysNumber && daysNumber <= 7 ? "EEE" : "MMM d",
+                    daysNumber && daysNumber <= 7 ? "EEE" : "MMM d"
                   )
                 }
                 axisLine={false}
@@ -273,13 +274,13 @@ export function TransactionPerformanceChart({
                   const sales = payload.find((p) => p.dataKey === "sales")
                     ?.value as number;
                   const purchases = payload.find(
-                    (p) => p.dataKey === "purchases",
+                    (p) => p.dataKey === "purchases"
                   )?.value as number;
                   const netProfit = payload.find(
-                    (p) => p.dataKey === "net_profit",
+                    (p) => p.dataKey === "net_profit"
                   )?.value as number;
                   const transactionCount = payload.find(
-                    (p) => p.dataKey === "transaction_count",
+                    (p) => p.dataKey === "transaction_count"
                   )?.value as number;
 
                   // Convert purchases back to positive for display
@@ -292,7 +293,7 @@ export function TransactionPerformanceChart({
                           parseISO(label),
                           daysNumber && daysNumber <= 7
                             ? "EEE, MMM d"
-                            : "MMM d, yyyy",
+                            : "MMM d, yyyy"
                         )}
                       </p>
                       <div className="space-y-1">

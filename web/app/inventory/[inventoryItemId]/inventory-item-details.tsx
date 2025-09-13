@@ -25,7 +25,6 @@ import {
   TrendingUp,
   History,
 } from "lucide-react";
-import { formatCurrencyNumber } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSkuMarketData } from "@/app/catalog/api";
@@ -40,11 +39,12 @@ import { Select } from "@/components/marketplace-selector";
 
 interface InventoryItemDetailsProps {
   inventoryItemId: string;
+  token: string;
 }
 
 function formatCurrency(
   amount: number | null | undefined,
-  currency: string = "USD",
+  currency: string = "USD"
 ): string {
   if (amount === null || amount === undefined) return "N/A";
   return new Intl.NumberFormat("en-US", {
@@ -116,17 +116,14 @@ const transactionColumns: ColumnDef<InventorySKUTransactionLineItem>[] = [
       if (unitPrice?.amount == null) {
         return <div className="text-muted-foreground text-right">N/A</div>;
       }
-      return (
-        <div className="tabular-nums text-right">
-          ${formatCurrencyNumber(unitPrice.amount)}
-        </div>
-      );
+      return <div className="tabular-nums text-right">${unitPrice.amount}</div>;
     },
   },
 ];
 
 export function InventoryItemDetails({
   inventoryItemId,
+  token,
 }: InventoryItemDetailsProps) {
   const router = useRouter();
 
@@ -141,13 +138,13 @@ export function InventoryItemDetails({
     data: inventoryItem,
     isLoading: itemLoading,
     error: itemError,
-  } = useInventoryItem(inventoryItemId);
+  } = useInventoryItem(inventoryItemId, token);
 
   const {
     data: transactionsData,
     isLoading: transactionsLoading,
     error: transactionsError,
-  } = useInventoryItemTransactions(inventoryItemId);
+  } = useInventoryItemTransactions(inventoryItemId, token);
 
   const {
     data: marketDataItems,
@@ -156,13 +153,14 @@ export function InventoryItemDetails({
   } = useSkuMarketData(
     inventoryItem?.sku.id || null,
     timeRangeToDays(marketAnalysisDays),
+    token
   );
 
   const {
     data: marketplacesData,
     isLoading: marketplacesLoading,
     error: marketplacesError,
-  } = useSkuMarketplaces(inventoryItem?.sku.id || null);
+  } = useSkuMarketplaces(inventoryItem?.sku.id || null, token);
 
   const {
     data: priceHistoryData,
@@ -172,6 +170,7 @@ export function InventoryItemDetails({
     inventoryItem?.sku.id && selectedMarketplace ? inventoryItem.sku.id : null,
     timeRangeToDays(marketAnalysisDays),
     selectedMarketplace ?? null,
+    token
   );
 
   // Get marketplace options from dedicated endpoint
@@ -190,7 +189,7 @@ export function InventoryItemDetails({
 
   // Event handlers
   const handleTransactionRowClick = (
-    row: Row<InventorySKUTransactionLineItem>,
+    row: Row<InventorySKUTransactionLineItem>
   ) => {
     const transactionId = row.original.transaction_id;
     router.push(`/transactions/${transactionId}`);
@@ -253,7 +252,7 @@ export function InventoryItemDetails({
         details={formatSKU(
           inventoryItem.sku.condition || { name: "" },
           inventoryItem.sku.printing || { name: "" },
-          inventoryItem.sku.language || { name: "" },
+          inventoryItem.sku.language || { name: "" }
         )}
       />
 
@@ -330,7 +329,10 @@ export function InventoryItemDetails({
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {marketPricePerUnit !== undefined
-                      ? `${formatCurrency(marketPricePerUnit, currency)} /unit market price`
+                      ? `${formatCurrency(
+                          marketPricePerUnit,
+                          currency
+                        )} /unit market price`
                       : "Market price unavailable"}
                   </p>
                 </div>
@@ -464,7 +466,7 @@ export function InventoryItemDetails({
                     }
                     salesLookbackDays={
                       marketAnalysisDays
-                        ? (timeRangeToDays(marketAnalysisDays) ?? undefined)
+                        ? timeRangeToDays(marketAnalysisDays) ?? undefined
                         : undefined
                     }
                     selectedMarketplace={selectedMarketplace}

@@ -275,7 +275,11 @@ const TaxAmountField = ({ control }: { control: any }) => (
   />
 );
 
-export default function CreateTransactionFormDialog() {
+export default function CreateTransactionFormDialog({
+  token,
+}: {
+  token: string;
+}) {
   const form = useForm<TransactionCreateForm>({
     resolver: zodResolver(TransactionCreateFormSchema),
     defaultValues: {
@@ -296,7 +300,8 @@ export default function CreateTransactionFormDialog() {
     name: "line_items",
   });
 
-  const { trigger: createTransaction, isMutating } = useCreateTransaction();
+  const { trigger: createTransaction, isMutating } =
+    useCreateTransaction(token);
   const [formContainerRef, setFormContainerRef] =
     useState<HTMLDivElement | null>(null);
 
@@ -315,10 +320,10 @@ export default function CreateTransactionFormDialog() {
         // Revalidate inventory data since transactions affect inventory
         globalMutate((key) => Array.isArray(key) && key[0] === "/inventory"),
         globalMutate(
-          (key) => Array.isArray(key) && key[0] === "/inventory/metrics",
+          (key) => Array.isArray(key) && key[0] === "/inventory/metrics"
         ),
         globalMutate(
-          (key) => Array.isArray(key) && key[0] === "/inventory/performance",
+          (key) => Array.isArray(key) && key[0] === "/inventory/performance"
         ),
       ]);
 
@@ -478,7 +483,7 @@ export default function CreateTransactionFormDialog() {
                           onValueChange={(selectedValue) => {
                             form.setValue(
                               "type",
-                              TransactionTypeSchema.parse(selectedValue),
+                              TransactionTypeSchema.parse(selectedValue)
                             );
                           }}
                         >

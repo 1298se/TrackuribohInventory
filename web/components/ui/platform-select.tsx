@@ -43,6 +43,7 @@ interface PlatformSelectProps {
   showLabel?: boolean;
   className?: string;
   displayValue?: string;
+  token: string;
 }
 
 export function PlatformSelect({
@@ -54,13 +55,14 @@ export function PlatformSelect({
   showLabel = true,
   className,
   displayValue,
+  token,
 }: PlatformSelectProps) {
   const {
     data: platforms,
     isLoading,
     mutate: mutatePlatforms,
-  } = usePlatforms();
-  const { trigger: createPlatform, isMutating } = useCreatePlatform();
+  } = usePlatforms(token);
+  const { trigger: createPlatform, isMutating } = useCreatePlatform(token);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newPlatformName, setNewPlatformName] = useState("");
   const [isSelectOpen, setIsSelectOpen] = useState(false);
@@ -153,7 +155,7 @@ export function PlatformSelect({
               role="button"
               className={cn(
                 "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-2 pr-2 text-sm outline-hidden focus:bg-accent focus:text-accent-foreground",
-                "text-primary font-medium justify-center",
+                "text-primary font-medium justify-center"
               )}
               onClick={() => {
                 setIsSelectOpen(false); // Close the dropdown
@@ -212,6 +214,7 @@ type FormFieldPlatformSelectProps<TFieldValues extends FieldValues> = {
   placeholder?: string;
   isEditing?: boolean;
   displayValue?: string;
+  token: string;
 };
 
 export function FormFieldPlatformSelect<TFieldValues extends FieldValues>({
@@ -221,6 +224,7 @@ export function FormFieldPlatformSelect<TFieldValues extends FieldValues>({
   placeholder = "Select a platform",
   isEditing = true,
   displayValue,
+  token,
 }: FormFieldPlatformSelectProps<TFieldValues>) {
   return (
     <FormField
@@ -237,6 +241,7 @@ export function FormFieldPlatformSelect<TFieldValues extends FieldValues>({
               showLabel={false}
               placeholder={placeholder}
               displayValue={displayValue}
+              token={token}
             />
           </FormControl>
           <FormMessage />

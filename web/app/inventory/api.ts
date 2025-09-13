@@ -5,8 +5,6 @@ import {
   InventoryItemDetailResponseSchema,
   InventoryItemDetailResponse,
   InventoryItemUpdateRequest,
-  InventoryItemUpdateRequestSchema,
-  InventoryResponse,
   InventoryResponseSchema,
   InventorySKUTransactionsResponse,
   InventorySKUTransactionsResponseSchema,
@@ -22,13 +20,13 @@ import {
 import {
   ProductSearchResponseSchema,
   CatalogsResponseSchema,
-  CatalogsResponse,
 } from "../catalog/schemas";
-import { API_URL, fetcher, HTTPMethod, createMutation } from "../api/fetcher";
+import { API_URL, fetcher, HTTPMethod } from "../api/fetcher";
 
 export function useInventory(
   query: string | null = null,
-  catalog_id: string | null = null
+  catalog_id: string | null = null,
+  token: string
 ) {
   // Prepare parameters object
   const params: { [key: string]: string } = {};
@@ -45,6 +43,7 @@ export function useInventory(
       params,
       method: HTTPMethod.GET,
       schema: InventoryResponseSchema,
+      token,
     })
   );
 }
@@ -52,7 +51,8 @@ export function useInventory(
 export function useSearchProducts(
   query: string,
   catalog: string | null = null,
-  productType: string | null = null
+  productType: string | null = null,
+  token: string
 ) {
   // Construct parameters for the API call
   const params: { [key: string]: string } = { query };
@@ -73,31 +73,34 @@ export function useSearchProducts(
       params,
       method: HTTPMethod.GET,
       schema: ProductSearchResponseSchema,
+      token,
     })
   );
 }
 
-export function useCatalogs() {
+export function useCatalogs(token: string) {
   return useSWR("/catalog/catalogs", (path) =>
     fetcher({
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: CatalogsResponseSchema,
+      token,
     })
   );
 }
 
-export function useInventoryCatalogs() {
+export function useInventoryCatalogs(token: string) {
   return useSWR("/inventory/catalogs", (path) =>
     fetcher({
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: CatalogsResponseSchema,
+      token,
     })
   );
 }
 
-export function useInventoryItem(inventoryItemId: string) {
+export function useInventoryItem(inventoryItemId: string, token: string) {
   return useSWR(
     inventoryItemId ? `/inventory/${inventoryItemId}` : null,
     (path) =>
@@ -105,11 +108,12 @@ export function useInventoryItem(inventoryItemId: string) {
         url: `${API_URL}${path}`,
         method: HTTPMethod.GET,
         schema: InventoryItemDetailResponseSchema,
+        token,
       })
   );
 }
 
-export function useUpdateInventoryItem() {
+export function useUpdateInventoryItem(token: string) {
   return useSWRMutation<
     InventoryItemDetailResponse,
     Error,
@@ -126,13 +130,17 @@ export function useUpdateInventoryItem() {
         method: HTTPMethod.PATCH,
         body: arg.data,
         schema: InventoryItemDetailResponseSchema,
+        token,
       });
     }
   );
 }
 
 // Hook to fetch transaction history for a specific SKU
-export function useInventoryItemTransactions(skuId: string | null) {
+export function useInventoryItemTransactions(
+  skuId: string | null,
+  token: string
+) {
   const key = skuId ? `/inventory/${skuId}/transactions` : null;
 
   return useSWR<InventorySKUTransactionsResponse>(key, (path: string) =>
@@ -140,11 +148,15 @@ export function useInventoryItemTransactions(skuId: string | null) {
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: InventorySKUTransactionsResponseSchema, // Ensure validation against the correct schema
+      token,
     })
   );
 }
 
-export function useInventoryMetrics(catalog_id: string | null = null) {
+export function useInventoryMetrics(
+  catalog_id: string | null = null,
+  token: string
+) {
   const params: { [key: string]: string } = {};
   if (catalog_id) {
     params.catalog_id = catalog_id;
@@ -159,6 +171,7 @@ export function useInventoryMetrics(catalog_id: string | null = null) {
         params: queryParams,
         method: HTTPMethod.GET,
         schema: InventoryMetricsResponseSchema,
+        token,
       });
     }
   );
@@ -166,7 +179,8 @@ export function useInventoryMetrics(catalog_id: string | null = null) {
 
 export function useInventoryPerformance(
   catalog_id: string | null = null,
-  days: number | null = 7
+  days: number | null = 7,
+  token: string
 ) {
   const params: { [key: string]: string } = {};
 
@@ -188,6 +202,7 @@ export function useInventoryPerformance(
         params: queryParams,
         method: HTTPMethod.GET,
         schema: z.array(InventoryHistoryItemSchema),
+        token,
       });
     }
   );
@@ -196,7 +211,8 @@ export function useInventoryPerformance(
 export function useInventoryPriceHistory(
   skuId: string | null,
   days: number = 30,
-  marketplace: string | null = null
+  marketplace: string | null = null,
+  token: string
 ) {
   const params: { [key: string]: string } = { days: days.toString() };
   if (marketplace) {
@@ -212,12 +228,13 @@ export function useInventoryPriceHistory(
         params: queryParams,
         method: HTTPMethod.GET,
         schema: InventoryPriceHistoryResponseSchema,
+        token,
       });
     }
   );
 }
 
-export function useSkuMarketplaces(skuId: string | null) {
+export function useSkuMarketplaces(skuId: string | null, token: string) {
   return useSWR<InventorySkuMarketplacesResponse>(
     skuId ? `/inventory/${skuId}/marketplaces` : null,
     (path: string) =>
@@ -225,6 +242,7 @@ export function useSkuMarketplaces(skuId: string | null) {
         url: `${API_URL}${path}`,
         method: HTTPMethod.GET,
         schema: InventorySkuMarketplacesResponseSchema,
+        token,
       })
   );
 }

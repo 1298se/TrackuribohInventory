@@ -19,7 +19,6 @@ from core.models.catalog import Set
 from core.services.schemas.schema import ProductType
 from core.dao.catalog import build_product_search_query
 from core.services import market_data_service
-
 router = APIRouter(
     prefix="/market",
 )
@@ -33,7 +32,10 @@ def get_products_list(session: Session = Depends(get_db_session)):
         .join(Catalog)
         .where(Product.product_type == ProductType.CARDS)
         .where(Catalog.display_name == "Pokemon")
-        .limit(1)
+        .limit(10)
+        .options(
+            *ProductWithSetAndSKUsResponseSchema.get_load_options()
+        )
     ).all()
     
     return ProductSearchResponseSchema(results=products)

@@ -10,6 +10,7 @@ import {
   MarketDataResponse,
 } from "./schemas";
 import { UUID } from "crypto";
+import { createClient } from "@/lib/supabase/client";
 
 // Define the type inferred from the schema
 type ProductDetailType = z.infer<typeof ProductWithSetAndSKUsResponseSchema>;
@@ -21,6 +22,7 @@ type ProductDetailType = z.infer<typeof ProductWithSetAndSKUsResponseSchema>;
 export function useSkuMarketData(
   skuId: string | null,
   salesLookbackDays: number = 30,
+  token: string
 ) {
   // Key for SWR: [path, params]
   const key: string | null = skuId
@@ -39,8 +41,9 @@ export function useSkuMarketData(
         url: `${API_URL}${path}`,
         method: HTTPMethod.GET,
         schema: MarketDataResponseSchema,
+        token,
       });
-    },
+    }
   );
 
   return {
@@ -56,6 +59,7 @@ export function useSkuMarketData(
 export function useProductSearch(
   query: string,
   catalogId: string | null = null,
+  token: string
 ) {
   // Prepare query params (always include `query`, even if empty)
   const params: Record<string, string> = { query };
@@ -79,8 +83,9 @@ export function useProductSearch(
         params,
         method: HTTPMethod.GET,
         schema: ProductSearchResponseSchema,
+        token,
       });
-    },
+    }
   );
 
   return { data, error, isLoading };
@@ -91,7 +96,7 @@ export function useProductSearch(
  * @param productId - The ID of the product to fetch.
  * @returns SWR response with product data, error, and loading state.
  */
-export function useProductDetail(productId: UUID | undefined) {
+export function useProductDetail(productId: UUID | undefined, token: string) {
   // Key for SWR: path string or null if productId is undefined
   const key: string | null = productId ? `/catalog/product/${productId}` : null;
 
@@ -105,6 +110,7 @@ export function useProductDetail(productId: UUID | undefined) {
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: ProductWithSetAndSKUsResponseSchema,
+      token,
     });
   });
 
@@ -123,6 +129,7 @@ export function useProductDetail(productId: UUID | undefined) {
 export function useProductMarketData(
   productId: UUID | undefined,
   salesLookbackDays: number = 30,
+  token: string
 ) {
   // Key for SWR: path string or null if productId is undefined
   const key: string | null = productId
@@ -139,6 +146,7 @@ export function useProductMarketData(
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: MarketDataResponseSchema,
+      token,
     });
   });
 
