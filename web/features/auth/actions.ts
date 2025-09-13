@@ -42,9 +42,6 @@ export const signupUser = actionClient
       password,
     });
 
-    console.log("authData", authData);
-    console.log("error", error);
-
     if (error) {
       return returnValidationErrors(emailAuthSchema, {
         _errors: ["Failed to send sign up request"],

@@ -603,13 +603,9 @@ def build_filtered_transactions_query(
             where_clauses.append(combined_ts_vector.op("@@")(ts_query))
 
     if filters.date_start:
-        # Convert date to datetime for comparison with Transaction.date field
-        start_datetime = datetime.combine(filters.date_start, datetime.min.time())
-        where_clauses.append(Transaction.date >= start_datetime)
+        where_clauses.append(Transaction.date >= filters.date_start)
     if filters.date_end:
-        # Convert date to datetime for comparison with Transaction.date field
-        end_datetime = datetime.combine(filters.date_end, datetime.max.time())
-        where_clauses.append(Transaction.date <= end_datetime)
+        where_clauses.append(Transaction.date <= filters.date_end)
 
     if filters.types:
         where_clauses.append(Transaction.type.in_(filters.types))
