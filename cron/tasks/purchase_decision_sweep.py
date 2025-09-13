@@ -15,9 +15,6 @@ init_sentry("purchase_decision_sweep")
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-# Tame noisy libraries
-logging.getLogger("sqlalchemy").setLevel(logging.INFO)
-logging.getLogger("aiohttp").setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants
