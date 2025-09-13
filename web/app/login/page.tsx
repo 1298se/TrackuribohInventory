@@ -1,17 +1,27 @@
-import { logout, signup } from "./_actions/actions";
-import { login } from "./_actions/actions";
+import { loginUser } from "../../features/auth/actions";
+import { AuthCenteredContainer } from "../../features/auth/components/AuthCenteredContainer";
+import { SignUpSignInFormCard } from "../../features/auth/components/SignUpSignInFormCard";
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   return (
-    <form>
-      <label htmlFor="email">Email:</label>
-      <input id="email" name="email" type="email" required />
-      <label htmlFor="password">Password:</label>
-      <input id="password" name="password" type="password" required />
-      <button formAction={login}>Log in</button>
-      <button formAction={signup}>Sign up</button>
-
-      <button formAction={logout}>Log out</button>
-    </form>
+    <AuthCenteredContainer>
+      <SignUpSignInFormCard
+        title="Login to your account"
+        description="Enter your email below to login to your account"
+        formAction={loginUser}
+        redirect="/"
+        cta="Login"
+        footer={
+          <div className="mt-4 text-center text-sm">
+            Don&apos;t have an account?{" "}
+            <a href="/signup" className="underline underline-offset-4">
+              Sign up
+            </a>
+          </div>
+        }
+      />
+      <Button>Logout</Button>
+    </AuthCenteredContainer>
   );
 }

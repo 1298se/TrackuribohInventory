@@ -28,7 +28,7 @@ import { API_URL, fetcher, HTTPMethod, createMutation } from "../api/fetcher";
 
 export function useInventory(
   query: string | null = null,
-  catalog_id: string | null = null,
+  catalog_id: string | null = null
 ) {
   // Prepare parameters object
   const params: { [key: string]: string } = {};
@@ -45,14 +45,14 @@ export function useInventory(
       params,
       method: HTTPMethod.GET,
       schema: InventoryResponseSchema,
-    }),
+    })
   );
 }
 
 export function useSearchProducts(
   query: string,
   catalog: string | null = null,
-  productType: string | null = null,
+  productType: string | null = null
 ) {
   // Construct parameters for the API call
   const params: { [key: string]: string } = { query };
@@ -73,7 +73,7 @@ export function useSearchProducts(
       params,
       method: HTTPMethod.GET,
       schema: ProductSearchResponseSchema,
-    }),
+    })
   );
 }
 
@@ -83,7 +83,7 @@ export function useCatalogs() {
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: CatalogsResponseSchema,
-    }),
+    })
   );
 }
 
@@ -93,7 +93,7 @@ export function useInventoryCatalogs() {
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: CatalogsResponseSchema,
-    }),
+    })
   );
 }
 
@@ -105,7 +105,7 @@ export function useInventoryItem(inventoryItemId: string) {
         url: `${API_URL}${path}`,
         method: HTTPMethod.GET,
         schema: InventoryItemDetailResponseSchema,
-      }),
+      })
   );
 }
 
@@ -119,7 +119,7 @@ export function useUpdateInventoryItem() {
     `${API_URL}/inventory`,
     async (
       _url: string,
-      { arg }: { arg: { id: string; data: InventoryItemUpdateRequest } },
+      { arg }: { arg: { id: string; data: InventoryItemUpdateRequest } }
     ) => {
       return fetcher({
         url: `${API_URL}/inventory/${arg.id}`,
@@ -127,7 +127,7 @@ export function useUpdateInventoryItem() {
         body: arg.data,
         schema: InventoryItemDetailResponseSchema,
       });
-    },
+    }
   );
 }
 
@@ -140,7 +140,7 @@ export function useInventoryItemTransactions(skuId: string | null) {
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
       schema: InventorySKUTransactionsResponseSchema, // Ensure validation against the correct schema
-    }),
+    })
   );
 }
 
@@ -160,13 +160,13 @@ export function useInventoryMetrics(catalog_id: string | null = null) {
         method: HTTPMethod.GET,
         schema: InventoryMetricsResponseSchema,
       });
-    },
+    }
   );
 }
 
 export function useInventoryPerformance(
   catalog_id: string | null = null,
-  days: number | null = 7,
+  days: number | null = 7
 ) {
   const params: { [key: string]: string } = {};
 
@@ -189,14 +189,14 @@ export function useInventoryPerformance(
         method: HTTPMethod.GET,
         schema: z.array(InventoryHistoryItemSchema),
       });
-    },
+    }
   );
 }
 
 export function useInventoryPriceHistory(
   skuId: string | null,
   days: number = 30,
-  marketplace: string | null = null,
+  marketplace: string | null = null
 ) {
   const params: { [key: string]: string } = { days: days.toString() };
   if (marketplace) {
@@ -213,7 +213,7 @@ export function useInventoryPriceHistory(
         method: HTTPMethod.GET,
         schema: InventoryPriceHistoryResponseSchema,
       });
-    },
+    }
   );
 }
 
@@ -225,6 +225,6 @@ export function useSkuMarketplaces(skuId: string | null) {
         url: `${API_URL}${path}`,
         method: HTTPMethod.GET,
         schema: InventorySkuMarketplacesResponseSchema,
-      }),
+      })
   );
 }

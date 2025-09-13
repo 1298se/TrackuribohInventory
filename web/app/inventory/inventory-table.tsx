@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Warehouse } from "lucide-react";
-import { cn, formatCurrencyNumber } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { type Column } from "../../components/data-table";
 import { SKUDisplay } from "@/components/sku-display";
 import { useRouter } from "next/navigation";
@@ -57,11 +57,7 @@ export const columns: Column<InventoryItemResponse, any>[] = [
     align: "right",
     cell: ({ row }) => {
       const amount = row.original.average_cost_per_item.amount;
-      return (
-        <div className="font-medium text-right">
-          ${formatCurrencyNumber(amount)}
-        </div>
-      );
+      return <div className="font-medium text-right">${amount}</div>;
     },
   },
   {
@@ -75,11 +71,7 @@ export const columns: Column<InventoryItemResponse, any>[] = [
       }
 
       const amount = lowestListingPrice.amount;
-      return (
-        <div className="font-medium text-right">
-          ${formatCurrencyNumber(amount)}
-        </div>
-      );
+      return <div className="font-medium text-right">$amount</div>;
     },
   },
   {
@@ -115,8 +107,8 @@ export const columns: Column<InventoryItemResponse, any>[] = [
       const lineColor = isPositive
         ? "#16a34a"
         : isNegative
-          ? "#dc2626"
-          : "#6b7280";
+        ? "#dc2626"
+        : "#6b7280";
 
       return (
         <div className="w-24 h-8 ml-auto">
@@ -178,7 +170,7 @@ export const columns: Column<InventoryItemResponse, any>[] = [
         <div
           className={cn(
             "font-medium flex flex-col items-end",
-            isPositive ? "text-green-600" : isNegative ? "text-red-600" : "",
+            isPositive ? "text-green-600" : isNegative ? "text-red-600" : ""
           )}
         >
           <div className="flex items-baseline gap-0.5">
