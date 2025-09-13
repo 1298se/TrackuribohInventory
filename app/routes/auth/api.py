@@ -1,10 +1,12 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
 from core.models.user import User
 from core.environment import get_environment, Env
+from core.database import get_db_session
 
 from .schemas import (
     AuthResponse,
@@ -14,6 +16,8 @@ from .schemas import (
     MessageResponse,
     PasswordResetRequest,
     RefreshTokenRequest,
+    CreateUserRequest,
+    CreateUserResponse,
 )
 from .service import AuthService, get_auth_service
 
@@ -149,4 +153,39 @@ async def health_check():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Authentication service is not properly configured",
+        )
+
+
+# Admin endpoint: Called by Next.js server action to sync the supabase user to the postgres database
+@router.post("/create-user", response_model=CreateUserResponse)
+async def create_user(
+    user_data: CreateUserRequest,
+    session: Session = Depends(get_db_session),
+):
+    """Create a new user in the local database after Supabase user creation"""
+    logger.info(f"Create user request for: {user_data.email}")
+    
+    # Check if user already exists
+    existing_user = session.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        logger.info(f"User already exists: {user_data.email}")
+        return CreateUserResponse(user="exist")
+    
+    # Create new user
+    new_user = User(
+        id=user_data.id,
+        email=user_data.email,
+    )
+    
+    try:
+        session.add(new_user)
+        session.commit()
+        logger.info(f"User created successfully: {user_data.email}")
+        return CreateUserResponse(user="created")
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to create user {user_data.email}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create user"
         )
