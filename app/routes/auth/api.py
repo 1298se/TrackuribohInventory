@@ -190,11 +190,3 @@ async def create_user(
             detail="Failed to create user"
         )
 
-@router.get("/home")
-async def home():
-    """Home endpoint for authentication service"""
-    return {
-        "status": "healthy",
-        "service": "authentication",
-        "supabase_configured": True,
-    }

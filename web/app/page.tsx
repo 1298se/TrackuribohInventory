@@ -37,25 +37,25 @@ async function SectionCards() {
 }
 
 function DisplayCard({ product }: { product: ProductBaseResponseType }) {
-  console.log(product);
   return (
-    <Card className="w-[225px] py-4">
+    <Card className="w-[225px] py-4 hover:bg-muted hover:bg-gradient-to-t hover:from-muted/5">
       <CardContent className="px-4 py-0">
-        <div className="w-full h-[200px] flex items-center justify-center bg-muted rounded-md border">
+        <div className="w-full h-[200px] flex items-center justify-center bg-muted bg-gradient-to-t from-muted/5 rounded-md border">
           <Image
             src={product.image_url}
             alt={product.name}
-            width={100}
-            height={100}
+            width={110}
+            height={110}
             className="rounded-sm border-card shadow-2xl"
           />
         </div>
       </CardContent>
       <CardHeader className="px-4 pb-0 pt-4">
-        <CardDescription>{product.name}</CardDescription>
+        <CardDescription className="mb-0">{product.name}</CardDescription>
         <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          $1,250.00
+          $1,250.00{" "}
         </CardTitle>
+
         <div className="flex items-center gap-1 text-sm text-green-400">
           <IconTrendingUp className="size-4" />
           +12.5%
