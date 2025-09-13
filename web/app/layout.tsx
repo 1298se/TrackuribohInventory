@@ -27,7 +27,7 @@ export default function RootLayout({
       lang="en"
       className={`${plusJakartaSans.className} ${plusJakartaSans.variable} dark`}
     >
-      <body className="min-h-screen dark mx-auto">
+      <body className="min-h-screen mx-auto">
         <NextTopLoader />
         <SWRConfig value={{ revalidateOnFocus: false }}>
           <div className="in-h-screen">

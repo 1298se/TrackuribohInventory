@@ -8,7 +8,9 @@ interface InventoryItemPageProps {
   };
 }
 
-export async function InventoryItemPage({ params }: InventoryItemPageProps) {
+export default async function InventoryItemPage({
+  params,
+}: InventoryItemPageProps) {
   const supabase = await createClient();
   const { data: session, error: sessionError } =
     await supabase.auth.getSession();
