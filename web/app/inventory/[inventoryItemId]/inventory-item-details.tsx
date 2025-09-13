@@ -259,7 +259,7 @@ export function InventoryItemDetails({
 
       {/* Inventory Overview Section */}
       <Card className="overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
+        <CardHeader className="bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
               <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -378,7 +378,7 @@ export function InventoryItemDetails({
 
         <TabsContent value="market" className="mt-6">
           <Card className="overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950">
+            <CardHeader className="bg-linear-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg">
@@ -477,7 +477,7 @@ export function InventoryItemDetails({
 
         <TabsContent value="history" className="mt-6">
           <Card className="overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900 dark:to-gray-900">
+            <CardHeader className="bg-linear-to-r from-slate-50 to-gray-50 dark:from-slate-900 dark:to-gray-900">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
                   <History className="h-5 w-5 text-slate-600 dark:text-slate-400" />

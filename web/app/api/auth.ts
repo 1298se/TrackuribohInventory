@@ -27,7 +27,7 @@ export type MessageResponse = z.infer<typeof MessageResponseSchema>;
 
 export async function login(
   email: string,
-  password: string,
+  password: string
 ): Promise<AuthResponse> {
   const res = await fetcher({
     url: `${API_URL}/auth/login`,

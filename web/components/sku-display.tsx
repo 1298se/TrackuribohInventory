@@ -8,7 +8,7 @@ interface SKUDisplayProps {
 export function SKUDisplay({ sku }: SKUDisplayProps) {
   return (
     <div className="flex items-center space-x-3 w-full">
-      <div className="h-16 w-16 flex-shrink-0">
+      <div className="h-16 w-16 shrink-0">
         <img
           src={sku.product.image_url}
           alt={sku.product.name}

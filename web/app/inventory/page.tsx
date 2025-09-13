@@ -38,7 +38,7 @@ export default function InventoryPage() {
   // Fetch inventory data based on selected catalog
   const { data, isLoading, error } = useInventory(
     initialQuery,
-    selectedCatalogId,
+    selectedCatalogId
   );
 
   // Fetch aggregate metrics (does not depend on search query)
@@ -65,7 +65,7 @@ export default function InventoryPage() {
       const queryStr = search ? `?${search}` : "";
       router.replace(`${pathname}${queryStr}`);
     },
-    [router, searchParams, pathname],
+    [router, searchParams, pathname]
   );
 
   // Handler for catalog tab change
@@ -83,7 +83,7 @@ export default function InventoryPage() {
       const queryStr = search ? `?${search}` : "";
       router.replace(`${pathname}${queryStr}`);
     },
-    [router, searchParams, pathname],
+    [router, searchParams, pathname]
   );
 
   // Handle potential error state from useInventory
@@ -107,7 +107,7 @@ export default function InventoryPage() {
           >
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
-              {catalogsData?.catalogs.map((catalog: any) => (
+              {catalogsData?.catalogs?.map((catalog: any) => (
                 <TabsTrigger key={catalog.id} value={catalog.id}>
                   {catalog.display_name}
                 </TabsTrigger>
@@ -118,11 +118,13 @@ export default function InventoryPage() {
       </div>
 
       {/* Portfolio Performance Section */}
-      <PortfolioPerformance
-        selectedCatalogId={selectedCatalogId}
-        metricData={metricData}
-        metricLoading={metricLoading}
-      />
+      {metricData && (
+        <PortfolioPerformance
+          selectedCatalogId={selectedCatalogId}
+          metricData={metricData}
+          metricLoading={metricLoading}
+        />
+      )}
 
       {/* Inventory Table Section */}
       <InventoryTable

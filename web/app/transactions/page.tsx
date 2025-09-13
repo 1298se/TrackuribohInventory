@@ -46,7 +46,7 @@ function TransactionPerformanceSection({
 }) {
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950">
+      <CardHeader className="bg-linear-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950">
         <div className="flex items-center space-x-3">
           <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg">
             <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -92,7 +92,7 @@ function TransactionDetailsSection({
 }) {
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900 dark:to-gray-900">
+      <CardHeader className="bg-linear-to-r from-slate-50 to-gray-50 dark:from-slate-900 dark:to-gray-900">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">

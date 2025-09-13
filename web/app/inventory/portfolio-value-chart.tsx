@@ -59,6 +59,8 @@ export function PortfolioValueChart({
       return [];
     }
 
+    console.log(performanceData);
+
     return performanceData.map((item) => ({
       snapshot_date: item.snapshot_date,
       total_market_value: item.total_market_value,
@@ -149,7 +151,7 @@ export function PortfolioValueChart({
                         "flex items-center gap-1 text-sm font-medium",
                         portfolioChange.isPositive
                           ? "text-green-600"
-                          : "text-red-600",
+                          : "text-red-600"
                       )}
                     >
                       {portfolioChange.isPositive ? (
@@ -195,7 +197,7 @@ export function PortfolioValueChart({
                     "font-medium tabular-nums",
                     (metricData.unrealised_profit || 0) >= 0
                       ? "text-emerald-600"
-                      : "text-red-600",
+                      : "text-red-600"
                   )}
                 >
                   {formatCurrency(metricData.unrealised_profit || 0)}
@@ -219,7 +221,9 @@ export function PortfolioValueChart({
           </div>
         ) : chartData.length === 0 ? (
           <EmptyState
-            message={`No portfolio snapshots yet${days ? ` for the last ${days} days` : ""}`}
+            message={`No portfolio snapshots yet${
+              days ? ` for the last ${days} days` : ""
+            }`}
           />
         ) : (
           <ChartContainer
@@ -297,10 +301,10 @@ export function PortfolioValueChart({
                   if (!active || !payload || payload.length === 0) return null;
 
                   const portfolioValue = payload.find(
-                    (p) => p.dataKey === "total_market_value",
+                    (p) => p.dataKey === "total_market_value"
                   )?.value as number;
                   const costBasis = payload.find(
-                    (p) => p.dataKey === "total_cost",
+                    (p) => p.dataKey === "total_cost"
                   )?.value as number;
                   const unrealizedPL =
                     portfolioValue && costBasis
@@ -314,7 +318,7 @@ export function PortfolioValueChart({
                       <p className="text-sm font-medium mb-2">
                         {format(
                           parseISO(label),
-                          days === "7d" ? "EEE, MMM d" : "MMM d, yyyy",
+                          days === "7d" ? "EEE, MMM d" : "MMM d, yyyy"
                         )}
                       </p>
                       <div className="space-y-1">

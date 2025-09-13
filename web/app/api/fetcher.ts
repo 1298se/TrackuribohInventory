@@ -83,44 +83,11 @@ export const fetcher = async <T extends z.ZodTypeAny>({
     fetchOptions.body = JSON.stringify(body);
   }
 
-  const isRefreshCall = url.includes("/auth/refresh");
-
-  // Proactive token refresh - refresh before token expires to prevent 401s
-  // Skip for the refresh endpoint itself
-  if (!isRefreshCall && isTokenExpired()) {
-    try {
-      await ensureRefreshedOnce();
-    } catch (refreshError) {
-      console.error("Proactive token refresh failed:", refreshError);
-      // Continue with the request - it may fail with 401 and trigger reactive refresh
-    }
-  }
-
   // Perform the fetch with one retry after refresh on 401
   let response = await doFetch(url, fetchOptions);
 
   if (response.status === 401) {
-    try {
-      // Attempt to refresh tokens (but never when we're already hitting the refresh endpoint)
-      if (!isRefreshCall) {
-        await ensureRefreshedOnce();
-        // Now retry the request with the new access token
-        response = await doFetch(url, fetchOptions);
-
-        // If the retry still returns 401, handle logout
-        if (response.status === 401) {
-          throw new Error("Authentication failed. Please log in again.");
-        }
-      } else {
-        // If we're hitting the refresh endpoint and get 401, handle logout
-        throw new Error("Authentication failed. Please log in again.");
-      }
-    } catch (refreshError) {
-      // If refresh fails, the user needs to log in again
-      console.error("Token refresh failed:", refreshError);
-      // Handle 401 by logging out and redirecting
-      throw new Error("Authentication failed. Please log in again.");
-    }
+    throw new Error("Authentication failed. Please log in again.");
   }
 
   // Check for HTTP errors
