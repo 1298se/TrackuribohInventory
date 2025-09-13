@@ -23,7 +23,7 @@ from core.dao.listing_data_refresh_priority import (
     ListingDataRefreshPriorityRow,
     upsert_listing_data_refresh_priorities,
 )
-from core.dao.sales_listing import get_sales_event_rate
+from core.dao.sales_listing import get_sales_event_counts_for_skus
 from core.dao.sync_state import get_sales_refresh_timestamps
 from core.services.price_service import build_daily_price_series_for_skus
 from core.models.price import Marketplace
@@ -72,6 +72,13 @@ def compute_staleness_scores_for_skus(
     # Get sales refresh metadata for all SKUs
     refresh_metadata = get_sales_refresh_timestamps(session, sku_ids, marketplace)
 
+    sales_counts = get_sales_event_counts_for_skus(
+        session=session,
+        sku_ids=sku_ids,
+        marketplace=marketplace,
+        days_back=30,
+    )
+
     result: dict[str, StalenessForSku] = {}
 
     for sku_id in sku_ids:
@@ -84,8 +91,9 @@ def compute_staleness_scores_for_skus(
             # Never refreshed - use a large delta to indicate staleness
             delta_t_days = 365.0  # 1 year default for never-refreshed items
 
-        # Get actual sales event rate from stored sales data
-        lambda_hat = get_sales_event_rate(session, sku_id, marketplace, days_back=30)
+        # Use bulk total units sold for lambda_hat
+        total_units = sales_counts.get(sku_id, 0)
+        lambda_hat = total_units / 30.0
 
         # Calculate staleness score using the alpha formula
         # Higher lambda_hat and larger delta_t both increase staleness
@@ -97,8 +105,8 @@ def compute_staleness_scores_for_skus(
         if lambda_hat == 0.0:
             staleness_score = 0.5 if last_refresh_at else 1.0
 
-        # Get sales events count (approximate based on rate and time window)
-        sales_events_count = int(lambda_hat * 30)  # Events over last 30 days
+        # Store total units in the count field
+        sales_events_count = int(total_units)
 
         result[str(sku_id)] = StalenessForSku(
             staleness_score=staleness_score,

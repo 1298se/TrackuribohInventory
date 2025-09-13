@@ -6,12 +6,11 @@ import json
 import boto3
 
 from core.database import SessionLocal
-from core.models.price import Marketplace, SKUListingDataRefreshPriority
+from core.models.price import Marketplace
 from core.services.snapshot_scoring_service import compute_and_store_scores
 from core.dao.market_indicators import get_market_indicator_sku_ids
 from core.utils.workers import process_task_queue
 from cron.telemetry import init_sentry
-from sqlalchemy import delete
 
 init_sentry("compute_sku_listing_data_refresh_priority")
 
@@ -78,15 +77,6 @@ async def publish_purchase_decision_event(total_records_updated: int) -> None:
 async def main():
     total_skus_targeted = 0
     total_records_updated = 0
-
-    # Clear existing data with a short-lived session
-    with SessionLocal.begin() as session:
-        session.execute(
-            delete(SKUListingDataRefreshPriority).where(
-                SKUListingDataRefreshPriority.marketplace == Marketplace.TCGPLAYER
-            )
-        )
-        logger.info("Cleared existing priority rows.")
 
     # Get target SKU IDs with a separate short-lived session
     with SessionLocal() as session:

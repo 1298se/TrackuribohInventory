@@ -266,11 +266,7 @@ async def run_sales_sync_sweep(
     total_sku_count = len(all_processing_skus)
     logger.debug(f"Fetched {total_sku_count} SKUs for {product_count} products")
 
-    # Configure request pacer with defaults (burst-only)
-    request_pacer = RequestPacer(
-        session_break_after_requests=100,
-        session_break_seconds=120.0,
-    )
+    request_pacer = RequestPacer()
 
     # Accumulators
     all_sales_rows: List[SalesDataRow] = []

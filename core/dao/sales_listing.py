@@ -136,3 +136,49 @@ def get_recent_sales_for_skus(
             sales_by_sku[sale.sku_id].append(sale)
 
     return sales_by_sku
+
+
+def get_sales_event_counts_for_skus(
+    session: Session,
+    sku_ids: List[uuid.UUID],
+    marketplace: Marketplace,
+    days_back: int = 30,
+) -> dict[uuid.UUID, int]:
+    """
+    Return a mapping of sku_id -> total units sold (quantity) over the last ``days_back`` days.
+
+    Args:
+        session: Database session
+        sku_ids: List of SKU UUIDs
+        marketplace: Marketplace enum
+        days_back: Lookback window in days (default: 30)
+
+    Returns:
+        Dict[uuid.UUID, int] of total quantity per SKU (0 if none)
+    """
+    if not sku_ids:
+        return {}
+
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+
+    rows = session.execute(
+        select(SalesListing.sku_id, func.sum(SalesListing.quantity))
+        .where(
+            SalesListing.sku_id.in_(sku_ids),
+            SalesListing.marketplace == marketplace,
+            SalesListing.sale_date >= cutoff_date,
+        )
+        .group_by(SalesListing.sku_id)
+    ).all()
+
+    quantities_by_sku: dict[uuid.UUID, int] = {
+        sku_id: int(total_qty) if total_qty is not None else 0
+        for sku_id, total_qty in rows
+    }
+
+    # Ensure all requested SKUs are present with default 0
+    for sku_id in sku_ids:
+        if sku_id not in quantities_by_sku:
+            quantities_by_sku[sku_id] = 0
+
+    return quantities_by_sku

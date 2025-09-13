@@ -29,7 +29,6 @@ async def main():
     logger.info(
         f"Starting {JOB_NAME} with target of {TARGET_SUCCESSES} successful requests"
     )
-    logger.info("Using default burst pacing")
 
     try:
         # Acquire a Postgres advisory lock to prevent overlapping runs

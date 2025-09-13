@@ -19,7 +19,7 @@ class RequestException(Exception):
 class RequestPacer:
     """Burst-mode request pacer with jitter and explicit cooldown handling.
 
-    Supports optional periodic session breaks and adaptive burst sizing on rate limits.
+    Provides paced bursts and adaptive cooldowns on rate limits.
     """
 
     def __init__(
@@ -27,8 +27,6 @@ class RequestPacer:
         burst_size: int = 25,
         burst_duration_seconds: float = 10.0,
         burst_pause_seconds: float = 120.0,
-        session_break_after_requests: int | None = None,
-        session_break_seconds: float = 180.0,
     ):
         # Burst mode configuration
         self.initial_burst_size = burst_size
@@ -37,14 +35,9 @@ class RequestPacer:
         self.burst_pause_seconds = burst_pause_seconds
         self.min_burst_size = 15
 
-        # Optional session breaks
-        self.session_break_after_requests = session_break_after_requests
-        self.session_break_seconds = session_break_seconds
-
         # State tracking
         self.last_request_time = 0.0
         self._remaining_requests = 0
-        self._requests_since_break = 0
         self._burst_start_time = 0.0
         self._in_burst_pause = False
         self._burst_pause_start = 0.0
@@ -75,10 +68,6 @@ class RequestPacer:
 
             # Decrement remaining requests when we yield a slot
             self._remaining_requests -= 1
-            self._requests_since_break += 1
-
-            # Handle optional session break policy
-            await self._maybe_session_break()
 
             yield
 
@@ -151,20 +140,6 @@ class RequestPacer:
 
         self._current_burst_count += 1
         self.last_request_time = asyncio.get_event_loop().time()
-
-    async def _maybe_session_break(self):
-        """Optionally insert a longer break every N requests."""
-        if self.session_break_after_requests is None:
-            return
-        if self._requests_since_break <= 0:
-            return
-        if self._requests_since_break % self.session_break_after_requests == 0:
-            jitter_factor = 0.8 + random.random() * 0.4
-            duration_seconds = self.session_break_seconds * jitter_factor
-            logger.debug(
-                f"Taking session break for {duration_seconds:.1f}s after {self._requests_since_break} requests"
-            )
-            await asyncio.sleep(duration_seconds)
 
     def on_rate_limited(self):
         """Record a rate limit signal and adapt burst parameters."""

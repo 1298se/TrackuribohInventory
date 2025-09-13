@@ -74,6 +74,8 @@ TIER_CONFIGS = [
 SERVICE_SCORE_WEIGHTS = {"age": 0.7, "priority": 0.3}
 TOP_L_WINDOW = 20
 MIN_WINDOW_SIZE = 5
+# Oversample factor for phase 1 candidate fetch per tier to allow softmax sampling
+OVERSAMPLE_FACTOR = 3
 
 
 def calculate_age_norm(
@@ -99,29 +101,62 @@ def calculate_service_score(priority_score: float, age_norm: float) -> float:
 
 
 class TierCandidates:
-    """Manages SKU candidates across tiers with single upfront database query and eager computation."""
+    """Manages SKU candidates across tiers with efficient two-phase selection."""
 
     def __init__(self, session: Session, marketplace: Marketplace):
         self.marketplace = marketplace
+        self.session = session
         self.candidates_by_tier = {tier.name: [] for tier in TIER_CONFIGS}
         self.catalog_ids_by_sku: Dict[
             uuid.UUID, Tuple[uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID]
         ] = {}
 
-        # Single query to fetch all SKU priorities
-        all_priorities = self._fetch_all_sku_priorities(session)
-        self._partition_into_tiers(all_priorities)
+    def _fetch_candidate_ids_for_tier(
+        self, tier: TierConfig, limit: int
+    ) -> List[Tuple[uuid.UUID, float]]:
+        """Phase 1: Fetch a limited number of high-priority sku_ids for the tier without joins.
 
-        # Log initial candidate counts
-        for tier in TIER_CONFIGS:
-            count = len(self.candidates_by_tier[tier.name])
-            logger.debug(f"Tier {tier.name}: {count} candidates loaded")
+        Returns list of (sku_id, priority_score) tuples ordered by priority_score desc.
+        """
+        if limit <= 0:
+            return []
 
-    def _fetch_all_sku_priorities(self, session: Session) -> List:
-        """Single database query to fetch all SKU priorities for the marketplace, with product ids and sync state."""
         query = (
             select(
-                SKUListingDataRefreshPriority,
+                SKUListingDataRefreshPriority.sku_id,
+                SKUListingDataRefreshPriority.priority_score,
+            )
+            .where(
+                SKUListingDataRefreshPriority.marketplace == self.marketplace,
+                SKUListingDataRefreshPriority.priority_score >= tier.min_priority,
+                SKUListingDataRefreshPriority.priority_score < tier.max_priority,
+            )
+            .order_by(SKUListingDataRefreshPriority.priority_score.desc())
+            .limit(limit)
+        )
+        rows = self.session.execute(query).all()
+        logger.debug(
+            f"Fetched {len(rows)} candidate ids for tier {tier.name} (limit={limit})"
+        )
+        return [(row[0], float(row[1])) for row in rows]
+
+    def _load_metadata_for_skus(
+        self, sku_ids: List[uuid.UUID]
+    ) -> Dict[
+        uuid.UUID,
+        Tuple[int, Optional[datetime], uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID],
+    ]:
+        """Phase 2: Batch-load metadata to compute service scores and build processing SKUs.
+
+        Returns mapping sku_id -> (product_tcgplayer_id, last_sales_refresh_at,
+                                   condition_id, printing_id, language_id, catalog_id)
+        """
+        if not sku_ids:
+            return {}
+
+        query = (
+            select(
+                SKU.id,
                 Product.tcgplayer_id.label("product_tcgplayer_id"),
                 SKUMarketDataSyncState.last_sales_refresh_at.label(
                     "last_sales_refresh_at"
@@ -131,74 +166,41 @@ class TierCandidates:
                 SKU.language_id,
                 Set.catalog_id,
             )
-            .join(SKU, SKU.id == SKUListingDataRefreshPriority.sku_id)
             .join(Product, Product.id == SKU.product_id)
             .join(Set, Set.id == Product.set_id)
             .outerjoin(
                 SKUMarketDataSyncState,
-                (SKUMarketDataSyncState.sku_id == SKUListingDataRefreshPriority.sku_id)
+                (SKUMarketDataSyncState.sku_id == SKU.id)
                 & (SKUMarketDataSyncState.marketplace == self.marketplace),
             )
-            .where(
-                SKUListingDataRefreshPriority.marketplace == self.marketplace,
-                Product.tcgplayer_id.isnot(None),
-            )
-            .order_by(
-                SKUListingDataRefreshPriority.computed_at.asc().nulls_first(),
-                SKUListingDataRefreshPriority.priority_score.desc(),
-            )
+            .where(SKU.id.in_(sku_ids))
+            .where(Product.tcgplayer_id.isnot(None))
         )
-
-        results = session.execute(query).all()
-        logger.debug(f"Fetched {len(results)} total SKU priorities from database")
-        return results
-
-    def _partition_into_tiers(self, all_priorities: List):
-        """Partition all SKU priorities into tiers based on priority_score."""
-        for row in all_priorities:
-            priority_record = row[0]
-            product_tcgplayer_id = row[1]
-            last_sales_refresh_at = row[2]  # From sync state join
-            condition_id = row[3]
-            printing_id = row[4]
-            language_id = row[5]
-            catalog_id = row[6]
-
-            # Store catalog IDs for later use when creating ProcessingSKU objects
-            self.catalog_ids_by_sku[priority_record.sku_id] = (
-                catalog_id,
+        rows = self.session.execute(query).all()
+        metadata: Dict[
+            uuid.UUID,
+            Tuple[int, Optional[datetime], uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID],
+        ] = {}
+        for row in rows:
+            (
+                sku_id,
+                product_tcgplayer_id,
+                last_sales_refresh_at,
                 condition_id,
                 printing_id,
                 language_id,
+                catalog_id,
+            ) = row
+            metadata[sku_id] = (
+                int(product_tcgplayer_id),
+                last_sales_refresh_at,
+                condition_id,
+                printing_id,
+                language_id,
+                catalog_id,
             )
-
-            # Find the appropriate tier for this priority score
-            for tier in TIER_CONFIGS:
-                if (
-                    tier.min_priority
-                    <= priority_record.priority_score
-                    < tier.max_priority
-                ):
-                    # Calculate service score for this candidate
-                    age_norm = calculate_age_norm(
-                        last_sales_refresh_at, tier.target_interval_days
-                    )
-                    service_score = calculate_service_score(
-                        priority_record.priority_score, age_norm
-                    )
-
-                    # Create Candidate object
-                    candidate = Candidate(
-                        sku_id=priority_record.sku_id,
-                        product_tcgplayer_id=product_tcgplayer_id,
-                        priority_score=priority_record.priority_score,
-                        age_norm=age_norm,
-                        service_score=service_score,
-                        last_refresh_at=last_sales_refresh_at,
-                    )
-
-                    self.candidates_by_tier[tier.name].append(candidate)
-                    break
+        logger.debug(f"Loaded metadata for {len(metadata)} SKUs")
+        return metadata
 
     def _select_from_tier(
         self, candidates: List[Candidate], tier: TierConfig, count: int
@@ -242,17 +244,83 @@ class TierCandidates:
     def get_ordered_processing_list(
         self, tier_quotas: Dict[str, int]
     ) -> List[ProcessingSKU]:
-        """Eagerly compute complete ordered list of SKUs to process across all tiers."""
-        processing_list = []
+        """Compute ordered list of SKUs to process using two-phase selection."""
+        # Phase 1: fetch candidate ids per tier (oversampled)
+        per_tier_candidates: Dict[str, List[Tuple[uuid.UUID, float]]] = {}
+        all_sku_ids: List[uuid.UUID] = []
+        for tier in TIER_CONFIGS:
+            quota = tier_quotas.get(tier.name, 0)
+            limit = max(quota * OVERSAMPLE_FACTOR, 0)
+            ids_with_scores = self._fetch_candidate_ids_for_tier(tier, limit)
+            per_tier_candidates[tier.name] = ids_with_scores
+            for sku_id, _ in ids_with_scores:
+                all_sku_ids.append(sku_id)
+
+        # Short-circuit if nothing to do
+        if not all_sku_ids:
+            logger.debug("No candidates found across all tiers")
+            return []
+
+        # Phase 2: batch-load metadata for all unique sku_ids
+        unique_sku_ids = list(dict.fromkeys(all_sku_ids))
+        metadata_by_sku = self._load_metadata_for_skus(unique_sku_ids)
+
+        # Build Candidate objects per tier with computed service_score
+        self.candidates_by_tier = {tier.name: [] for tier in TIER_CONFIGS}
+        self.catalog_ids_by_sku.clear()
+
+        for tier in TIER_CONFIGS:
+            tier_candidates = []
+            for sku_id, priority_score in per_tier_candidates.get(tier.name, []):
+                meta = metadata_by_sku.get(sku_id)
+                if not meta:
+                    continue
+                (
+                    product_tcgplayer_id,
+                    last_sales_refresh_at,
+                    condition_id,
+                    printing_id,
+                    language_id,
+                    catalog_id,
+                ) = meta
+
+                # Store catalog IDs for ProcessingSKU later
+                self.catalog_ids_by_sku[sku_id] = (
+                    catalog_id,
+                    condition_id,
+                    printing_id,
+                    language_id,
+                )
+
+                age_norm = calculate_age_norm(
+                    last_sales_refresh_at, tier.target_interval_days
+                )
+                service_score = calculate_service_score(priority_score, age_norm)
+
+                tier_candidates.append(
+                    Candidate(
+                        sku_id=sku_id,
+                        product_tcgplayer_id=product_tcgplayer_id,
+                        priority_score=priority_score,
+                        age_norm=age_norm,
+                        service_score=service_score,
+                        last_refresh_at=last_sales_refresh_at,
+                    )
+                )
+
+            # Sort candidates by service_score desc to make windowing effective
+            tier_candidates.sort(key=lambda c: c.service_score, reverse=True)
+            self.candidates_by_tier[tier.name] = tier_candidates
+            logger.debug(f"Tier {tier.name}: {len(tier_candidates)} candidates loaded")
 
         # Select SKUs from each tier according to budget allocation
+        processing_list: List[ProcessingSKU] = []
         for tier in TIER_CONFIGS:
-            quota = tier_quotas[tier.name]
+            quota = tier_quotas.get(tier.name, 0)
             selected_candidates = self._select_from_tier(
                 self.candidates_by_tier[tier.name], tier, quota
             )
 
-            # Extract essential data for processing
             for candidate in selected_candidates:
                 catalog_id, condition_id, printing_id, language_id = (
                     self.catalog_ids_by_sku[candidate.sku_id]
