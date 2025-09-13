@@ -353,7 +353,7 @@ async def run_sales_sync_sweep(
 
     # Persist results using one short-lived session
     if all_sales_rows or successfully_synced_skus:
-        with SessionLocal() as session:
+        with SessionLocal.begin() as session:
             if all_sales_rows:
                 upsert_sales_listings(session, all_sales_rows)
             if successfully_synced_skus:
@@ -367,7 +367,6 @@ async def run_sales_sync_sweep(
                     for sku_id in successfully_synced_skus
                 ]
                 upsert_sync_timestamps(session, sync_rows)
-            session.commit()
 
     summary = {
         "total_successes": len(successfully_synced_skus),

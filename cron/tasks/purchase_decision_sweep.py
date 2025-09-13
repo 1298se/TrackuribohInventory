@@ -39,8 +39,7 @@ async def main():
                 logger.info("Another instance is already running. Exiting.")
                 return
             try:
-                # Use a single session for both sweep passes
-                with SessionLocal(expire_on_commit=False) as session:
+                with SessionLocal() as session:
                     # Create candidates and processing list once for both passes
                     logger.info(
                         f"Computing processing list for {TARGET_SUCCESSES} SKUs"
@@ -74,20 +73,20 @@ async def main():
                         f"Processing {len(unique_product_ids)} unique products for data sync"
                     )
 
-                    # Pass 1: Sales Data Sync
-                    await run_sales_sync_sweep(
-                        marketplace=Marketplace.TCGPLAYER,
-                        product_tcgplayer_ids=unique_product_ids,
-                    )
+                # Pass 1: Sales Data Sync
+                await run_sales_sync_sweep(
+                    marketplace=Marketplace.TCGPLAYER,
+                    product_tcgplayer_ids=unique_product_ids,
+                )
 
-                    # Calculate runtime for sales sync only
-                    end_time = datetime.now()
+                # Calculate runtime for sales sync only
+                end_time = datetime.now()
 
-                    # Pass 2: Purchase Decision Making
-                    await run_purchase_decision_sweep(
-                        marketplace=Marketplace.TCGPLAYER,
-                        processing_list=processing_list,
-                    )
+                # Pass 2: Purchase Decision Making
+                await run_purchase_decision_sweep(
+                    marketplace=Marketplace.TCGPLAYER,
+                    processing_list=processing_list,
+                )
             finally:
                 # Always release the advisory lock
                 root_conn.scalar(select(func.pg_advisory_unlock(LOCK_KEY)))

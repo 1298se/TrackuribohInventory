@@ -36,7 +36,7 @@ async def process_scoring_batch(sku_batch: list[uuid.UUID]) -> int:
     Returns:
         Number of records updated
     """
-    with SessionLocal(expire_on_commit=False) as session:
+    with SessionLocal.begin() as session:
         updated_count = await compute_and_store_scores(
             session, sku_batch, Marketplace.TCGPLAYER
         )
@@ -79,34 +79,39 @@ async def main():
     total_skus_targeted = 0
     total_records_updated = 0
 
-    # Keep one orchestration session alive for the whole job
-    with SessionLocal(expire_on_commit=False) as session:
-        session.execute(delete(SKUListingDataRefreshPriority))
-        session.commit()
+    # Clear existing data with a short-lived session
+    with SessionLocal.begin() as session:
+        session.execute(
+            delete(SKUListingDataRefreshPriority).where(
+                SKUListingDataRefreshPriority.marketplace == Marketplace.TCGPLAYER
+            )
+        )
         logger.info("Cleared existing priority rows.")
 
+    # Get target SKU IDs with a separate short-lived session
+    with SessionLocal() as session:
         target_sku_ids = get_market_indicator_sku_ids(session)
         total_skus_targeted = len(target_sku_ids)
 
-        if not target_sku_ids:
-            logger.info("No SKUs found to process.")
-            return
+    if not target_sku_ids:
+        logger.info("No SKUs found to process.")
+        return
 
-        logger.info(f"Preparing to process {total_skus_targeted} market indicator SKUs")
+    logger.info(f"Preparing to process {total_skus_targeted} market indicator SKUs")
 
-        # 2. Process in batches using existing worker patterns
-        task_queue = asyncio.Queue()
-        for i in range(0, len(target_sku_ids), SCORE_BATCH_SIZE):
-            batch = target_sku_ids[i : i + SCORE_BATCH_SIZE]
-            await task_queue.put(process_scoring_batch(batch))
+    # Process in batches using existing worker patterns (each batch handles its own session)
+    task_queue = asyncio.Queue()
+    for i in range(0, len(target_sku_ids), SCORE_BATCH_SIZE):
+        batch = target_sku_ids[i : i + SCORE_BATCH_SIZE]
+        await task_queue.put(process_scoring_batch(batch))
 
-        successes = await process_task_queue(task_queue)
-        total_records_updated = sum(successes)
+    successes = await process_task_queue(task_queue)
+    total_records_updated = sum(successes)
 
-        logger.info(
-            f"{JOB_NAME}: completed. {total_skus_targeted} SKUs targeted, "
-            f"{total_records_updated} priority records updated"
-        )
+    logger.info(
+        f"{JOB_NAME}: completed. {total_skus_targeted} SKUs targeted, "
+        f"{total_records_updated} priority records updated"
+    )
 
     # Trigger the purchase decision sweep if we updated any records
     if total_records_updated > 0:

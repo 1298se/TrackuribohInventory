@@ -587,9 +587,8 @@ async def run_purchase_decision_sweep(
 
     # Final flush
     if all_decisions:
-        with SessionLocal() as session:
+        with SessionLocal.begin() as session:
             insert_buy_decisions(session, all_decisions)
-            session.commit()
 
     # Calculate performance metrics
     end_time = datetime.now(timezone.utc)
