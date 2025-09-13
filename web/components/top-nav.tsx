@@ -5,12 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Plus, Package2, CircleDollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/app/auth-provider";
 
 export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, user, logout, loading } = useAuth();
 
   const navigation = [
     {
@@ -53,7 +51,7 @@ export function TopNav() {
                     "flex items-center space-x-2 px-3 py-2 rounded-md transition-colors hover:bg-muted",
                     isActive
                       ? "text-foreground bg-muted font-medium"
-                      : "text-foreground/60 hover:text-foreground",
+                      : "text-foreground/60 hover:text-foreground"
                   )}
                 >
                   <item.icon className="h-4 w-4" />
@@ -75,7 +73,7 @@ export function TopNav() {
                     "flex items-center justify-center p-2 rounded-md transition-colors",
                     isActive
                       ? "text-foreground bg-muted"
-                      : "text-foreground/60 hover:text-foreground hover:bg-muted",
+                      : "text-foreground/60 hover:text-foreground hover:bg-muted"
                   )}
                   title={item.name}
                 >
@@ -96,31 +94,6 @@ export function TopNav() {
               Add Transaction
             </span>
           </Button>
-
-          {/* Auth Controls */}
-          {isAuthenticated ? (
-            <div className="flex items-center space-x-2">
-              <span className="hidden sm:inline text-sm text-foreground/70">
-                {user?.email}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={loading}
-                onClick={logout}
-              >
-                Logout
-              </Button>
-            </div>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => router.push("/login")}
-            >
-              Login
-            </Button>
-          )}
         </div>
       </div>
     </header>

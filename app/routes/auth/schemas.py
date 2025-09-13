@@ -74,3 +74,16 @@ class ErrorResponse(BaseModel):
     detail: str
     error_code: Optional[str] = None
     success: bool = False
+
+
+class CreateUserRequest(BaseModel):
+    """Request schema for creating a user in local database"""
+
+    id: UUID
+    email: EmailStr
+
+
+class CreateUserResponse(BaseModel):
+    """Response schema for user creation"""
+
+    user: str  # "created" or "exist"

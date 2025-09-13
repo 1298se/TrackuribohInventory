@@ -29,7 +29,10 @@ certifi==2025.7.14
     # via
     #   httpcore
     #   httpx
+    #   requests
     #   sentry-sdk
+charset-normalizer==3.4.3
+    # via requests
 click==8.2.1
     # via
     #   rich-toolkit
@@ -55,8 +58,6 @@ frozenlist==1.7.0
     # via
     #   aiohttp
     #   aiosignal
-gotrue==2.12.3
-    # via supabase
 greenlet==3.2.4
     # via playwright
 h11==0.16.0
@@ -76,11 +77,11 @@ httpx==0.28.1
     #   codex-tcg (pyproject.toml)
     #   fastapi
     #   fastapi-cloud-cli
-    #   gotrue
     #   postgrest
     #   storage3
     #   supabase
-    #   supafunc
+    #   supabase-auth
+    #   supabase-functions
 hyperframe==6.1.0
     # via h2
 idna==3.10
@@ -88,6 +89,7 @@ idna==3.10
     #   anyio
     #   email-validator
     #   httpx
+    #   requests
     #   yarl
 jinja2==3.1.6
     # via fastapi
@@ -127,10 +129,10 @@ pydantic==2.11.7
     # via
     #   fastapi
     #   fastapi-cloud-cli
-    #   gotrue
     #   postgrest
     #   pydantic-settings
     #   realtime
+    #   supabase-auth
 pydantic-core==2.33.2
     # via pydantic
 pydantic-settings==2.10.1
@@ -140,7 +142,7 @@ pyee==13.0.0
 pygments==2.19.2
     # via rich
 pyjwt==2.10.1
-    # via gotrue
+    # via supabase-auth
 python-dateutil==2.9.0.post0
     # via
     #   botocore
@@ -155,8 +157,10 @@ pytz==2025.2
     # via codex-tcg (pyproject.toml)
 pyyaml==6.0.2
     # via uvicorn
-realtime==2.6.0
+realtime==2.7.0
     # via supabase
+requests==2.32.5
+    # via codex-tcg (pyproject.toml)
 rich==14.0.0
     # via
     #   rich-toolkit
@@ -185,13 +189,15 @@ sqlalchemy==2.0.41
     #   alembic
 starlette==0.47.2
     # via fastapi
-storage3==0.12.0
+storage3==0.12.1
     # via supabase
 strenum==0.4.15
-    # via supafunc
-supabase==2.17.0
+    # via supabase-functions
+supabase==2.18.1
     # via codex-tcg (pyproject.toml)
-supafunc==0.10.1
+supabase-auth==2.12.3
+    # via supabase
+supabase-functions==0.10.1
     # via supabase
 typer==0.16.0
     # via
@@ -221,6 +227,7 @@ tzlocal==5.3.1
 urllib3==2.5.0
     # via
     #   botocore
+    #   requests
     #   sentry-sdk
 uuid7==0.1.0
     # via codex-tcg (pyproject.toml)
