@@ -19,10 +19,13 @@ import { POKEMON_CATALOG_ID } from "@/shared/constants";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { Search } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { getLargeTCGPlayerImage } from "../utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ProductBaseResponseType = z.infer<typeof ProductBaseResponseSchema>;
 
-const SEARCH_DEBOUNCE_TIME_MS = 500;
+const SEARCH_DEBOUNCE_TIME_MS = 1000;
 
 export function MarketPlace() {
   const [query, setQuery] = useState("");
@@ -88,52 +91,82 @@ export function MarketPlace() {
           loading={isFetching}
           placeholder="Search Charmander, Bulbasaur, Squirtle..."
         />
-        {isFetching && !isLoading && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
-          </div>
-        )}
       </div>
-      <div className="grid grid-cols-5 gap-3">
-        {products?.map((product) => (
-          <DisplayCard key={product.id} product={product} />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-5 gap-3">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <DisplayCardSkeleton key={index} />
+          ))}
+        </div>
+      ) : (
+        <DisplayCardsSection products={products} />
+      )}
     </section>
   );
 }
 
-function DisplayCard({ product }: { product: ProductBaseResponseType }) {
-  console.log(product);
+function DisplayCardSkeleton() {
   return (
-    <Link href={`/market/${product.id}`}>
+    <div className="w-[200px] h-[360px]">
+      <Skeleton className="w-[200px] h-[280px]" />
+      <div className="py-4">
+        <Skeleton className="h-[20px] w-[80px]" />
+        <Skeleton className="h-[20px] w-[100px]" />
+      </div>
+    </div>
+  );
+}
+
+function DisplayCardsSection({
+  products,
+}: {
+  products: ProductBaseResponseType[];
+}) {
+  if (products.length === 0) {
+    return (
+      <div className="text-center text-muted-foreground py-20">
+        <h2 className="text-xl">No products found</h2>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-5 gap-3">
+      {products.map((product) => (
+        <DisplayCard key={product.id} product={product} />
+      ))}
+    </div>
+  );
+}
+
+function DisplayCard({ product }: { product: ProductBaseResponseType }) {
+  return (
+    <Link href={`/market/${product.id}`} className="h-[380px] w-[200px]">
       <div className="w-[200px]">
         <CardContent className="px-0 py-0 w-full">
-          <div className="w-full h-[150px] flex items-center justify-center bg-muted bg-gradient-to-t from-muted/5 rounded-tl-md rounded-tr-md border">
+          <div className="w-[200px] h-[280px] flex items-center justify-center bg-muted bg-gradient-to-t from-muted/5 rounded-md border">
             <Image
-              src={product.image_url}
+              src={getLargeTCGPlayerImage({ imageUrl: product.image_url })}
               alt={product.name}
-              width={70}
-              height={70}
-              className="rounded-sm shadow-2xl"
+              width={200}
+              height={280}
+              className="rounded-md shadow-2xl outline-2 outline-sidebar-border"
             />
           </div>
         </CardContent>
-        <Card className="w-full h-[120px] pb-4 hover:bg-muted hover:bg-gradient-to-t hover:from-muted/5 rounded-tr-none rounded-tl-none border-t-0">
-          <CardHeader className="px-4 pb-0 pt-4">
-            <CardDescription className="mb-0 text-xs">
-              {product.name}
-            </CardDescription>
-            <CardTitle className="text-lg font-semibold tabular-nums @[250px]/card:text-3xl">
-              $1,250.00{" "}
-            </CardTitle>
-
-            <div className="flex items-center gap-1 text-sm text-green-400">
-              <IconTrendingUp className="size-4" />
-              +12.5%
-            </div>
-          </CardHeader>
-        </Card>
+        <div>
+          <div className="pt-2">
+            <p className="mb-0 text-xs text-muted-foreground">
+              {product.number}
+            </p>
+            <p className="font-semibold text-xs">{product.name}</p>
+          </div>
+          <Separator className="my-2" />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">TCG Player</p>
+            <p className="text-xs text-muted-foreground">$1200.0</p>
+          </div>
+        </div>
       </div>
     </Link>
   );
