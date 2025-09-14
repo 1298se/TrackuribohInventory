@@ -4,15 +4,14 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import List
 
-from sqlalchemy import ForeignKey, DateTime, Numeric, Index, func, Integer
+from sqlalchemy import ForeignKey, DateTime, Numeric, func, Integer, Index
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_extensions import uuid7
 
 from core.models.base import Base
-from core.models.catalog import sku_tablename
+from core.models.catalog import SKU, sku_tablename
 from core.models.types import TextEnum
-from core.models.price import Marketplace
 
 buy_decision_tablename = "buy_decision"
 
@@ -28,9 +27,6 @@ class BuyDecision(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     sku_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(f"{sku_tablename}.id"), nullable=False
-    )
-    marketplace: Mapped[Marketplace] = mapped_column(
-        TextEnum(Marketplace), nullable=False
     )
     decision: Mapped[Decision] = mapped_column(TextEnum(Decision), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -49,21 +45,14 @@ class BuyDecision(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
+    sku: Mapped[SKU] = relationship("SKU", lazy="select")
+
     __table_args__ = (
-        # Primary index for querying recent decisions by SKU/marketplace
+        # Optimized index for DISTINCT ON query: latest BUY decision per SKU
         Index(
-            "ix_buy_decision_sku_marketplace_created",
+            "ix_buy_decision_latest_per_sku",
             "sku_id",
-            "marketplace",
             created_at.desc(),
-        ),
-        # Index for analyzing decision patterns
-        Index("ix_buy_decision_decision_created", "decision", created_at.desc()),
-        # Index for finding BUY decisions
-        Index(
-            "ix_buy_decision_buy_only",
-            "sku_id",
-            "marketplace",
             postgresql_where=(decision == Decision.BUY),
         ),
     )

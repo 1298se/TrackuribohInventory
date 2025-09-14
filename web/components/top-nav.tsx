@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus, Package2, CircleDollarSign } from "lucide-react";
+import { Plus, Package2, CircleDollarSign, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function TopNav() {
@@ -20,6 +20,11 @@ export function TopNav() {
       name: "Transactions",
       href: "/transactions",
       icon: CircleDollarSign,
+    },
+    {
+      name: "Purchase Decisions",
+      href: "/buy-decisions",
+      icon: Brain,
     },
   ];
 
@@ -48,7 +53,7 @@ export function TopNav() {
                     "flex items-center space-x-2 px-3 py-2 rounded-md transition-colors hover:bg-muted",
                     isActive
                       ? "text-foreground bg-muted font-medium"
-                      : "text-foreground/60 hover:text-foreground"
+                      : "text-foreground/60 hover:text-foreground",
                   )}
                 >
                   <item.icon className="h-4 w-4" />
@@ -70,7 +75,7 @@ export function TopNav() {
                     "flex items-center justify-center p-2 rounded-md transition-colors",
                     isActive
                       ? "text-foreground bg-muted"
-                      : "text-foreground/60 hover:text-foreground hover:bg-muted"
+                      : "text-foreground/60 hover:text-foreground hover:bg-muted",
                   )}
                   title={item.name}
                 >

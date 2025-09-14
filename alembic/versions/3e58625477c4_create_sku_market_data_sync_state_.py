@@ -1,8 +1,8 @@
 """create sku_market_data_sync_state; create buy_decision; create sales_listing with dedupe unique index
 
-Revision ID: 66d92ab7c437
+Revision ID: 3e58625477c4
 Revises: 61ef3d11077e
-Create Date: 2025-09-07 17:08:29.962127
+Create Date: 2025-09-13 16:34:19.507392
 
 """
 
@@ -11,12 +11,13 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
 from core.models.types import TextEnum
 from core.models.price import Marketplace
 from core.models.decisions import Decision
 
 # revision identifiers, used by Alembic.
-revision: str = "66d92ab7c437"
+revision: str = "3e58625477c4"
 down_revision: Union[str, None] = "61ef3d11077e"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -35,7 +36,6 @@ def upgrade() -> None:
         "buy_decision",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("sku_id", sa.Uuid(), nullable=False),
-        sa.Column("marketplace", TextEnum(Marketplace), nullable=False),
         sa.Column("decision", TextEnum(Decision), nullable=False),
         sa.Column("quantity", sa.Integer(), nullable=False),
         sa.Column("buy_vwap", sa.Numeric(precision=10, scale=2), nullable=False),
@@ -58,25 +58,6 @@ def upgrade() -> None:
             ["sku.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(
-        "ix_buy_decision_buy_only",
-        "buy_decision",
-        ["sku_id", "marketplace"],
-        unique=False,
-        postgresql_where=sa.text("decision = 'BUY'"),
-    )
-    op.create_index(
-        "ix_buy_decision_decision_created",
-        "buy_decision",
-        ["decision", sa.literal_column("created_at DESC")],
-        unique=False,
-    )
-    op.create_index(
-        "ix_buy_decision_sku_marketplace_created",
-        "buy_decision",
-        ["sku_id", "marketplace", sa.literal_column("created_at DESC")],
-        unique=False,
     )
     op.create_table(
         "sales_listing",
@@ -136,13 +117,6 @@ def downgrade() -> None:
     op.drop_index("ix_sales_listing_sku_marketplace_date", table_name="sales_listing")
     op.drop_index("ix_sales_listing_date", table_name="sales_listing")
     op.drop_table("sales_listing")
-    op.drop_index("ix_buy_decision_sku_marketplace_created", table_name="buy_decision")
-    op.drop_index("ix_buy_decision_decision_created", table_name="buy_decision")
-    op.drop_index(
-        "ix_buy_decision_buy_only",
-        table_name="buy_decision",
-        postgresql_where=sa.text("decision = 'BUY'"),
-    )
     op.drop_table("buy_decision")
     op.drop_table("sku_market_data_sync_state")
     # ### end Alembic commands ###

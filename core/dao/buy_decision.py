@@ -7,14 +7,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 
 from core.models.decisions import BuyDecision, Decision
-from core.models.price import Marketplace
 
 
 class BuyDecisionData(TypedDict):
     """Type definition for buy decision data used in insert_buy_decisions."""
 
     sku_id: uuid.UUID
-    marketplace: Marketplace
     decision: Decision
     quantity: int
     buy_vwap: Decimal
