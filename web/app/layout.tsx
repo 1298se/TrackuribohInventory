@@ -4,6 +4,7 @@ import { TopNav } from "@/components/top-nav";
 import { SWRConfig } from "swr";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import NextTopLoader from "nextjs-toploader";
+import Providers from "@/shared/Providers";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -29,12 +30,14 @@ export default function RootLayout({
     >
       <body className="min-h-screen mx-auto">
         <NextTopLoader />
-        <SWRConfig value={{ revalidateOnFocus: false }}>
-          <div className="in-h-screen">
-            <TopNav />
-            <main className="mx-auto max-w-5xl">{children}</main>
-          </div>
-        </SWRConfig>
+        <Providers>
+          <SWRConfig value={{ revalidateOnFocus: false }}>
+            <div className="in-h-screen">
+              <TopNav />
+              <main className="mx-auto max-w-7xl">{children}</main>
+            </div>
+          </SWRConfig>
+        </Providers>
       </body>
     </html>
   );

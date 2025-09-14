@@ -100,6 +100,11 @@ class SKUWithProductResponseSchema(SKUBaseResponseSchema):
 
 class ProductSearchResponseSchema(BaseModel):
     results: list[ProductWithSetAndSKUsResponseSchema]
+    total: int = Field(description="Total number of results")
+    page: int = Field(description="Current page number (1-based)")
+    limit: int = Field(description="Number of items per page")
+    has_next: bool = Field(description="Whether there are more pages")
+    has_prev: bool = Field(description="Whether there are previous pages")
 
 
 class CatalogResponseSchema(ORMModel):
@@ -119,6 +124,8 @@ class ProductSearchRequestParams(BaseModel):
     query: str
     catalog_id: Optional[uuid.UUID] = None
     product_type: Optional[ProductType] = None
+    page: int = Field(default=1, ge=1, description="Page number (1-based)")
+    limit: int = Field(default=20, ge=1, le=100, description="Number of items per page")
 
     class Config:
         extra = "forbid"

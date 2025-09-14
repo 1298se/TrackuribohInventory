@@ -10,7 +10,6 @@ import {
   MarketDataResponse,
 } from "./schemas";
 import { UUID } from "crypto";
-import { createClient } from "@/lib/supabase/client";
 
 // Define the type inferred from the schema
 type ProductDetailType = z.infer<typeof ProductWithSetAndSKUsResponseSchema>;
@@ -59,10 +58,16 @@ export function useSkuMarketData(
 export function useProductSearch(
   query: string,
   catalogId: string | null = null,
-  token: string
+  token: string,
+  page: number = 1,
+  limit: number = 20
 ) {
   // Prepare query params (always include `query`, even if empty)
-  const params: Record<string, string> = { query };
+  const params: Record<string, string> = {
+    query,
+    page: page.toString(),
+    limit: limit.toString(),
+  };
   if (catalogId) {
     params.catalog_id = catalogId;
   }

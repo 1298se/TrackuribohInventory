@@ -16,7 +16,7 @@ import {
   InventoryPriceHistoryResponseSchema,
   InventorySkuMarketplacesResponse,
   InventorySkuMarketplacesResponseSchema,
-} from "./schemas";
+} from "../../features/market/schemas";
 import {
   ProductSearchResponseSchema,
   CatalogsResponseSchema,

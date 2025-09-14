@@ -3,7 +3,7 @@
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { format } from "date-fns";
-import { InventoryPriceHistoryItem } from "@/app/inventory/schemas";
+import { InventoryPriceHistoryItem } from "@/features/market/schemas";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,11 +16,11 @@ interface PriceHistoryChartProps {
 
 function formatCurrency(
   amount: number | null | undefined,
-  currency: string = "USD",
+  currency: string = "USD"
 ): string {
   if (amount == null) return "N/A";
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-    amount,
+    amount
   );
 }
 
@@ -82,14 +82,14 @@ export function PriceHistoryChart({
               <h2 className="text-3xl font-bold tracking-tight">
                 {formatCurrency(
                   data[data.length - 1]?.price?.amount || 0,
-                  currency,
+                  currency
                 )}
               </h2>
               {priceChange && (
                 <div
                   className={cn(
                     "flex items-center gap-1 text-sm font-medium",
-                    priceChange.isPositive ? "text-green-600" : "text-red-600",
+                    priceChange.isPositive ? "text-green-600" : "text-red-600"
                   )}
                 >
                   {priceChange.isPositive ? (

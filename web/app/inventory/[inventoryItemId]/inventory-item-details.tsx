@@ -6,7 +6,7 @@ import {
   useInventoryPriceHistory,
   useSkuMarketplaces,
 } from "../api";
-import { InventorySKUTransactionLineItem } from "../schemas";
+import { InventorySKUTransactionLineItem } from "../../../features/market/schemas";
 import { DataTable } from "@/components/data-table";
 import { type ColumnDef, type Row } from "@tanstack/react-table";
 import { format } from "date-fns";
