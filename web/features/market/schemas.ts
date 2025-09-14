@@ -1,13 +1,13 @@
 import { z } from "zod";
-import { MoneySchema, MoneyAmountSchema } from "../schemas";
-import { TransactionTypeSchema } from "../transactions/schemas";
+import { MoneySchema, MoneyAmountSchema } from "../../app/schemas";
+import { TransactionTypeSchema } from "../../app/transactions/schemas";
 import {
   SKUWithProductResponseSchema,
   ProductSearchResponseSchema, // Keep if needed, otherwise remove
   ProductWithSetAndSKUsResponseSchema,
   CatalogSchema, // Import moved Catalog schemas
   CatalogsResponseSchema, // Import moved Catalog schemas
-} from "../catalog/schemas";
+} from "../../app/catalog/schemas";
 
 /* -----------------------------------------------------
  * 1) Primitive Enums

@@ -115,6 +115,7 @@ export function InventoryPage({ token }: { token: string }) {
                   {catalog.display_name}
                 </TabsTrigger>
               ))}
+              f
             </TabsList>
           </Tabs>
         )}

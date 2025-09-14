@@ -1,6 +1,6 @@
 "use client";
 
-import { InventoryPriceHistoryItem } from "@/app/inventory/schemas";
+import { InventoryPriceHistoryItem } from "@/features/market/schemas";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -32,7 +32,7 @@ export function SparklineChart({
       <div
         className={cn(
           "flex items-center justify-center text-muted-foreground text-xs",
-          className,
+          className
         )}
       >
         <span>—</span>
@@ -67,8 +67,8 @@ export function SparklineChart({
   const textColor = isPositive
     ? "text-green-600"
     : isNegative
-      ? "text-red-600"
-      : "text-muted-foreground";
+    ? "text-red-600"
+    : "text-muted-foreground";
 
   return (
     <div className={cn("flex items-center justify-end", className)}>

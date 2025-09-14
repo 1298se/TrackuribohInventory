@@ -84,6 +84,11 @@ export const SKUWithProductResponseSchema = SKUBaseSchema.extend({
 // ProductSearchResponseSchema
 export const ProductSearchResponseSchema = z.object({
   results: z.array(ProductWithSetAndSKUsResponseSchema),
+  total: z.number(),
+  page: z.number(),
+  limit: z.number(),
+  has_next: z.boolean(),
+  has_prev: z.boolean(),
 });
 
 // Type inference for catalog related schemas
