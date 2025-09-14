@@ -10,6 +10,7 @@ from app.routes.transactions.api import router as transactions_router
 from app.routes.catalog.api import router as catalog_router
 from app.routes.inventory.api import router as inventory_router
 from app.routes.market.api import router as market_router
+from app.routes.decisions.api import router as decisions_router
 from core.services.tcgplayer_catalog_service import get_tcgplayer_catalog_service
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
@@ -48,3 +49,4 @@ app.include_router(transactions_router)
 app.include_router(catalog_router)
 app.include_router(inventory_router)
 app.include_router(market_router)
+app.include_router(decisions_router)

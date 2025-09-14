@@ -312,7 +312,6 @@ def compute_purchase_decision(market_data: MarketData) -> BuyDecision:
         reason_codes.append("LOW_ASP")
         return BuyDecision(
             sku_id=market_data.sku_id,
-            marketplace=market_data.marketplace,
             decision=Decision.PASS,
             quantity=0,
             buy_vwap=Decimal("0"),
@@ -334,7 +333,6 @@ def compute_purchase_decision(market_data: MarketData) -> BuyDecision:
         reason_codes.append("NO_LISTINGS")
         return BuyDecision(
             sku_id=market_data.sku_id,
-            marketplace=market_data.marketplace,
             decision=Decision.PASS,
             quantity=0,
             buy_vwap=Decimal("0"),
@@ -378,7 +376,6 @@ def compute_purchase_decision(market_data: MarketData) -> BuyDecision:
 
     return BuyDecision(
         sku_id=market_data.sku_id,
-        marketplace=market_data.marketplace,
         decision=decision,
         quantity=optimal_qty,
         buy_vwap=buy_vwap,
@@ -544,7 +541,6 @@ async def run_purchase_decision_sweep(
                 # Convert BuyDecision to BuyDecisionData for batch insert
                 decision_data = BuyDecisionData(
                     sku_id=result.buy_decision.sku_id,
-                    marketplace=result.buy_decision.marketplace,
                     decision=result.buy_decision.decision,
                     quantity=result.buy_decision.quantity,
                     buy_vwap=result.buy_decision.buy_vwap,

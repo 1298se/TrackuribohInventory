@@ -281,7 +281,9 @@ def get_transaction_performance(session: Session, days: Optional[int] = 30) -> d
 
         query = (
             select(
-                transaction_totals.c.date.label("period_date"),
+                func.cast(
+                    func.date_trunc("day", transaction_totals.c.date), Date
+                ).label("period_date"),
                 func.sum(
                     case(
                         (
@@ -307,8 +309,12 @@ def get_transaction_performance(session: Session, days: Optional[int] = 30) -> d
                 func.count(transaction_totals.c.id).label("transaction_count"),
             )
             .select_from(transaction_totals)
-            .group_by(transaction_totals.c.date)
-            .order_by(transaction_totals.c.date)
+            .group_by(
+                func.cast(func.date_trunc("day", transaction_totals.c.date), Date)
+            )
+            .order_by(
+                func.cast(func.date_trunc("day", transaction_totals.c.date), Date)
+            )
         )
 
     # Execute the query
