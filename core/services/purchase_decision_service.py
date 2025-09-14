@@ -26,7 +26,7 @@ from aiohttp import ClientResponseError
 logger = logging.getLogger(__name__)
 
 # Algorithm parameters (hardcoded for simplicity)
-ASP_MIN_THRESHOLD = Decimal("5.00")  # $5 minimum ASP gate
+ASP_MIN_THRESHOLD = Decimal("2.00")  # $2 minimum ASP gate
 EDGE_MIN_ABS = Decimal("1.25")  # $1.25 minimum absolute edge per unit
 EDGE_MIN_PCT = Decimal("0.08")  # 8% minimum edge percentage
 TIME_HORIZON_DAYS = 14  # T = 14 days exit horizon
@@ -203,7 +203,7 @@ def compute_resale_nowcast(
 
 def estimate_sell_through(sales: List[SalesListing]) -> Tuple[float, bool]:
     """
-    Estimate sell-through rate (lambda_hat) and validate liquidity.
+    Estimate sell-through rate (lambda_hat) based on total units sold and validate liquidity.
 
     Returns:
         (lambda_hat_per_day, liquidity_adequate)
@@ -211,11 +211,14 @@ def estimate_sell_through(sales: List[SalesListing]) -> Tuple[float, bool]:
     if not sales:
         return 0.0, False
 
-    # Simple rate estimation: sales_count / days_window
-    lambda_hat = len(sales) / SALES_WINDOW_DAYS
+    # Use total units sold over the window, not number of sales rows
+    total_units_sold = sum(int(sale.quantity) for sale in sales)
 
-    # Liquidity checks (placeholder logic)
-    liquidity_adequate = len(sales) >= 3  # Minimum 3 sales in window
+    # Simple rate estimation: units_sold / days_window
+    lambda_hat = total_units_sold / SALES_WINDOW_DAYS
+
+    # Liquidity checks based on units sold (minimum 3 units in window)
+    liquidity_adequate = total_units_sold >= 3
 
     return lambda_hat, liquidity_adequate
 
@@ -292,6 +295,31 @@ def optimize_quantity(
     return best_qty, best_total_edge
 
 
+def compute_sales_asp_median(sales: List[SalesListing]) -> Optional[Decimal]:
+    """
+    Compute median delivered sale price (sale_price + shipping_price) from recent sales.
+    Returns None if no sales.
+    """
+    if not sales:
+        return None
+
+    delivered_prices: List[Decimal] = []
+    for sale in sales:
+        base_price = sale.sale_price
+        shipping = sale.shipping_price or Decimal("0")
+        delivered_prices.append(base_price + shipping)
+
+    if not delivered_prices:
+        return None
+
+    delivered_prices.sort()
+    if len(delivered_prices) % 2 == 0:
+        mid = len(delivered_prices) // 2
+        return (delivered_prices[mid - 1] + delivered_prices[mid]) / 2
+    else:
+        return delivered_prices[len(delivered_prices) // 2]
+
+
 def compute_purchase_decision(market_data: MarketData) -> BuyDecision:
     """
     Main algorithm: compute buy/pass decision for a SKU based on fresh market data.
@@ -306,20 +334,17 @@ def compute_purchase_decision(market_data: MarketData) -> BuyDecision:
 
     reason_codes = []
 
-    # Step 0: ASP Gate
-    passed_asp, best_ask = apply_asp_gate(market_data.listings)
-    if not passed_asp:
-        reason_codes.append("LOW_ASP")
-        return BuyDecision(
-            sku_id=market_data.sku_id,
-            decision=Decision.PASS,
-            quantity=0,
-            buy_vwap=Decimal("0"),
-            expected_resale_net=Decimal("0"),
-            asof_listings=market_data.asof_listings,
-            asof_sales=market_data.asof_sales,
-            reason_codes=reason_codes,
-        )
+    # Compute best ask from listings only for blending (not for gating)
+    best_ask: Optional[Decimal] = None
+    if market_data.listings:
+        delivered_asks: List[Decimal] = []
+        for listing in market_data.listings:
+            delivered_ask = Decimal(str(listing.price)) + Decimal(
+                str(listing.shippingPrice)
+            )
+            delivered_asks.append(delivered_ask)
+        if delivered_asks:
+            best_ask = min(delivered_asks)
 
     # Step 1: Liquidity Check (needed for demand-based ladder cap)
     lambda_hat, liquidity_ok = estimate_sell_through(market_data.sales)
@@ -443,7 +468,7 @@ async def process_product_with_request_slot(
             PurchaseDecisionResult(
                 sku_id=sku.sku_id,
                 buy_decision=decision,
-                sales_count=len(sku_sales_data),
+                sales_count=sum(int(s.quantity) for s in sku_sales_data),
                 listings_count=len(listings_responses),
                 decision=decision.decision.value,
                 quantity=decision.quantity,
@@ -473,22 +498,6 @@ async def run_purchase_decision_sweep(
     start_time = datetime.now(timezone.utc)
     total_sku_count = len(processing_list)
 
-    # Group SKUs by product_tcgplayer_id for per-product processing
-    product_groups: Dict[int, List[ProcessingSKU]] = defaultdict(list)
-    for sku in processing_list:
-        product_groups[sku.product_tcgplayer_id].append(sku)
-
-    # Convert to ProductProcessingGroup objects
-    product_processing_groups = [
-        ProductProcessingGroup(product_tcgplayer_id=pid, skus=skus)
-        for pid, skus in product_groups.items()
-    ]
-
-    product_count = len(product_processing_groups)
-    logger.debug(
-        f"Grouped {total_sku_count} SKUs into {product_count} products for processing"
-    )
-
     # Configure request pacer with defaults (burst-only)
     request_pacer = RequestPacer()
     logger.debug("Using default burst pacing")
@@ -512,6 +521,38 @@ async def run_purchase_decision_sweep(
             session, all_candidate_skus, marketplace, sales_cutoff
         )
     logger.debug(f"Loaded sales data for {len(sales_by_sku)} SKUs")
+
+    # Sales-based ASP pre-gate to avoid unnecessary listings calls
+    filtered_processing_list: List[ProcessingSKU] = []
+    skipped_for_low_asp = 0
+    for sku in processing_list:
+        sku_sales = sales_by_sku.get(sku.sku_id, [])
+        sales_median = compute_sales_asp_median(sku_sales)
+        if sales_median is None or sales_median < ASP_MIN_THRESHOLD:
+            skipped_for_low_asp += 1
+            continue
+        filtered_processing_list.append(sku)
+
+    if skipped_for_low_asp > 0:
+        logger.debug(
+            f"ASP pre-gate skipped {skipped_for_low_asp} SKUs below threshold {ASP_MIN_THRESHOLD} based on sales"
+        )
+
+    # Group SKUs by product_tcgplayer_id for per-product processing, using filtered list
+    product_groups: Dict[int, List[ProcessingSKU]] = defaultdict(list)
+    for sku in filtered_processing_list:
+        product_groups[sku.product_tcgplayer_id].append(sku)
+
+    # Convert to ProductProcessingGroup objects
+    product_processing_groups = [
+        ProductProcessingGroup(product_tcgplayer_id=pid, skus=skus)
+        for pid, skus in product_groups.items()
+    ]
+
+    product_count = len(product_processing_groups)
+    logger.debug(
+        f"Grouped {len(filtered_processing_list)} filtered SKUs into {product_count} products for processing"
+    )
 
     # Accumulators for batched DB writes
     all_decisions: List[BuyDecisionData] = []
