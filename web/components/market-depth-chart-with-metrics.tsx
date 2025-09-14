@@ -27,7 +27,7 @@ export function MarketDepthWithMetrics({
 }: Props) {
   const marketplaces = useMemo(
     () => Array.from(new Set(data.map((i) => i.marketplace))),
-    [data],
+    [data]
   );
 
   // Use prop if provided, otherwise manage internally
@@ -48,11 +48,11 @@ export function MarketDepthWithMetrics({
 
   const itemsForMarketplace = useMemo(
     () => data.filter((i) => i.marketplace === effectiveMarketplace),
-    [data, effectiveMarketplace],
+    [data, effectiveMarketplace]
   );
   const skusForMarketplace = useMemo(
     () => itemsForMarketplace.map((i) => i.sku),
-    [itemsForMarketplace],
+    [itemsForMarketplace]
   );
 
   const [selectedSkuId, setSelectedSkuId] = useState<string>("aggregated");
@@ -74,7 +74,7 @@ export function MarketDepthWithMetrics({
             const delta = cumulative_count - prev;
             rawMap.set(price, (rawMap.get(price) || 0) + delta);
             prev = cumulative_count;
-          },
+          }
         );
       });
       const sorted = Array.from(rawMap.keys()).sort((a, b) => a - b);
@@ -104,7 +104,7 @@ export function MarketDepthWithMetrics({
             const delta = cumulative_count - prev;
             rawMap.set(price, (rawMap.get(price) || 0) + delta);
             prev = cumulative_count;
-          },
+          }
         );
       });
       const sorted = Array.from(rawMap.keys()).sort((a, b) => a - b);
@@ -129,7 +129,7 @@ export function MarketDepthWithMetrics({
         price,
         cumulativeCount: cumulative_count,
       })),
-    [displayedDepthLevels],
+    [displayedDepthLevels]
   );
   const salesChartData = useMemo<{ price: number; cumulativeCount: number }[]>(
     () =>
@@ -137,7 +137,7 @@ export function MarketDepthWithMetrics({
         price,
         cumulativeCount: cumulative_count,
       })),
-    [displayedSalesLevels],
+    [displayedSalesLevels]
   );
 
   const selectedMetrics = useMemo(() => {
@@ -145,21 +145,21 @@ export function MarketDepthWithMetrics({
     if (selectedSkuId === "aggregated") {
       const total_listings = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_listings,
-        0,
+        0
       );
       const total_quantity = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_quantity,
-        0,
+        0
       );
       const total_sales = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_sales,
-        0,
+        0
       );
 
       // Calculate true sales velocity: total sales / lookback days
       const lookbackDays = salesLookbackDays || 7;
       const sales_velocity = parseFloat(
-        (total_sales / lookbackDays).toFixed(2),
+        (total_sales / lookbackDays).toFixed(2)
       );
 
       const days_of_inventory =

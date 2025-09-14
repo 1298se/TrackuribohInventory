@@ -131,7 +131,7 @@ function DisplayCardsSection({
   }
 
   return (
-    <div className="grid grid-cols-5 gap-3">
+    <div className="grid grid-cols-5 gap-6 place-items-center">
       {products.map((product) => (
         <DisplayCard key={product.id} product={product} />
       ))}
@@ -141,7 +141,7 @@ function DisplayCardsSection({
 
 function DisplayCard({ product }: { product: ProductBaseResponseType }) {
   return (
-    <Link href={`/market/${product.id}`} className="h-[380px] w-[200px]">
+    <Link href={`/market/${product.id}`} className="h-[360px] w-[200px]">
       <div className="w-[200px]">
         <CardContent className="px-0 py-0 w-full">
           <div className="w-[200px] h-[280px] flex items-center justify-center bg-muted bg-gradient-to-t from-muted/5 rounded-md border">
@@ -155,7 +155,7 @@ function DisplayCard({ product }: { product: ProductBaseResponseType }) {
           </div>
         </CardContent>
         <div>
-          <div className="pt-2">
+          <div className="pt-1">
             <p className="mb-0 text-xs text-muted-foreground">
               {product.number}
             </p>
