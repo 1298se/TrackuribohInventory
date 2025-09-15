@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { IconTrendingUp } from "@tabler/icons-react";
+import { CardContent } from "@/components/ui/card";
 import { API_URL } from "@/app/api/fetcher";
 import { ProductBaseResponseSchema } from "@/app/catalog/schemas";
 import { z } from "zod";
@@ -25,11 +18,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type ProductBaseResponseType = z.infer<typeof ProductBaseResponseSchema>;
 
-const SEARCH_DEBOUNCE_TIME_MS = 1000;
+const SEARCH_DEBOUNCE_TIME_MS = 300;
 
 export function MarketPlace() {
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery, debouncer] = useDebouncedState(
+  const [debouncedQuery, setDebouncedQuery] = useDebouncedState(
     query,
     {
       wait: SEARCH_DEBOUNCE_TIME_MS,

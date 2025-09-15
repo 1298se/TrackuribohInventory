@@ -1,190 +1,437 @@
 "use client";
-import { API_URL } from "@/app/api/fetcher";
+
 import {
   MarketDataResponseSchemaType,
-  ProductBaseResponseSchemaType,
-  SKUMarketDataItem,
+  ProductWithSetAndSKUsResponse,
 } from "@/app/catalog/schemas";
 import { getLargeTCGPlayerImage } from "@/features/market/utils";
+import { fetchProduct, fetchMarketData } from "@/features/market/api";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useMemo } from "react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, Legend } from "recharts";
-import { ChartContainer } from "@/components/ui/chart";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { MetricCard } from "@/components/ui/metric-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { MarketDepthChart } from "@/features/market/components/MarketDepthChart";
+import { MarketLevelingChart } from "@/features/market/components/MarketLevelingChart";
+import Link from "next/link";
+import { findFirstNearMintSku, formatCurrency } from "@/shared/utils";
+import { MarketRecentSalesSnapshot } from "@/features/market/components/MarketRecentSalesSnapshot";
+import { assertNotNullable } from "@/lib/validation";
+import { Loader2 } from "lucide-react";
 
-interface PageProps {
-  params: { sku: string };
-}
+export default function ProductSKUDetailsPage() {
+  const { sku } = useParams();
 
-function formatCurrency(
-  amount: number | null | undefined,
-  currency: string = "USD"
-): string {
-  if (amount == null) return "N/A";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-    amount
-  );
-}
+  if (typeof sku !== "string") {
+    throw new Error("Invalid SKU");
+  }
 
-function MarketDepthChart({
-  listingsCumulativeDepth = [],
-  salesCumulativeDepth = [],
-  isLoading,
-  currency = "USD",
-}: {
-  listingsCumulativeDepth: { price: number; cumulativeCount: number }[];
-  salesCumulativeDepth: { price: number; cumulativeCount: number }[];
-  isLoading: boolean;
-  currency?: string;
-}) {
-  // Merge series by price, sorted from lowest to highest (left to right)
-  const prices = Array.from(
-    new Set([
-      ...listingsCumulativeDepth.map((d) => d.price),
-      ...salesCumulativeDepth.map((d) => d.price),
-    ])
-  ).sort((a, b) => a - b);
-
-  const listingMap: Record<number, number> = Object.fromEntries(
-    listingsCumulativeDepth.map((d) => [d.price, d.cumulativeCount])
-  );
-
-  const salesMap: Record<number, number> = Object.fromEntries(
-    salesCumulativeDepth.map((d) => [d.price, d.cumulativeCount])
-  );
-
-  const mergedData = prices.map((price) => ({
-    price,
-    listingCumulativeCount: listingMap[price],
-    // Use undefined for missing sales points so Recharts doesn't draw them
-    salesCumulativeCount:
-      salesCumulativeDepth.length > 0 ? salesMap[price] : undefined,
-  }));
-
-  return (
-    <ChartContainer
-      id="market-depth-chart"
-      className="h-[300px] w-full"
-      config={{
-        listingCumulativeCount: { label: "Listings", color: "#3B82F6" },
-        salesCumulativeCount: { label: "Sales", color: "#F97316" },
-      }}
-    >
-      {isLoading ? (
-        <div className="flex h-full w-full items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">
-            Loading market depth...
-          </div>
-        </div>
-      ) : !listingsCumulativeDepth.length && !salesCumulativeDepth.length ? (
-        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-          No market depth data available.
-        </div>
-      ) : (
-        <AreaChart
-          data={mergedData}
-          margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
-        >
-          <XAxis
-            dataKey="price"
-            type="number"
-            domain={["dataMin", "dataMax"]}
-            tickFormatter={(val) => formatCurrency(val, currency)}
-          />
-          <YAxis
-            type="number"
-            domain={[0, "dataMax"]}
-            tickFormatter={(val) => String(val)}
-          />
-          <Tooltip
-            labelFormatter={(label: number) =>
-              `Price: ${formatCurrency(label, currency)}`
-            }
-            formatter={(value: number, name: string) => [
-              value,
-              name === "Listings" ? "Listings" : "Sales",
-            ]}
-          />
-          <Legend />
-          <Area
-            type="stepAfter"
-            dataKey="listingCumulativeCount"
-            name="Listings"
-            stroke="#3B82F6"
-            fill="#3B82F6"
-            fillOpacity={0.4}
-            connectNulls
-            style={{ mixBlendMode: "multiply" }}
-            dot={{ r: 2, fill: "#3B82F6" }}
-          />
-          <Area
-            type="stepAfter"
-            dataKey="salesCumulativeCount"
-            name="Sales"
-            stroke="#F97316"
-            fill="#F97316"
-            fillOpacity={0.4}
-            style={{ mixBlendMode: "multiply" }}
-            connectNulls
-            dot={{ r: 2, fill: "#F97316" }}
-          />
-        </AreaChart>
-      )}
-    </ChartContainer>
-  );
-}
-
-export default function Page() {
-  const { sku } = useParams(); // slug is an array
-
-  const { data: product } = useQuery<ProductBaseResponseSchemaType>({
+  const { data: product } = useQuery<ProductWithSetAndSKUsResponse>({
     queryKey: ["product", sku],
-    queryFn: () =>
-      fetch(`${API_URL}/catalog/product/${sku}`).then((res) => res.json()),
+    queryFn: () => fetchProduct(sku),
   });
+
+  const nearMintSku = product ? findFirstNearMintSku(product.skus) : null;
 
   const { data: marketDepth } = useQuery<MarketDataResponseSchemaType>({
     queryKey: ["marketDepth", sku],
-    queryFn: () =>
-      fetch(
-        `${API_URL}/catalog/product/${sku}/market-data?sales_lookback_days=7`
-      ).then((res) => res.json()),
+    queryFn: () => fetchMarketData(sku, 7),
   });
 
-  // Parse market depth data
-  const parsedMarketData = useMemo(() => {
-    if (!marketDepth?.market_data_items) return null;
-
-    const data = marketDepth.market_data_items;
-
-    // Get unique marketplaces
-    const marketplaces = Array.from(new Set(data.map((i) => i.marketplace)));
-
-    // For now, let's use the first marketplace (you can add marketplace selection later)
-    const selectedMarketplace = marketplaces[0] || "";
-    const itemsForMarketplace = data.filter(
-      (i) => i.marketplace === selectedMarketplace
-    );
-
-    // Get SKUs for the selected marketplace
-    const skusForMarketplace = itemsForMarketplace.map((i) => i.sku);
-
-    // For aggregated view (multiple SKUs), combine the data
-    const isAggregated = skusForMarketplace.length > 1;
-
-    return {
-      marketplaces,
-      selectedMarketplace,
-      itemsForMarketplace,
-      skusForMarketplace,
-      isAggregated,
-    };
+  const parsedMarketDepth = useMemo(() => {
+    return parseMarketData(marketDepth);
   }, [marketDepth]);
 
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex flex-col md:flex-row gap-6 grow-1 min-w-[200px]">
+        <div className="block md:hidden">
+          <ProductTitle
+            productName={product?.name}
+            productSetName={product?.set.name}
+            productSetID={product?.set.id}
+            isLoading={!product}
+          />
+        </div>
+
+        <ProductImage
+          imageUrl={product?.image_url}
+          name={product?.name}
+          ratio={0.3}
+          isLoading={!product}
+        />
+
+        <div className="grow-2 hidden md:block">
+          <ProductTitleInsightsCard
+            productName={product?.name}
+            productSetName={product?.set.name}
+            productSetID={product?.set.id}
+            isLoading={!product}
+          />
+        </div>
+
+        <div className="min-w-[200px]">
+          <TCGMarketPlacePriceCard
+            totalQuantity={parsedMarketDepth?.metrics?.total_quantity || 0}
+            lowestListingPriceTotal={
+              nearMintSku?.lowest_listing_price_total || 0
+            }
+            productURL={product?.tcgplayer_url}
+            isLoading={!product}
+          />
+        </div>
+
+        <div className="block md:hidden">
+          <ProductInsightsCard />
+        </div>
+      </div>
+
+      <Separator className="my-8" />
+
+      <div className="flex flex-row gap-4 items-center">
+        {parsedMarketDepth ? (
+          <span className="relative flex size-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex size-3 rounded-full bg-blue-500"></span>
+          </span>
+        ) : (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        )}
+        <h2 className="text-2xl font-bold">Performance monitoring</h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <MarketDepthChartCard
+          listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
+          salesCumulativeDepth={parsedMarketDepth?.salesChartData}
+        />
+        <MarketLevelsChartCard
+          listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
+          isLoading={!parsedMarketDepth}
+        />
+      </div>
+
+      <ListingsCard />
+    </div>
+  );
+}
+
+function ProductImage({
+  imageUrl,
+  name,
+  isLoading,
+  ratio = 1,
+}: {
+  imageUrl?: string;
+  name?: string;
+  isLoading?: boolean;
+  ratio?: number;
+}) {
+  const baseWidth = 534;
+  const baseHeight = 800;
+  const scaledWidth = Math.round(baseWidth * ratio);
+  const scaledHeight = Math.round(baseHeight * ratio);
+
+  if (isLoading) {
+    return (
+      <Skeleton
+        className="rounded-[10px] shadow-2xl mx-auto lg:mx-0"
+        style={{ width: `${scaledWidth}px`, height: `${scaledHeight}px` }}
+      />
+    );
+  }
+
+  assertNotNullable(imageUrl);
+  assertNotNullable(name);
+
+  return (
+    <Image
+      src={getLargeTCGPlayerImage({
+        imageUrl: imageUrl,
+        size: 800,
+      })}
+      alt={name}
+      width={300}
+      height={300}
+      className="rounded-[10px] shadow-2xl mx-auto lg:mx-0"
+      style={{ width: `${scaledWidth}px`, height: `${scaledHeight}px` }}
+    />
+  );
+}
+
+function ProductTitle({
+  productName,
+  productSetName,
+  productSetID,
+  isLoading,
+}: {
+  productName: string | undefined;
+  productSetName: string | undefined;
+  productSetID: string | undefined;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <div className="py-2">
+        <Skeleton className="h-4 w-3/4 mb-1" />
+        <Skeleton className="h-4 w-full mb-1" />
+      </div>
+    );
+  }
+
+  assertNotNullable(productName, "Product name is required");
+  assertNotNullable(productSetName, "Product set name is required");
+  assertNotNullable(productSetID, "Product set ID is required");
+
+  return (
+    <div>
+      <CardTitle className="text-2xl font-bold">{productName}</CardTitle>
+      <Link
+        target="_blank"
+        href={`/market/set/${productSetID}`}
+        className="underline text-muted-foreground text-xs"
+      >
+        {productSetName}
+      </Link>
+    </div>
+  );
+}
+
+function ProductInsightsCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Insights</CardTitle>
+      </CardHeader>
+      <CardContent className="min-h-[138px] h-full">
+        <ProductInsightsContent />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProductInsightsContent() {
+  return <div>AI insights here</div>;
+}
+
+function ProductTitleInsightsCard({
+  productName,
+  productSetName,
+  productSetID,
+  isLoading,
+}: {
+  productName: string | undefined;
+  productSetName: string | undefined;
+  productSetID: string | undefined;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-4 w-3/4 mb-1" />
+          <Skeleton className="h-4 w-3/4 mb-1" />
+        </CardHeader>
+        <CardContent className="min-h-[150px]" />
+      </Card>
+    );
+  }
+
+  assertNotNullable(productName, "Product name is required");
+  assertNotNullable(productSetName, "Product set name is required");
+  assertNotNullable(productSetID, "Product set ID is required");
+
+  return (
+    <Card>
+      <CardHeader className="hidden md:block">
+        <ProductTitle
+          productName={productName}
+          productSetName={productSetName}
+          productSetID={productSetID}
+          isLoading={isLoading}
+        />
+      </CardHeader>
+      <Separator />
+      <CardContent className="min-h-[133px] h-full">
+        <ProductInsightsContent />
+      </CardContent>
+    </Card>
+  );
+}
+
+function TCGMarketPlacePriceCard({
+  totalQuantity,
+  lowestListingPriceTotal,
+  productURL,
+  isLoading,
+}: {
+  totalQuantity: number | undefined;
+  lowestListingPriceTotal: number | undefined;
+  productURL: string | undefined;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <Card className="min-h-[128px]">
+        <CardHeader>
+          <Skeleton className="h-4 w-3/4 mb-1" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-4 w-3/4 mb-1" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  assertNotNullable(totalQuantity);
+  assertNotNullable(lowestListingPriceTotal);
+  assertNotNullable(productURL);
+
+  return (
+    <MetricCard
+      title={
+        <Link
+          href={productURL}
+          target="_blank"
+          className="underline text-muted-foreground text-xs"
+        >
+          TCGPlayer
+        </Link>
+      }
+      value={formatCurrency(lowestListingPriceTotal)}
+      subtitle={`From ${totalQuantity} units in the market`}
+    />
+  );
+}
+
+function ListingsCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Listings</CardTitle>
+      </CardHeader>
+      <Separator />
+      <CardContent>
+        <MarketRecentSalesSnapshot />
+      </CardContent>
+    </Card>
+  );
+}
+
+function MarketLevelsChartCard({
+  listingsCumulativeDepth,
+}: {
+  listingsCumulativeDepth:
+    | { price: number; cumulativeCount: number }[]
+    | undefined;
+  isLoading: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Price leveling</CardTitle>
+        <CardDescription>
+          See how many listings need to be sold to reach different price points
+        </CardDescription>
+      </CardHeader>
+      <Separator />
+      <CardContent className="pt-4 w-full">
+        {listingsCumulativeDepth ? (
+          <MarketLevelingChart
+            listingsCumulativeDepth={listingsCumulativeDepth}
+            currency="USD"
+          />
+        ) : (
+          <Skeleton className="w-full mb-1 h-[240px]" />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MarketDepthChartCard({
+  listingsCumulativeDepth,
+  salesCumulativeDepth,
+}: {
+  listingsCumulativeDepth:
+    | { price: number; cumulativeCount: number }[]
+    | undefined;
+  salesCumulativeDepth:
+    | { price: number; cumulativeCount: number }[]
+    | undefined;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Depth analysis</CardTitle>
+        <CardDescription>
+          Showing total listings and sales for the last 7 days
+        </CardDescription>
+      </CardHeader>
+      <Separator />
+      <CardContent className="pt-4 w-full">
+        {listingsCumulativeDepth && salesCumulativeDepth ? (
+          <MarketDepthChart
+            listingsCumulativeDepth={listingsCumulativeDepth}
+            salesCumulativeDepth={salesCumulativeDepth}
+            currency="USD"
+          />
+        ) : (
+          <Skeleton className="w-full mb-1 h-[240px]" />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function parseMarketData(
+  marketDepth: MarketDataResponseSchemaType | undefined
+) {
+  if (!marketDepth?.market_data_items) return null;
+
+  const data = marketDepth.market_data_items;
+
+  // Get unique marketplaces
+  const marketplaces = Array.from(
+    new Set(
+      data
+        .filter((i) => i.sku.condition.abbreviation !== "NM")
+        .map((i) => i.marketplace)
+    )
+  );
+
+  // For now, let's use the first marketplace (you can add marketplace selection later)
+  const selectedMarketplace = marketplaces[0] || "";
+  const itemsForMarketplace = data.filter(
+    (i) => i.marketplace === selectedMarketplace
+  );
+
+  // Get SKUs for the selected marketplace
+  const skusForMarketplace = itemsForMarketplace.map((i) => i.sku);
+
+  // For aggregated view (multiple SKUs), combine the data
+  const isAggregated = skusForMarketplace.length > 1;
+
+  const parsedMarketData = {
+    marketplaces,
+    selectedMarketplace,
+    itemsForMarketplace,
+    skusForMarketplace,
+    isAggregated,
+  };
+
   // Parse listing depth levels
-  const listingDepthLevels = useMemo(() => {
-    if (!parsedMarketData?.itemsForMarketplace.length) return [];
+  const listingDepthLevels = (() => {
+    if (!parsedMarketData.itemsForMarketplace.length) return [];
 
     const { itemsForMarketplace, isAggregated } = parsedMarketData;
 
@@ -211,11 +458,11 @@ export default function Page() {
       // Single SKU
       return itemsForMarketplace[0]?.market_data.cumulative_depth_levels || [];
     }
-  }, [parsedMarketData]);
+  })();
 
   // Parse sales depth levels
-  const salesDepthLevels = useMemo(() => {
-    if (!parsedMarketData?.itemsForMarketplace.length) return [];
+  const salesDepthLevels = (() => {
+    if (!parsedMarketData.itemsForMarketplace.length) return [];
 
     const { itemsForMarketplace, isAggregated } = parsedMarketData;
 
@@ -244,19 +491,17 @@ export default function Page() {
         itemsForMarketplace[0]?.market_data.cumulative_sales_depth_levels || []
       );
     }
-  }, [parsedMarketData]);
+  })();
 
   // Transform for chart data
-  const listingChartData = useMemo(
-    () =>
-      listingDepthLevels.map(({ price, cumulative_count }) => ({
-        price,
-        cumulativeCount: cumulative_count,
-      })),
-    [listingDepthLevels]
+  const listingChartData = listingDepthLevels.map(
+    ({ price, cumulative_count }) => ({
+      price,
+      cumulativeCount: cumulative_count,
+    })
   );
 
-  const salesChartData = useMemo(() => {
+  const salesChartData = (() => {
     if (!salesDepthLevels.length) return [];
 
     // Find the maximum cumulative count to reverse the sales data
@@ -268,171 +513,50 @@ export default function Page() {
       price,
       cumulativeCount: maxCount - cumulative_count,
     }));
-  }, [salesDepthLevels]);
+  })();
 
   // Calculate metrics
-  const metrics = useMemo(() => {
-    if (!parsedMarketData?.itemsForMarketplace.length) return null;
+  const metrics = (() => {
+    if (!parsedMarketData.itemsForMarketplace.length) return null;
 
     const { itemsForMarketplace, isAggregated } = parsedMarketData;
 
     if (isAggregated) {
-      const total_listings = itemsForMarketplace.reduce(
+      const totalListings = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_listings,
         0
       );
-      const total_quantity = itemsForMarketplace.reduce(
+      const totalQuantity = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_quantity,
         0
       );
-      const total_sales = itemsForMarketplace.reduce(
+      const totalSales = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_sales,
         0
       );
 
       // Calculate true sales velocity: total sales / lookback days
       const lookbackDays = 7; // from your API call
-      const sales_velocity = parseFloat(
-        (total_sales / lookbackDays).toFixed(2)
-      );
-
-      const days_of_inventory =
-        sales_velocity > 0
-          ? parseFloat((total_quantity / sales_velocity).toFixed(1))
-          : null;
+      const salesVelocity = parseFloat((totalSales / lookbackDays).toFixed(2));
 
       return {
-        total_listings,
-        total_quantity,
-        total_sales,
-        sales_velocity,
-        days_of_inventory,
+        total_listings: totalListings,
+        total_quantity: totalQuantity,
+        total_sales: totalSales,
+        sales_velocity: salesVelocity,
       };
     } else {
       return itemsForMarketplace[0]?.market_data || null;
     }
-  }, [parsedMarketData]);
+  })();
 
   // Combine all parsed data
-  const finalParsedData = useMemo(() => {
-    if (!parsedMarketData) return null;
-
-    return {
-      ...parsedMarketData,
-      listingDepthLevels,
-      salesDepthLevels,
-      listingChartData,
-      salesChartData,
-      metrics,
-    };
-  }, [
-    parsedMarketData,
+  return {
+    ...parsedMarketData,
     listingDepthLevels,
     salesDepthLevels,
     listingChartData,
     salesChartData,
     metrics,
-  ]);
-
-  console.log("Parsed market data:", finalParsedData);
-
-  if (!product) {
-    return <div>Loading...</div>;
-  }
-
-  return (
-    <div>
-      <h1>{product?.name}</h1>
-      <Image
-        src={getLargeTCGPlayerImage({ imageUrl: product.image_url, size: 800 })}
-        alt={product.name}
-        width={350}
-        height={350}
-        className="rounded-[25px] outline-2 outline-sidebar-border shadow-2xl"
-      />
-
-      {/* Market Depth Chart with Metrics */}
-      {finalParsedData && (
-        <div className="mt-6 space-y-4">
-          {/* Main metric and secondary metrics */}
-          <div className="space-y-1">
-            <div className="flex items-start gap-8">
-              {/* Primary Metric */}
-              <div className="space-y-1">
-                <span className="text-sm text-muted-foreground">
-                  Quantity Available
-                </span>
-                <h2 className="text-3xl font-bold tracking-tight">
-                  {finalParsedData.metrics?.total_quantity?.toLocaleString() ||
-                    "0"}
-                </h2>
-              </div>
-
-              {/* Secondary Metrics beside primary */}
-              {finalParsedData.metrics && (
-                <div className="flex items-start gap-6">
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">
-                      Sales velocity
-                    </span>
-                    <div className="text-lg font-semibold text-muted-foreground tabular-nums">
-                      {finalParsedData.metrics.sales_velocity} /day
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">
-                      Days of inventory
-                    </span>
-                    <div className="text-lg font-semibold text-muted-foreground tabular-nums">
-                      {finalParsedData.metrics.days_of_inventory != null
-                        ? `${finalParsedData.metrics.days_of_inventory} days`
-                        : "—"}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Chart Legend - Listings and Sales */}
-            {finalParsedData.metrics && (
-              <div className="flex items-center gap-6 mt-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: "#3B82F6" }}
-                  ></div>
-                  <span className="text-muted-foreground">Listings:</span>
-                  <span className="font-medium tabular-nums">
-                    {finalParsedData.metrics.total_listings?.toLocaleString() ||
-                      "0"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: "#F97316" }}
-                  ></div>
-                  <span className="text-muted-foreground">Sales:</span>
-                  <span className="font-medium tabular-nums">
-                    {finalParsedData.metrics.total_sales?.toLocaleString() ||
-                      "0"}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Chart */}
-          <div className="w-full">
-            <MarketDepthChart
-              listingsCumulativeDepth={finalParsedData.listingChartData}
-              salesCumulativeDepth={finalParsedData.salesChartData}
-              isLoading={!marketDepth}
-              currency="USD"
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  };
 }

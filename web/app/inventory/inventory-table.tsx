@@ -71,7 +71,7 @@ export const columns: Column<InventoryItemResponse, any>[] = [
       }
 
       const amount = lowestListingPrice.amount;
-      return <div className="font-medium text-right">$amount</div>;
+      return <div className="font-medium text-right">${amount}</div>;
     },
   },
   {
