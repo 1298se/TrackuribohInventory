@@ -269,7 +269,6 @@ async def run_sales_sync_sweep(
     request_pacer = RequestPacer()
 
     # Accumulators
-    all_sales_rows: List[SalesDataRow] = []
     successfully_synced_skus: List[uuid.UUID] = []
 
     # Track retry counts per product to prevent infinite loops
@@ -310,11 +309,28 @@ async def run_sales_sync_sweep(
                 )
             )
 
-            # Collect sales data for each SKU in the product
+            # Collect and persist sales data for each SKU in the product immediately
+            product_sales_rows: List[SalesDataRow] = []
             for sku in skus_in_product:
                 sku_sales_rows = sales_by_sku.get(sku.sku_id, [])
-                all_sales_rows.extend(sku_sales_rows)
+                product_sales_rows.extend(sku_sales_rows)
                 successfully_synced_skus.append(sku.sku_id)
+
+            # Persist this product's sales and update sync timestamps to avoid large memory accumulation
+            if product_sales_rows or skus_in_product:
+                with SessionLocal.begin() as session:
+                    if product_sales_rows:
+                        upsert_sales_listings(session, product_sales_rows)
+                    now_ts = datetime.now(timezone.utc)
+                    sync_rows: List[SyncStateRow] = [
+                        {
+                            "sku_id": sku.sku_id,
+                            "marketplace": marketplace,
+                            "last_sales_refresh_at": now_ts,
+                        }
+                        for sku in skus_in_product
+                    ]
+                    upsert_sync_timestamps(session, sync_rows)
 
             logger.debug(
                 f"Successfully processed product {product_tcgplayer_id} with {len(skus_in_product)} SKUs"
@@ -346,23 +362,6 @@ async def run_sales_sync_sweep(
 
             processing_index += 1
             continue
-
-    # Persist results using one short-lived session
-    if all_sales_rows or successfully_synced_skus:
-        with SessionLocal.begin() as session:
-            if all_sales_rows:
-                upsert_sales_listings(session, all_sales_rows)
-            if successfully_synced_skus:
-                now_ts = datetime.now(timezone.utc)
-                sync_rows: List[SyncStateRow] = [
-                    {
-                        "sku_id": sku_id,
-                        "marketplace": marketplace,
-                        "last_sales_refresh_at": now_ts,
-                    }
-                    for sku_id in successfully_synced_skus
-                ]
-                upsert_sync_timestamps(session, sync_rows)
 
     summary = {
         "total_successes": len(successfully_synced_skus),

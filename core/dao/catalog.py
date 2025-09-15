@@ -94,6 +94,7 @@ def get_all_skus_by_product_ids(
             SKU.condition_id,
             SKU.printing_id,
             SKU.language_id,
+            SKU.tcgplayer_id.label("sku_tcgplayer_id"),
         )
         .join(Product, Product.id == SKU.product_id)
         .join(Set, Set.id == Product.set_id)
@@ -111,6 +112,7 @@ def get_all_skus_by_product_ids(
             condition_id=row.condition_id,
             printing_id=row.printing_id,
             language_id=row.language_id,
+            sku_tcgplayer_id=int(row.sku_tcgplayer_id),
         )
         processing_skus.append(processing_sku)
 

@@ -41,6 +41,18 @@ class ProcessingSKU(NamedTuple):
     condition_id: uuid.UUID
     printing_id: uuid.UUID
     language_id: uuid.UUID
+    sku_tcgplayer_id: int
+
+
+class SKUResolvedMeta(NamedTuple):
+    sku_id: uuid.UUID
+    product_tcgplayer_id: int
+    last_sales_refresh_at: Optional[datetime]
+    condition_id: uuid.UUID
+    printing_id: uuid.UUID
+    language_id: uuid.UUID
+    catalog_id: uuid.UUID
+    sku_tcgplayer_id: int
 
 
 # Configuration constants
@@ -144,27 +156,27 @@ class TierCandidates:
         self, sku_ids: List[uuid.UUID]
     ) -> Dict[
         uuid.UUID,
-        Tuple[int, Optional[datetime], uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID],
+        SKUResolvedMeta,
     ]:
         """Phase 2: Batch-load metadata to compute service scores and build processing SKUs.
 
-        Returns mapping sku_id -> (product_tcgplayer_id, last_sales_refresh_at,
-                                   condition_id, printing_id, language_id, catalog_id)
+        Returns mapping sku_id -> SKUResolvedMeta
         """
         if not sku_ids:
             return {}
 
         query = (
             select(
-                SKU.id,
+                SKU.id.label("sku_id"),
                 Product.tcgplayer_id.label("product_tcgplayer_id"),
                 SKUMarketDataSyncState.last_sales_refresh_at.label(
                     "last_sales_refresh_at"
                 ),
-                SKU.condition_id,
-                SKU.printing_id,
-                SKU.language_id,
-                Set.catalog_id,
+                SKU.condition_id.label("condition_id"),
+                SKU.printing_id.label("printing_id"),
+                SKU.language_id.label("language_id"),
+                Set.catalog_id.label("catalog_id"),
+                SKU.tcgplayer_id.label("sku_tcgplayer_id"),
             )
             .join(Product, Product.id == SKU.product_id)
             .join(Set, Set.id == Product.set_id)
@@ -177,10 +189,7 @@ class TierCandidates:
             .where(Product.tcgplayer_id.isnot(None))
         )
         rows = self.session.execute(query).all()
-        metadata: Dict[
-            uuid.UUID,
-            Tuple[int, Optional[datetime], uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID],
-        ] = {}
+        metadata: Dict[uuid.UUID, SKUResolvedMeta] = {}
         for row in rows:
             (
                 sku_id,
@@ -190,15 +199,20 @@ class TierCandidates:
                 printing_id,
                 language_id,
                 catalog_id,
+                sku_tcgplayer_id,
             ) = row
-            metadata[sku_id] = (
-                int(product_tcgplayer_id),
-                last_sales_refresh_at,
-                condition_id,
-                printing_id,
-                language_id,
-                catalog_id,
+
+            metadata[sku_id] = SKUResolvedMeta(
+                sku_id=sku_id,
+                product_tcgplayer_id=int(product_tcgplayer_id),
+                last_sales_refresh_at=last_sales_refresh_at,
+                condition_id=condition_id,
+                printing_id=printing_id,
+                language_id=language_id,
+                catalog_id=catalog_id,
+                sku_tcgplayer_id=int(sku_tcgplayer_id),
             )
+
         logger.debug(f"Loaded metadata for {len(metadata)} SKUs")
         return metadata
 
@@ -275,36 +289,27 @@ class TierCandidates:
                 meta = metadata_by_sku.get(sku_id)
                 if not meta:
                     continue
-                (
-                    product_tcgplayer_id,
-                    last_sales_refresh_at,
-                    condition_id,
-                    printing_id,
-                    language_id,
-                    catalog_id,
-                ) = meta
-
                 # Store catalog IDs for ProcessingSKU later
                 self.catalog_ids_by_sku[sku_id] = (
-                    catalog_id,
-                    condition_id,
-                    printing_id,
-                    language_id,
+                    meta.catalog_id,
+                    meta.condition_id,
+                    meta.printing_id,
+                    meta.language_id,
                 )
 
                 age_norm = calculate_age_norm(
-                    last_sales_refresh_at, tier.target_interval_days
+                    meta.last_sales_refresh_at, tier.target_interval_days
                 )
                 service_score = calculate_service_score(priority_score, age_norm)
 
                 tier_candidates.append(
                     Candidate(
                         sku_id=sku_id,
-                        product_tcgplayer_id=product_tcgplayer_id,
+                        product_tcgplayer_id=meta.product_tcgplayer_id,
                         priority_score=priority_score,
                         age_norm=age_norm,
                         service_score=service_score,
-                        last_refresh_at=last_sales_refresh_at,
+                        last_refresh_at=meta.last_sales_refresh_at,
                     )
                 )
 
@@ -325,6 +330,9 @@ class TierCandidates:
                 catalog_id, condition_id, printing_id, language_id = (
                     self.catalog_ids_by_sku[candidate.sku_id]
                 )
+                # Retrieve sku_tcgplayer_id from metadata again
+                meta = metadata_by_sku.get(candidate.sku_id)
+                sku_tcgplayer_id = meta.sku_tcgplayer_id if meta else None
                 processing_sku = ProcessingSKU(
                     sku_id=candidate.sku_id,
                     product_tcgplayer_id=candidate.product_tcgplayer_id,
@@ -332,6 +340,7 @@ class TierCandidates:
                     condition_id=condition_id,
                     printing_id=printing_id,
                     language_id=language_id,
+                    sku_tcgplayer_id=sku_tcgplayer_id,
                 )
                 processing_list.append(processing_sku)
 
