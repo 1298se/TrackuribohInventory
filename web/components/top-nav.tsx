@@ -47,6 +47,7 @@ import { POKEMON_CATALOG_ID } from "@/shared/constants";
 import { useDebouncedState } from "@tanstack/react-pacer/debouncer";
 import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
 import { useRouter } from "next/navigation";
+import { EmptyState } from "@/shared/components/EmptyState";
 
 interface MenuItem {
   title: string;
@@ -408,30 +409,17 @@ export function SearchBar() {
               {shouldShowSkeleton ? (
                 <SearchResultSkeleton />
               ) : (
-                <div className="flex flex-col items-center justify-center py-12 px-8">
-                  <div className="relative mb-6">
-                    <div className="absolute inset-0 bg-muted/50 rounded-full blur-2xl scale-125" />
-                    <div className="relative bg-muted p-4 rounded-full border">
-                      <Search className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                  </div>
-
-                  <div className="text-center max-w-sm space-y-3">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      No cards found
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Try searching for a different Pokemon name or set
-                    </p>
-                  </div>
-
-                  <div className="mt-4 text-center">
-                    <p className="text-xs text-muted-foreground">
+                <EmptyState
+                  title="No cards found"
+                  description="Try searching for a different Pokemon name or set"
+                  icon={Search}
+                  action={
+                    <div className="text-xs text-muted-foreground">
                       Try &quot;Pikachu&quot;, &quot;Charizard&quot;, or
                       &quot;Base Set&quot;
-                    </p>
-                  </div>
-                </div>
+                    </div>
+                  }
+                />
               )}
             </CommandEmpty>
             <CommandGroup>
