@@ -1,10 +1,10 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { TopNav } from "@/components/top-nav";
 import { SWRConfig } from "swr";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import NextTopLoader from "nextjs-toploader";
 import Providers from "@/shared/Providers";
+import { TopNav } from "@/components/top-nav";
 
 export const metadata: Metadata = {
   title: "Create Next App",
