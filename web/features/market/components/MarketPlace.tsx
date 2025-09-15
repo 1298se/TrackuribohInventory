@@ -1,16 +1,10 @@
 "use client";
 
 import { CardContent } from "@/components/ui/card";
-<<<<<<< HEAD
-=======
-import { ProductBaseResponseSchema } from "@/app/catalog/schemas";
-import { z } from "zod";
->>>>>>> 17b1a842ad664e686a24dc87a71e7e019d916771
 import Image from "next/image";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { getLargeTCGPlayerImage } from "../utils";
-<<<<<<< HEAD
 import { useQuery } from "@tanstack/react-query";
 import { API_URL } from "@/app/api/fetcher";
 import { BuyDecisionsResponseSchemaType } from "../schemas";
@@ -48,23 +42,10 @@ export function MarketPlace() {
   return (
     <section className="flex flex-col gap-4 m-8">
       <DisplayCardsSection cards={cardDecisions} isLoading={isLoading} />
-=======
-
-type ProductBaseResponseType = z.infer<typeof ProductBaseResponseSchema>;
-
-export function MarketPlace() {
-  // Pass empty array since search is now handled in the top nav
-  const products: ProductBaseResponseType[] = [];
-
-  return (
-    <section className="flex flex-col gap-4 m-8">
-      <DisplayCardsSection products={products} />
->>>>>>> 17b1a842ad664e686a24dc87a71e7e019d916771
     </section>
   );
 }
 
-<<<<<<< HEAD
 type DisplayCardProps = {
   decisionId: string;
   productId: string;
@@ -78,8 +59,6 @@ type DisplayCardProps = {
   price: number;
 };
 
-=======
->>>>>>> 17b1a842ad664e686a24dc87a71e7e019d916771
 function DisplayCardsSection({
   cards,
   isLoading,
