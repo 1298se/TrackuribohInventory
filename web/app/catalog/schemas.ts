@@ -63,10 +63,16 @@ export const ProductBaseResponseSchema = z.object({
   number: z.string().nullable(),
 });
 
+export type ProductBaseResponseSchemaType = z.infer<
+  typeof ProductBaseResponseSchema
+>;
+
 export const ProductWithSetAndSKUsResponseSchema =
   ProductBaseResponseSchema.extend({
     set: SetBaseResponseSchema,
-    skus: z.array(SKUBaseSchema),
+    skus: z.array(
+      SKUBaseSchema.extend({ lowest_listing_price_total: z.number() })
+    ),
   });
 export type ProductWithSetAndSKUs = z.infer<
   typeof ProductWithSetAndSKUsResponseSchema
@@ -162,4 +168,7 @@ export type SKUMarketDataItem = z.infer<typeof SKUMarketDataItemSchema>;
 export const MarketDataResponseSchema = z.object({
   market_data_items: z.array(SKUMarketDataItemSchema),
 });
-export type MarketDataResponse = z.infer<typeof MarketDataResponseSchema>;
+
+export type MarketDataResponseSchemaType = z.infer<
+  typeof MarketDataResponseSchema
+>;

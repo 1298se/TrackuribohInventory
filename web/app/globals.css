@@ -264,7 +264,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-[#191919] text-foreground;
+    @apply bg-background text-foreground;
   }
 }
 

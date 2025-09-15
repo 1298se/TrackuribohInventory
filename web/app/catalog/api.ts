@@ -7,7 +7,6 @@ import {
   ProductWithSetAndSKUsResponseSchema,
   SKUMarketDataItem,
   MarketDataResponseSchema,
-  MarketDataResponse,
 } from "./schemas";
 import { UUID } from "crypto";
 
