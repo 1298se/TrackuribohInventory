@@ -451,11 +451,17 @@ async def process_product_with_request_slot(
         # Get sales data for this SKU (from pre-loaded cache)
         sku_sales_data = sales_data_by_sku.get(sku.sku_id, [])
 
+        sku_listings = [
+            listing
+            for listing in listings_responses
+            if int(listing.productConditionId) == int(sku.sku_tcgplayer_id)
+        ]
+
         # Create market data for decision computation
         market_data = MarketData(
             sku_id=sku.sku_id,
             marketplace=marketplace,
-            listings=listings_responses,
+            listings=sku_listings,
             sales=sku_sales_data,
             asof_listings=asof_listings,
             asof_sales=asof_sales,
@@ -469,7 +475,7 @@ async def process_product_with_request_slot(
                 sku_id=sku.sku_id,
                 buy_decision=decision,
                 sales_count=sum(int(s.quantity) for s in sku_sales_data),
-                listings_count=len(listings_responses),
+                listings_count=len(sku_listings),
                 decision=decision.decision.value,
                 quantity=decision.quantity,
                 buy_vwap=decision.buy_vwap,
@@ -495,8 +501,8 @@ async def run_purchase_decision_sweep(
     Returns:
         None
     """
-    start_time = datetime.now(timezone.utc)
-    total_sku_count = len(processing_list)
+    datetime.now(timezone.utc)
+    len(processing_list)
 
     # Configure request pacer with defaults (burst-only)
     request_pacer = RequestPacer()
@@ -614,54 +620,10 @@ async def run_purchase_decision_sweep(
                 await request_pacer.cooldown()
             processing_index += 1
             continue
-        except Exception as e:
-            failures += 1
-            logger.warning(
-                f"Unexpected error processing product {product_group.product_tcgplayer_id}: {e}"
-            )
-            processing_index += 1
-            continue
 
-    # Final flush
     if all_decisions:
         with SessionLocal.begin() as session:
             insert_buy_decisions(session, all_decisions)
-
-    # Calculate performance metrics
-    end_time = datetime.now(timezone.utc)
-    duration_seconds = (end_time - start_time).total_seconds()
-    requests_per_second = total_successes / max(1, duration_seconds)
-
-    # Count overall decision metrics
-    buy_decisions = len([r for r in results if r.decision == "BUY"])
-    pass_decisions = len([r for r in results if r.decision == "PASS"])
-
-    # Compile results with decision metrics and performance data
-    {
-        "total_successes": total_successes,
-        "target_successes": total_sku_count,
-        "served_skus_count": len(served_skus),
-        "burst_size": request_pacer.current_burst_size,
-        "burst_duration_seconds": request_pacer.burst_duration_seconds,
-        "burst_pause_seconds": request_pacer.burst_pause_seconds,
-        "duration_seconds": duration_seconds,
-        "requests_per_second": requests_per_second,
-        "tier_results": {
-            "overall": {
-                "delivered": len(results),
-                "failures": failures,
-                "total_attempts": len(results) + failures,
-                "buy_decisions": buy_decisions,
-                "pass_decisions": pass_decisions,
-            }
-        },
-        "decision_metrics": {"BUY": buy_decisions, "PASS": pass_decisions},
-    }
-
-    # Log processing statistics
-    logger.debug(
-        f"Processing completed: {len(served_skus)} SKUs processed, {total_successes} successful"
-    )
 
     logger.info("Purchase decision sweep completed")
     return None
