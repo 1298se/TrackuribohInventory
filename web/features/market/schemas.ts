@@ -1,40 +1,7 @@
 import { z } from "zod";
 import { MoneySchema, MoneyAmountSchema } from "../../app/schemas";
 import { TransactionTypeSchema } from "../../app/transactions/schemas";
-import {
-  SKUWithProductResponseSchema,
-  ProductSearchResponseSchema, // Keep if needed, otherwise remove
-  ProductWithSetAndSKUsResponseSchema,
-  CatalogSchema, // Import moved Catalog schemas
-  CatalogsResponseSchema, // Import moved Catalog schemas
-} from "../../app/catalog/schemas";
-
-/* -----------------------------------------------------
- * 1) Primitive Enums
- * ----------------------------------------------------- */
-// REMOVED ProductTypeSchema definition
-
-/* -----------------------------------------------------
- * 2) Basic Schemas (used by others)
- * ----------------------------------------------------- */
-
-// REMOVED ConditionResponseSchema definition
-// REMOVED PrintingResponseSchema definition
-// REMOVED LanguageResponseSchema definition
-
-/* -----------------------------------------------------
- * 3) Product, SKU, and Set Schemas
- * ----------------------------------------------------- */
-
-// REMOVED SetBaseResponseSchema definition
-// REMOVED SKUBaseResponseSchema definition
-// REMOVED ProductWithSetAndSKUsResponseSchema definition
-// REMOVED SKUWithProductResponseSchema definition
-// REMOVED ProductSearchResponseSchema definition
-
-/* -----------------------------------------------------
- * 5) Inventory Schemas
- * ----------------------------------------------------- */
+import { SKUWithProductResponseSchema } from "../../app/catalog/schemas";
 
 // Price History Item Schema (needs to be defined first)
 export const InventoryPriceHistoryItemSchema = z.object({
@@ -144,7 +111,7 @@ export type InventoryPriceHistoryResponse = z.infer<
 >;
 
 /* -----------------------------------------------------
- * 8) Inventory SKU Marketplaces Schema
+ * Inventory SKU Marketplaces Schema
  * ----------------------------------------------------- */
 
 export const InventorySkuMarketplacesResponseSchema = z.object({
@@ -153,4 +120,34 @@ export const InventorySkuMarketplacesResponseSchema = z.object({
 
 export type InventorySkuMarketplacesResponse = z.infer<
   typeof InventorySkuMarketplacesResponseSchema
+>;
+
+export const MarketplaceSchema = z.enum(["TCGPLAYER"]);
+
+export const DecisionSchema = z.enum(["BUY", "PASS"]);
+
+export const BuyDecisionResponseSchema = z.object({
+  id: z.string(),
+  sku: SKUWithProductResponseSchema,
+  decision: DecisionSchema,
+  quantity: z.number(),
+  buy_vwap: MoneyAmountSchema,
+  expected_resale_net: MoneyAmountSchema,
+  asof_listings: z.string().transform((val) => new Date(val)),
+  asof_sales: z.string().transform((val) => new Date(val)),
+  reason_codes: z.array(z.string()),
+  created_at: z.string().transform((val) => new Date(val)),
+});
+
+export const BuyDecisionsResponseSchema = z.object({
+  decisions: z.array(BuyDecisionResponseSchema),
+  total_count: z.number(),
+  filters_applied: z.record(z.any()),
+});
+
+export type BuyDecisionResponseSchemaType = z.infer<
+  typeof BuyDecisionResponseSchema
+>;
+export type BuyDecisionsResponseSchemaType = z.infer<
+  typeof BuyDecisionsResponseSchema
 >;

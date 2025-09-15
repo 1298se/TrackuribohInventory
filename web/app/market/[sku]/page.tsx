@@ -40,7 +40,10 @@ export default function ProductSKUDetailsPage() {
     queryFn: () => fetchProduct(sku),
   });
 
-  const nearMintSku = product ? findFirstNearMintSku(product.skus) : null;
+  const nearMintSku =
+    product && product.skus?.length > 0
+      ? findFirstNearMintSku(product.skus)
+      : null;
 
   const { data: marketDepth } = useQuery<MarketDataResponseSchemaType>({
     queryKey: ["marketDepth", sku],
