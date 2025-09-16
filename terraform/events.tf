@@ -232,6 +232,7 @@ resource "aws_cloudwatch_event_target" "ecs_compute_sku_listing_data_refresh_pri
 resource "aws_cloudwatch_event_rule" "purchase_decision_sweep_event" {
   name        = "${var.project_name}-purchase-decision-sweep-rule"
   description = "Triggered by compute_sku_listing_data_refresh_priority completion to start purchase decision sweep"
+  is_enabled  = false
   
   event_pattern = jsonencode({
     source      = ["codex.jobs"]
