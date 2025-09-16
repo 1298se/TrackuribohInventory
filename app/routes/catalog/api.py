@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from core.auth import get_current_user
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session, joinedload
-import uuid
 
 from app.routes.catalog.schemas import (
     CatalogsResponseSchema,
@@ -10,7 +8,6 @@ from app.routes.catalog.schemas import (
     ProductWithSetAndSKUsResponseSchema,
     ProductSearchResponseSchema,
     ProductTypesResponseSchema,
-    MarketDataResponseSchema,
 )
 from core.database import get_db_session
 from core.models.catalog import Product, SKU
@@ -19,7 +16,6 @@ from core.models.catalog import Set
 from core.models.price import SKULatestPrice, Marketplace
 from core.services.schemas.schema import ProductType
 from core.dao.catalog import build_product_search_query
-from core.services import market_data_service
 
 router = APIRouter(
     prefix="/catalog",
@@ -30,17 +26,13 @@ router = APIRouter(
 async def get_product(product_id: str, session: Session = Depends(get_db_session)):
     # Use a single query with LEFT JOIN to get product, SKUs, and prices efficiently
     result = session.execute(
-        select(
-            Product,
-            SKU,
-            SKULatestPrice.lowest_listing_price_total
-        )
+        select(Product, SKU, SKULatestPrice.lowest_listing_price_total)
         .select_from(Product)
         .join(Product.skus)
         .outerjoin(
             SKULatestPrice,
-            (SKULatestPrice.sku_id == SKU.id) & 
-            (SKULatestPrice.marketplace == Marketplace.TCGPLAYER)
+            (SKULatestPrice.sku_id == SKU.id)
+            & (SKULatestPrice.marketplace == Marketplace.TCGPLAYER),
         )
         .options(
             joinedload(Product.set),
@@ -56,13 +48,13 @@ async def get_product(product_id: str, session: Session = Depends(get_db_session
 
     # Group results by product and build the response
     product = result[0][0]  # First row, first column (Product)
-    
+
     # Create a mapping of sku_id to price
     price_map = {}
     for _, sku, price in result:
         if price is not None:
             price_map[sku.id] = float(price)
-    
+
     # Add price data to each SKU
     for sku in product.skus:
         sku.lowest_listing_price_total = price_map.get(sku.id)
@@ -104,9 +96,7 @@ def search_products(
 
     # Execute paginated query
     results = session.scalars(
-        paginated_query.options(
-            *ProductWithSetAndSKUsResponseSchema.get_load_options()
-        )
+        paginated_query.options(*ProductWithSetAndSKUsResponseSchema.get_load_options())
     ).all()
 
     # Calculate pagination metadata
@@ -119,7 +109,7 @@ def search_products(
         page=page,
         limit=limit,
         has_next=has_next,
-        has_prev=has_prev
+        has_prev=has_prev,
     )
 
 
@@ -139,54 +129,3 @@ def get_catalogs(session: Session = Depends(get_db_session)):
 def get_product_types(session: Session = Depends(get_db_session)):
     # Assuming ProductType is an Enum, return its values.
     return ProductTypesResponseSchema(product_types=list(ProductType))
-
-
-@router.get(
-    "/product/{product_id}/market-data",
-    response_model=MarketDataResponseSchema,
-    summary="Get market data for all Near Mint/Unopened SKUs of a Product",
-)
-async def get_product_market_data(
-    product_id: uuid.UUID,
-    sales_lookback_days: int = 30,
-    session: Session = Depends(get_db_session),
-):
-    """
-    Return market data for each **Near Mint or Unopened** SKU
-    associated with the product.
-    Includes aggregated metrics like total listings, total quantity,
-    sales velocity, and estimated days of inventory.
-    """
-    # Call the refactored service function from the new service module
-    market_data = await market_data_service.get_market_data_for_product(
-        session=session,
-        product_id=product_id,
-        sales_lookback_days=sales_lookback_days,
-    )
-    return MarketDataResponseSchema(**market_data)
-
-
-@router.get(
-    "/sku/{sku_id}/market-data",
-    response_model=MarketDataResponseSchema,
-    summary="Get market-depth data for a SKU variant",
-)
-async def get_sku_market_data(
-    sku_id: uuid.UUID,
-    sales_lookback_days: int = 30,
-    session: Session = Depends(get_db_session),
-):
-    """
-    Return market data for a specific SKU variant.
-    Now calls the dedicated service function.
-    """
-    # Delegate to service which returns a MarketDataResponse-like dict
-    market_data = await market_data_service.get_market_data_for_sku(
-        session=session,
-        sku_id=sku_id,
-        sales_lookback_days=sales_lookback_days,
-    )
-    return MarketDataResponseSchema(**market_data)
-
-
-

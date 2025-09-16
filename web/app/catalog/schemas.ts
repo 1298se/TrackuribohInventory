@@ -71,7 +71,7 @@ export const ProductWithSetAndSKUsResponseSchema =
   ProductBaseResponseSchema.extend({
     set: SetBaseResponseSchema,
     skus: z.array(
-      SKUBaseSchema.extend({ lowest_listing_price_total: z.number() })
+      SKUBaseSchema.extend({ lowest_listing_price_total: z.number() }),
     ),
   });
 export type ProductWithSetAndSKUs = z.infer<
@@ -126,49 +126,3 @@ export const CatalogsResponseSchema = z.object({
 
 export type Catalog = z.infer<typeof CatalogSchema>;
 export type CatalogsResponse = z.infer<typeof CatalogsResponseSchema>;
-
-/* -----------------------------------------------------
- * 6) Market Data Schemas
- * ----------------------------------------------------- */
-// Market Data Schemas
-export const CumulativeDepthLevelSchema = z.object({
-  price: z.number(),
-  cumulative_count: z.number(), // Use snake_case from backend
-});
-export type CumulativeDepthLevel = z.infer<typeof CumulativeDepthLevelSchema>;
-
-// Schema for cumulative sales depth levels
-export const SaleCumulativeDepthLevelSchema = z.object({
-  price: z.number(),
-  cumulative_count: z.number(),
-});
-export type SaleCumulativeDepthLevel = z.infer<
-  typeof SaleCumulativeDepthLevelSchema
->;
-
-export const SKUMarketDataSchema = z.object({
-  total_listings: z.number(),
-  total_quantity: z.number(),
-  total_sales: z.number(),
-  sales_velocity: z.number(),
-  days_of_inventory: z.number().nullable().optional(),
-  cumulative_depth_levels: z.array(CumulativeDepthLevelSchema),
-  cumulative_sales_depth_levels: z.array(SaleCumulativeDepthLevelSchema),
-});
-export type SKUMarketData = z.infer<typeof SKUMarketDataSchema>;
-
-export const SKUMarketDataItemSchema = z.object({
-  marketplace: z.string(),
-  sku: SKUBaseSchema,
-  market_data: SKUMarketDataSchema,
-});
-export type SKUMarketDataItem = z.infer<typeof SKUMarketDataItemSchema>;
-
-// Rename to match backend MarketDataResponseSchema
-export const MarketDataResponseSchema = z.object({
-  market_data_items: z.array(SKUMarketDataItemSchema),
-});
-
-export type MarketDataResponseSchemaType = z.infer<
-  typeof MarketDataResponseSchema
->;

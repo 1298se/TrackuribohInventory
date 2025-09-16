@@ -5,9 +5,12 @@ import {
   ProductSearchResponse,
   ProductSearchResponseSchema,
   ProductWithSetAndSKUsResponseSchema,
+} from "./schemas";
+import {
   SKUMarketDataItem,
   MarketDataResponseSchema,
-} from "./schemas";
+  MarketDataResponseSchemaType as MarketDataResponse,
+} from "@/app/market/schemas";
 import { UUID } from "crypto";
 
 // Define the type inferred from the schema
@@ -20,11 +23,11 @@ type ProductDetailType = z.infer<typeof ProductWithSetAndSKUsResponseSchema>;
 export function useSkuMarketData(
   skuId: string | null,
   salesLookbackDays: number = 30,
-  token: string
+  token: string,
 ) {
   // Key for SWR: [path, params]
   const key: string | null = skuId
-    ? `/catalog/sku/${skuId}/market-data?sales_lookback_days=${salesLookbackDays}`
+    ? `/market/skus/${skuId}?sales_lookback_days=${salesLookbackDays}`
     : null;
 
   const {
@@ -41,7 +44,7 @@ export function useSkuMarketData(
         schema: MarketDataResponseSchema,
         token,
       });
-    }
+    },
   );
 
   return {
@@ -59,7 +62,7 @@ export function useProductSearch(
   catalogId: string | null = null,
   token: string,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
 ) {
   // Prepare query params (always include `query`, even if empty)
   const params: Record<string, string> = {
@@ -89,7 +92,7 @@ export function useProductSearch(
         schema: ProductSearchResponseSchema,
         token,
       });
-    }
+    },
   );
 
   return { data, error, isLoading };
@@ -133,11 +136,11 @@ export function useProductDetail(productId: UUID | undefined, token: string) {
 export function useProductMarketData(
   productId: UUID | undefined,
   salesLookbackDays: number = 30,
-  token: string
+  token: string,
 ) {
   // Key for SWR: path string or null if productId is undefined
   const key: string | null = productId
-    ? `/catalog/product/${productId}/market-data?sales_lookback_days=${salesLookbackDays}` // Updated endpoint with sales_lookback_days
+    ? `/market/products/${productId}?sales_lookback_days=${salesLookbackDays}` // Updated endpoint with sales_lookback_days
     : null;
 
   const { data, error, isValidating } = useSWR<

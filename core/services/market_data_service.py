@@ -1,6 +1,6 @@
 import uuid
 from collections import defaultdict
-from typing import List, Dict, Any, TypedDict, Optional
+from typing import List, Dict, Any, Optional
 from datetime import timedelta
 import math
 import statistics
@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 
 from core.models.catalog import SKU  # Import necessary models
+from core.models.price import Marketplace
 from core.services.tcgplayer_listing_service import (
     CardSaleResponse,
     get_product_active_listings,
@@ -19,20 +20,31 @@ from core.services.tcgplayer_listing_service import (
     SKUListingResponse,
 )
 
-# Import necessary schemas from app routes (consider moving to core.schemas later if needed)
-from app.routes.catalog.schemas import (
-    SKUMarketDataResponseSchema,
-    SKUMarketDataItemResponseSchema,
-    CumulativeDepthLevelResponseSchema,
-    SaleCumulativeDepthLevelResponseSchema,
-)
+# Service DTOs - using frozen dataclasses for immutable data transfer objects
+from dataclasses import dataclass
 
 
-# Define TypedDict for the return value of get_market_data_for_product
-class ProductMarketDataResult(TypedDict):
-    """Results returned from get_market_data_for_product containing only items."""
+# Service DTOs - frozen dataclasses for immutable data transfer
+@dataclass(frozen=True)
+class CumulativeDepthLevel:
+    """Represents a price level with cumulative count."""
 
-    market_data_items: List[SKUMarketDataItemResponseSchema]
+    price: float
+    cumulative_count: int
+
+
+@dataclass(frozen=True)
+class SKUMarketData:
+    """Market data for a single SKU in one marketplace."""
+
+    sku_id: str
+    total_listings: int
+    total_quantity: int
+    total_sales: int
+    sales_velocity: float
+    cumulative_depth_levels: List[CumulativeDepthLevel]
+    cumulative_sales_depth_levels: List[CumulativeDepthLevel]
+    days_of_inventory: Optional[float] = None
 
 
 def _prune_price_outliers(
@@ -90,7 +102,7 @@ def _prune_price_outliers(
 
 def calculate_cumulative_depth_levels(
     listing_events: List[SKUListingResponse],
-) -> List[CumulativeDepthLevelResponseSchema]:
+) -> List[CumulativeDepthLevel]:
     """
     Helper function to calculate cumulative depth levels from a list of listing events.
     """
@@ -111,9 +123,7 @@ def calculate_cumulative_depth_levels(
     for price in sorted(depth_map.keys()):
         current_cumulative_count += depth_map[price]
         cumulative_depth_levels.append(
-            CumulativeDepthLevelResponseSchema(
-                price=price, cumulative_count=current_cumulative_count
-            )
+            CumulativeDepthLevel(price=price, cumulative_count=current_cumulative_count)
         )
 
     return cumulative_depth_levels
@@ -122,7 +132,7 @@ def calculate_cumulative_depth_levels(
 # Add helper for cumulative sales depth levels
 def calculate_cumulative_sales_depth_levels(
     sales_records: List[CardSaleResponse],
-) -> List[SaleCumulativeDepthLevelResponseSchema]:
+) -> List[CumulativeDepthLevel]:
     """
     Helper function to calculate cumulative depth levels from a list of sale records.
     Sales are accumulated from highest price to lowest price (different from listings).
@@ -139,13 +149,13 @@ def calculate_cumulative_sales_depth_levels(
         if quantity > 0:
             depth_map[price] += quantity
 
-    cumulative_sales_depth_levels: List[SaleCumulativeDepthLevelResponseSchema] = []
+    cumulative_sales_depth_levels: List[CumulativeDepthLevel] = []
     current_cumulative_count = 0
     # Reverse sort (descending) to accumulate from highest price to lowest price
     for price in sorted(depth_map.keys(), reverse=True):
         current_cumulative_count += depth_map[price]
         cumulative_sales_depth_levels.append(
-            SaleCumulativeDepthLevelResponseSchema(
+            CumulativeDepthLevel(
                 price=price,
                 cumulative_count=current_cumulative_count,
             )
@@ -184,8 +194,8 @@ def _build_sku_item(
     sales_records: List[CardSaleResponse],
     marketplace: str = "TCGPlayer",
     sales_lookback_days: int = 7,
-) -> SKUMarketDataItemResponseSchema:
-    """Helper to build a SKUMarketDataItemResponseSchema for one SKU & marketplace."""
+) -> SKUMarketData:
+    """Helper to build SKUMarketData for one SKU & marketplace."""
     # Apply outlier detection to listings before calculating depth levels
     pruned_listings = _prune_price_outliers(listings)
 
@@ -195,7 +205,9 @@ def _build_sku_item(
     total_listings, total_quantity, total_sales, sales_velocity, days_of_inventory = (
         _compute_aggregated_metrics(listings, sales_records, sales_lookback_days)
     )
-    market_data = SKUMarketDataResponseSchema(
+
+    return SKUMarketData(
+        sku_id=str(sku.id),
         total_listings=total_listings,
         total_quantity=total_quantity,
         total_sales=total_sales,
@@ -204,18 +216,13 @@ def _build_sku_item(
         cumulative_depth_levels=depth_levels,
         cumulative_sales_depth_levels=sales_depth_levels,
     )
-    return SKUMarketDataItemResponseSchema(
-        marketplace=marketplace,
-        sku=sku,
-        market_data=market_data,
-    )
 
 
 async def get_market_data_for_sku(
     session: Session,
     sku_id: uuid.UUID,
     sales_lookback_days: int = 30,
-) -> ProductMarketDataResult:
+) -> Dict[Marketplace, List[SKUMarketData]]:
     """
     Fetches market data (cumulative depth + summary) for a specific SKU ID.
     Raises HTTPException if SKU not found.
@@ -278,14 +285,14 @@ async def get_market_data_for_sku(
         marketplace="TCGPlayer",
         sales_lookback_days=sales_lookback_days,
     )
-    return {"market_data_items": [item]}
+    return {Marketplace.TCGPLAYER: [item]}
 
 
 async def get_market_data_for_product(
     session: Session,
     product_id: uuid.UUID,
     sales_lookback_days: int = 30,
-) -> ProductMarketDataResult:
+) -> Dict[Marketplace, List[SKUMarketData]]:
     """
     Fetches market data for each SKU of a product, structured per marketplace.
     Makes a single API call for all SKUs to improve performance.
@@ -306,7 +313,7 @@ async def get_market_data_for_product(
 
     if not skus:
         print(f"No SKUs found for product: {product_id}")
-        return {"market_data_items": []}
+        return {}
 
     # 2. Prepare for API request
 
@@ -375,6 +382,6 @@ async def get_market_data_for_product(
                 continue
     except Exception as e:
         print(f"Error fetching listings for product {product_id}: {e}")
-        return {"market_data_items": []}
+        return {}
 
-    return {"market_data_items": results}
+    return {Marketplace.TCGPLAYER: results}

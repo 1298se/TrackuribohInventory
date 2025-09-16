@@ -1,9 +1,7 @@
 "use client";
 
-import {
-  MarketDataResponseSchemaType,
-  ProductWithSetAndSKUsResponse,
-} from "@/app/catalog/schemas";
+import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
+import { MarketDataResponseSchemaType } from "@/app/market/schemas";
 import { getLargeTCGPlayerImage } from "@/features/market/utils";
 import { fetchProduct, fetchMarketData } from "@/features/market/api";
 import { useQuery } from "@tanstack/react-query";
@@ -397,7 +395,7 @@ function MarketDepthChartCard({
 }
 
 function parseMarketData(
-  marketDepth: MarketDataResponseSchemaType | undefined
+  marketDepth: MarketDataResponseSchemaType | undefined,
 ) {
   if (!marketDepth?.market_data_items) return null;
 
@@ -408,14 +406,14 @@ function parseMarketData(
     new Set(
       data
         .filter((i) => i.sku.condition.abbreviation !== "NM")
-        .map((i) => i.marketplace)
-    )
+        .map((i) => i.marketplace),
+    ),
   );
 
   // For now, let's use the first marketplace (you can add marketplace selection later)
   const selectedMarketplace = marketplaces[0] || "";
   const itemsForMarketplace = data.filter(
-    (i) => i.marketplace === selectedMarketplace
+    (i) => i.marketplace === selectedMarketplace,
   );
 
   // Get SKUs for the selected marketplace
@@ -448,7 +446,7 @@ function parseMarketData(
             const delta = cumulative_count - prev;
             rawMap.set(price, (rawMap.get(price) || 0) + delta);
             prev = cumulative_count;
-          }
+          },
         );
       });
       const sorted = Array.from(rawMap.keys()).sort((a, b) => a - b);
@@ -479,7 +477,7 @@ function parseMarketData(
             const delta = cumulative_count - prev;
             rawMap.set(price, (rawMap.get(price) || 0) + delta);
             prev = cumulative_count;
-          }
+          },
         );
       });
       const sorted = Array.from(rawMap.keys()).sort((a, b) => a - b);
@@ -501,7 +499,7 @@ function parseMarketData(
     ({ price, cumulative_count }) => ({
       price,
       cumulativeCount: cumulative_count,
-    })
+    }),
   );
 
   const salesChartData = (() => {
@@ -509,7 +507,7 @@ function parseMarketData(
 
     // Find the maximum cumulative count to reverse the sales data
     const maxCount = Math.max(
-      ...salesDepthLevels.map((d) => d.cumulative_count)
+      ...salesDepthLevels.map((d) => d.cumulative_count),
     );
 
     return salesDepthLevels.map(({ price, cumulative_count }) => ({
@@ -527,15 +525,15 @@ function parseMarketData(
     if (isAggregated) {
       const totalListings = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_listings,
-        0
+        0,
       );
       const totalQuantity = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_quantity,
-        0
+        0,
       );
       const totalSales = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_sales,
-        0
+        0,
       );
 
       // Calculate true sales velocity: total sales / lookback days
