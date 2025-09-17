@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from types import MappingProxyType
 from typing import List, TypedDict, Any, Optional
 
@@ -6,6 +7,7 @@ import aiohttp
 from pydantic import BaseModel
 
 from core.environment import get_environment
+from core.services.tcgplayer_types import TCGPlayerListing, TCGPlayerSale
 
 
 class CardListingRequestData(TypedDict, total=False):
@@ -36,8 +38,8 @@ class CardSaleResponse(BaseModel):
     title: str
     listingType: str
     customListingId: str
-    purchasePrice: float
-    shippingPrice: float
+    purchasePrice: Decimal
+    shippingPrice: Decimal
     orderDate: datetime
 
 
@@ -49,40 +51,6 @@ class CardSalesResponse(BaseModel):
     resultCount: int
     totalResults: int
     data: List[CardSaleResponse]
-
-
-class SKUListingResponse(BaseModel):
-    """Individual listing item from TCGPlayer listings API."""
-
-    directProduct: bool
-    goldSeller: bool
-    listingId: float
-    channelId: float
-    conditionId: float
-    verifiedSeller: bool
-    directInventory: float
-    rankedShippingPrice: float
-    productId: float
-    printing: str
-    languageAbbreviation: str
-    sellerName: str
-    forwardFreight: bool
-    sellerShippingPrice: float
-    language: str
-    shippingPrice: float
-    condition: str
-    languageId: float
-    score: float
-    directSeller: bool
-    productConditionId: float
-    sellerId: str
-    listingType: str
-    sellerRating: float
-    sellerSales: str
-    quantity: float
-    sellerKey: str
-    price: float
-    customData: Any
 
 
 LISTING_PAGINATION_SIZE = 50
@@ -175,10 +143,61 @@ def get_sales_request_payload(
     return payload
 
 
+def _convert_listing_to_dto(listing: "ListingSchema") -> TCGPlayerListing:
+    """Convert Pydantic ListingSchema to DTO."""
+    return TCGPlayerListing(
+        price=listing.price,
+        shipping_price=listing.shippingPrice,
+        quantity=listing.quantity,
+        listing_id=listing.listingId,
+        product_id=listing.productId,
+        product_condition_id=listing.productConditionId,
+        condition=listing.condition,
+        printing=listing.printing,
+        language=listing.language,
+        language_abbreviation=listing.languageAbbreviation,
+        language_id=listing.languageId,
+        seller_id=listing.sellerId,
+        seller_name=listing.sellerName,
+        seller_rating=listing.sellerRating,
+        seller_sales=listing.sellerSales,
+        seller_key=listing.sellerKey,
+        channel_id=listing.channelId,
+        condition_id=listing.conditionId,
+        listing_type=listing.listingType,
+        gold_seller=listing.goldSeller,
+        verified_seller=listing.verifiedSeller,
+        direct_seller=listing.directSeller,
+        direct_product=listing.directProduct,
+        direct_inventory=listing.directInventory,
+        ranked_shipping_price=listing.rankedShippingPrice,
+        seller_shipping_price=listing.sellerShippingPrice,
+        forward_freight=listing.forwardFreight,
+        score=listing.score,
+        custom_data=listing.customData,
+    )
+
+
+def _convert_sale_to_dto(sale: CardSaleResponse) -> TCGPlayerSale:
+    """Convert Pydantic CardSaleResponse to DTO."""
+    return TCGPlayerSale(
+        purchase_price=sale.purchasePrice,
+        shipping_price=sale.shippingPrice,
+        quantity=sale.quantity,
+        order_date=sale.orderDate,
+        condition=sale.condition,
+        variant=sale.variant,
+        language=sale.language,
+        title=sale.title,
+        listing_type=sale.listingType,
+        custom_listing_id=sale.customListingId,
+    )
+
+
 # Define Pydantic schemas for TCGPlayer listings API response
 class AggregationItemSchema(BaseModel):
     value: Any
-    count: float
+    count: int
 
 
 class AggregationsSchema(BaseModel):
@@ -191,32 +210,32 @@ class AggregationsSchema(BaseModel):
 class ListingSchema(BaseModel):
     directProduct: bool
     goldSeller: bool
-    listingId: float
-    channelId: float
-    conditionId: float
+    listingId: int
+    channelId: int
+    conditionId: int
     verifiedSeller: bool
-    directInventory: float
-    rankedShippingPrice: float
-    productId: float
+    directInventory: int
+    rankedShippingPrice: Decimal
+    productId: int
     printing: str
     languageAbbreviation: str
     sellerName: str
     forwardFreight: bool
-    sellerShippingPrice: float
+    sellerShippingPrice: Decimal
     language: str
-    shippingPrice: float
+    shippingPrice: Decimal
     condition: str
-    languageId: float
+    languageId: int
     score: float
     directSeller: bool
-    productConditionId: float
+    productConditionId: int
     sellerId: str
     listingType: str
     sellerRating: float
     sellerSales: str
-    quantity: float
+    quantity: int
     sellerKey: str
-    price: float
+    price: Decimal
     customData: Any
 
 
@@ -234,10 +253,10 @@ class TCGPlayerListingsResponseSchema(BaseModel):
 
 async def get_product_active_listings(
     request: CardListingRequestData,
-) -> list[SKUListingResponse]:
+) -> list[TCGPlayerListing]:
     """Fetch all active listings for a product using aiohttp asynchronously."""
     product_id = request["product_id"]
-    listings: dict[float, SKUListingResponse] = {}
+    listings: dict[int, TCGPlayerListing] = {}
     url = BASE_LISTINGS_URL % product_id
     cur_offset = 0
 
@@ -255,15 +274,15 @@ async def get_product_active_listings(
                 response.raise_for_status()
                 raw = await response.json()
             # Validate and parse raw API response
-            parsed = TCGPlayerListingsResponseSchema.parse_obj(raw)
+            parsed = TCGPlayerListingsResponseSchema.model_validate(raw)
             page = parsed.results[0]
             total_listings = page.totalResults
             results = page.results
 
-            # Convert each ListingSchema into a Pydantic SKUListingResponse
+            # Convert each ListingSchema into a DTO
             for listing in results:
-                instance = SKUListingResponse.parse_obj(listing.dict())
-                listings[listing.listingId] = instance
+                dto = _convert_listing_to_dto(listing)
+                listings[listing.listingId] = dto
 
             cur_offset += len(results)
             if cur_offset >= total_listings:
@@ -274,9 +293,9 @@ async def get_product_active_listings(
 
 async def get_sales(
     request: CardSaleRequestData, time_delta: timedelta
-) -> list[CardSaleResponse]:
+) -> list[TCGPlayerSale]:
     """Fetch recent sales for a product within time_delta using aiohttp asynchronously."""
-    sales: list[CardSaleResponse] = []
+    sales: list[TCGPlayerSale] = []
     url = BASE_SALES_URL % request["product_id"]
 
     async with aiohttp.ClientSession(headers=BASE_HEADERS) as session:
@@ -293,13 +312,14 @@ async def get_sales(
                 response.raise_for_status()
                 raw = await response.json()
             # Parse with Pydantic to convert orderDate to datetime
-            parsed = CardSalesResponse.parse_obj(raw)
+            parsed = CardSalesResponse.model_validate(raw)
 
             has_new_sales = True
             for sale in parsed.data:
                 # sale.orderDate is already a datetime
                 if sale.orderDate >= datetime.now(timezone.utc) - time_delta:
-                    sales.append(sale)
+                    dto = _convert_sale_to_dto(sale)
+                    sales.append(dto)
                 else:
                     has_new_sales = False
 

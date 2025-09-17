@@ -7,7 +7,7 @@ from sqlalchemy import select, desc, func
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 
-from core.models.listings import SalesListing
+from core.models.listings import SaleRecord
 from core.models.price import Marketplace
 
 
@@ -25,7 +25,7 @@ class SalesDataRow(TypedDict):
 def upsert_sales_listings(
     session: Session,
     sales_data: List[SalesDataRow],
-) -> List[SalesListing]:
+) -> List[SaleRecord]:
     """
     Upsert sales listings for any SKUs and marketplaces.
 
@@ -36,17 +36,17 @@ def upsert_sales_listings(
     Note: condition, language, and printing info is available via the SKU relationships
 
     Returns:
-        List of SalesListing records that were inserted (duplicates are ignored and not returned)
+        List of SaleRecord records that were inserted (duplicates are ignored and not returned)
     """
     if not sales_data:
         return []
 
     # Use PostgreSQL upsert to handle duplicates and return inserted rows
     stmt = (
-        insert(SalesListing)
+        insert(SaleRecord)
         .values(sales_data)
         .on_conflict_do_nothing()
-        .returning(SalesListing)
+        .returning(SaleRecord)
     )
 
     return session.scalars(stmt).all()
@@ -74,11 +74,11 @@ def get_sales_event_rate(
 
     query = (
         select(func.count())
-        .select_from(SalesListing)
+        .select_from(SaleRecord)
         .where(
-            SalesListing.sku_id == sku_id,
-            SalesListing.marketplace == marketplace,
-            SalesListing.sale_date >= cutoff_date,
+            SaleRecord.sku_id == sku_id,
+            SaleRecord.marketplace == marketplace,
+            SaleRecord.sale_date >= cutoff_date,
         )
     )
 
@@ -95,7 +95,7 @@ def get_recent_sales_for_skus(
     marketplace: Marketplace,
     since_date: datetime,
     limit_per_sku: int = 100,
-) -> dict[uuid.UUID, List[SalesListing]]:
+) -> dict[uuid.UUID, List[SaleRecord]]:
     """
     Bulk load recent sales listings for multiple SKUs.
 
@@ -107,20 +107,20 @@ def get_recent_sales_for_skus(
         limit_per_sku: Maximum number of records per SKU
 
     Returns:
-        Dictionary mapping sku_id to list of SalesListing objects
+        Dictionary mapping sku_id to list of SaleRecord objects
     """
     if not sku_ids:
         return {}
 
     # Query all sales for the given SKUs and marketplace
     query = (
-        select(SalesListing)
+        select(SaleRecord)
         .where(
-            SalesListing.sku_id.in_(sku_ids),
-            SalesListing.marketplace == marketplace,
-            SalesListing.sale_date >= since_date,
+            SaleRecord.sku_id.in_(sku_ids),
+            SaleRecord.marketplace == marketplace,
+            SaleRecord.sale_date >= since_date,
         )
-        .order_by(SalesListing.sku_id, desc(SalesListing.sale_date))
+        .order_by(SaleRecord.sku_id, desc(SaleRecord.sale_date))
     )
 
     result = session.execute(query)
@@ -162,13 +162,13 @@ def get_sales_event_counts_for_skus(
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
 
     rows = session.execute(
-        select(SalesListing.sku_id, func.sum(SalesListing.quantity))
+        select(SaleRecord.sku_id, func.sum(SaleRecord.quantity))
         .where(
-            SalesListing.sku_id.in_(sku_ids),
-            SalesListing.marketplace == marketplace,
-            SalesListing.sale_date >= cutoff_date,
+            SaleRecord.sku_id.in_(sku_ids),
+            SaleRecord.marketplace == marketplace,
+            SaleRecord.sale_date >= cutoff_date,
         )
-        .group_by(SalesListing.sku_id)
+        .group_by(SaleRecord.sku_id)
     ).all()
 
     quantities_by_sku: dict[uuid.UUID, int] = {

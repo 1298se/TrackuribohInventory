@@ -16,9 +16,9 @@ from core.models.catalog import Condition, Printing, Language
 from core.services.tcgplayer_listing_service import (
     get_sales,
     CardSaleRequestData,
-    CardSaleResponse,
 )
-from core.dao.sales_listing import upsert_sales_listings, SalesDataRow
+from core.services.tcgplayer_types import TCGPlayerSale
+from core.dao.sales import upsert_sales_listings, SalesDataRow
 from core.dao.sync_state import (
     upsert_sync_timestamps,
     get_sales_refresh_timestamps,
@@ -120,14 +120,14 @@ def build_sku_lookup_from_processing_skus(
 
 
 def transform_card_sale_responses_to_sales_data_by_sku(
-    sales_responses: List[CardSaleResponse],
+    sales_responses: List[TCGPlayerSale],
     skus_in_product: List[ProcessingSKU],
     marketplace: Marketplace,
     mappings: CatalogMappings,
     catalog_id: uuid.UUID,
 ) -> Dict[uuid.UUID, List[SalesDataRow]]:
     """
-    Transform TCGPlayer CardSaleResponse objects to SalesListing data format,
+    Transform TCGPlayer TCGPlayerSale objects to SalesListing data format,
     mapping them to specific SKUs based on condition, variant (printing), and language.
 
     Args:
@@ -186,12 +186,10 @@ def transform_card_sale_responses_to_sales_data_by_sku(
         sale_dict: SalesDataRow = {
             "sku_id": sku_id,
             "marketplace": marketplace,
-            "sale_date": sale.orderDate,
-            "sale_price": Decimal(str(sale.purchasePrice)),
-            "shipping_price": Decimal(str(sale.shippingPrice))
-            if sale.shippingPrice
-            else None,
-            "quantity": int(sale.quantity),
+            "sale_date": sale.order_date,
+            "sale_price": sale.purchase_price,
+            "shipping_price": sale.shipping_price if sale.shipping_price else None,
+            "quantity": sale.quantity,
         }
         sales_by_sku_id[sku_id].append(sale_dict)
 
@@ -201,7 +199,7 @@ def transform_card_sale_responses_to_sales_data_by_sku(
 async def process_product_sales_sync(
     product_tcgplayer_id: int,
     last_sales_refresh_at: Optional[datetime],
-) -> List[CardSaleResponse]:
+) -> List[TCGPlayerSale]:
     """
     Fetch incremental sales for a product and return raw responses.
     Caller is responsible for transforming to sales rows per SKU.

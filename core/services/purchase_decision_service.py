@@ -11,13 +11,13 @@ from core.database import SessionLocal
 from core.models.decisions import BuyDecision, Decision
 from core.models.price import Marketplace
 from core.services.tcgplayer_listing_service import (
-    SKUListingResponse,
     get_product_active_listings,
     CardListingRequestData,
 )
-from core.dao.sales_listing import get_recent_sales_for_skus
+from core.services.tcgplayer_types import TCGPlayerListing
+from core.dao.sales import get_recent_sales_for_skus
 from core.dao.buy_decision import insert_buy_decisions, BuyDecisionData
-from core.models.listings import SalesListing
+from core.models.listings import SaleRecord
 from core.utils.request_pacer import RequestPacer
 from core.services.sku_selection import ProcessingSKU
 from core.services.sales_sync_sweep_service import ProductProcessingGroup
@@ -48,8 +48,8 @@ class MarketData:
 
     sku_id: uuid.UUID
     marketplace: Marketplace
-    listings: List[SKUListingResponse]
-    sales: List[SalesListing]
+    listings: List[TCGPlayerListing]
+    sales: List[SaleRecord]
     asof_listings: datetime
     asof_sales: datetime
 
@@ -71,7 +71,7 @@ class AlgorithmResult:
 
 
 def apply_asp_gate(
-    listings: List[SKUListingResponse],
+    listings: List[TCGPlayerListing],
 ) -> Tuple[bool, Optional[Decimal]]:
     """
     Apply ASP (Average Selling Price) gate - filter by minimum threshold.
@@ -85,9 +85,7 @@ def apply_asp_gate(
     # Calculate delivered ask (price + shipping) for each listing
     delivered_asks = []
     for listing in listings:
-        delivered_ask = Decimal(str(listing.price)) + Decimal(
-            str(listing.shippingPrice)
-        )
+        delivered_ask = listing.price + listing.shipping_price
         delivered_asks.append(delivered_ask)
 
     best_ask = min(delivered_asks)
@@ -100,7 +98,7 @@ def apply_asp_gate(
 
 
 def compute_buy_ladder(
-    listings: List[SKUListingResponse], cap: int
+    listings: List[TCGPlayerListing], cap: int
 ) -> Dict[int, Decimal]:
     """
     Compute buy ladder - VWAP at different quantity levels up to a demand-based cap.
@@ -114,10 +112,8 @@ def compute_buy_ladder(
     # Sort listings by delivered unit cost (price + shipping)
     sorted_listings = []
     for listing in listings:
-        delivered_cost = Decimal(str(listing.price)) + Decimal(
-            str(listing.shippingPrice)
-        )
-        quantity = int(listing.quantity)
+        delivered_cost = listing.price + listing.shipping_price
+        quantity = listing.quantity
         sorted_listings.append((delivered_cost, quantity))
 
     sorted_listings.sort(key=lambda x: x[0])  # Sort by cost ascending
@@ -144,7 +140,7 @@ def compute_buy_ladder(
 
 
 def compute_resale_nowcast(
-    sales: List[SalesListing], best_ask: Optional[Decimal]
+    sales: List[SaleRecord], best_ask: Optional[Decimal]
 ) -> Decimal:
     """
     Compute resale nowcast using sales-anchored approach with trend adjustments.
@@ -201,7 +197,7 @@ def compute_resale_nowcast(
     return nowcast
 
 
-def estimate_sell_through(sales: List[SalesListing]) -> Tuple[float, bool]:
+def estimate_sell_through(sales: List[SaleRecord]) -> Tuple[float, bool]:
     """
     Estimate sell-through rate (lambda_hat) based on total units sold and validate liquidity.
 
@@ -212,7 +208,7 @@ def estimate_sell_through(sales: List[SalesListing]) -> Tuple[float, bool]:
         return 0.0, False
 
     # Use total units sold over the window, not number of sales rows
-    total_units_sold = sum(int(sale.quantity) for sale in sales)
+    total_units_sold = sum(sale.quantity for sale in sales)
 
     # Simple rate estimation: units_sold / days_window
     lambda_hat = total_units_sold / SALES_WINDOW_DAYS
@@ -224,7 +220,7 @@ def estimate_sell_through(sales: List[SalesListing]) -> Tuple[float, bool]:
 
 
 def apply_safety_rails(
-    listings: List[SKUListingResponse], qty: int, vwap_curve: Dict[int, Decimal]
+    listings: List[TCGPlayerListing], qty: int, vwap_curve: Dict[int, Decimal]
 ) -> Tuple[bool, List[str]]:
     """
     Apply safety rails: seller concentration.
@@ -241,8 +237,8 @@ def apply_safety_rails(
         total_available = 0
 
         for listing in listings:
-            seller_key = listing.sellerId
-            qty_available = int(listing.quantity)
+            seller_key = listing.seller_id
+            qty_available = listing.quantity
             seller_quantities[seller_key] = (
                 seller_quantities.get(seller_key, 0) + qty_available
             )
@@ -295,7 +291,7 @@ def optimize_quantity(
     return best_qty, best_total_edge
 
 
-def compute_sales_asp_median(sales: List[SalesListing]) -> Optional[Decimal]:
+def compute_sales_asp_median(sales: List[SaleRecord]) -> Optional[Decimal]:
     """
     Compute median delivered sale price (sale_price + shipping_price) from recent sales.
     Returns None if no sales.
@@ -339,9 +335,7 @@ def compute_purchase_decision(market_data: MarketData) -> BuyDecision:
     if market_data.listings:
         delivered_asks: List[Decimal] = []
         for listing in market_data.listings:
-            delivered_ask = Decimal(str(listing.price)) + Decimal(
-                str(listing.shippingPrice)
-            )
+            delivered_ask = listing.price + listing.shipping_price
             delivered_asks.append(delivered_ask)
         if delivered_asks:
             best_ask = min(delivered_asks)
@@ -427,7 +421,7 @@ class PurchaseDecisionResult:
 async def process_product_with_request_slot(
     product_group: ProductProcessingGroup,
     marketplace: Marketplace,
-    sales_data_by_sku: Dict[uuid.UUID, List[SalesListing]],
+    sales_data_by_sku: Dict[uuid.UUID, List[SaleRecord]],
 ) -> List[PurchaseDecisionResult]:
     """Process all SKUs in a product group for purchase decisions with single API call.
     Raises exceptions on HTTP or processing errors; caller is responsible for handling.
@@ -454,7 +448,7 @@ async def process_product_with_request_slot(
         sku_listings = [
             listing
             for listing in listings_responses
-            if int(listing.productConditionId) == int(sku.sku_tcgplayer_id)
+            if listing.product_condition_id == sku.sku_tcgplayer_id
         ]
 
         # Create market data for decision computation
@@ -474,7 +468,7 @@ async def process_product_with_request_slot(
             PurchaseDecisionResult(
                 sku_id=sku.sku_id,
                 buy_decision=decision,
-                sales_count=sum(int(s.quantity) for s in sku_sales_data),
+                sales_count=sum(s.quantity for s in sku_sales_data),
                 listings_count=len(sku_listings),
                 decision=decision.decision.value,
                 quantity=decision.quantity,

@@ -23,7 +23,7 @@ from core.dao.listing_data_refresh_priority import (
     ListingDataRefreshPriorityRow,
     upsert_listing_data_refresh_priorities,
 )
-from core.dao.sales_listing import get_sales_event_counts_for_skus
+from core.dao.sales import get_sales_event_counts_for_skus
 from core.dao.sync_state import get_sales_refresh_timestamps
 from core.services.price_service import build_daily_price_series_for_skus
 from core.models.price import Marketplace

@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 from datetime import timedelta
 import math
 import statistics
+from decimal import Decimal
 
 from fastapi import HTTPException  # Import HTTPException for error handling
 from sqlalchemy.orm import Session, joinedload
@@ -12,13 +13,12 @@ from sqlalchemy import select
 from core.models.catalog import SKU  # Import necessary models
 from core.models.price import Marketplace
 from core.services.tcgplayer_listing_service import (
-    CardSaleResponse,
     get_product_active_listings,
     get_sales,
     CardListingRequestData,
     CardSaleRequestData,
-    SKUListingResponse,
 )
+from core.services.tcgplayer_types import TCGPlayerListing, TCGPlayerSale
 
 # Service DTOs - using frozen dataclasses for immutable data transfer objects
 from dataclasses import dataclass
@@ -48,8 +48,8 @@ class SKUMarketData:
 
 
 def _prune_price_outliers(
-    listings: List[SKUListingResponse], z_threshold: float = 3.0
-) -> List[SKUListingResponse]:
+    listings: List[TCGPlayerListing], z_threshold: float = 3.0
+) -> List[TCGPlayerListing]:
     """
     Remove outlier listings based on log-transformed z-scores to handle skewed price distributions.
 
@@ -64,13 +64,10 @@ def _prune_price_outliers(
         return listings
 
     # Calculate total prices (item + shipping)
-    prices = [
-        float(listing.price) + float(getattr(listing, "shippingPrice", 0.0) or 0.0)
-        for listing in listings
-    ]
+    prices = [listing.price + listing.shipping_price for listing in listings]
 
     # Apply log transformation to handle right-skewed distribution
-    log_prices = [math.log(max(0.01, price)) for price in prices]  # Avoid log(0)
+    log_prices = [math.log(max(0.01, float(price))) for price in prices]  # Avoid log(0)
 
     # Calculate mean and standard deviation of log prices
     try:
@@ -101,20 +98,19 @@ def _prune_price_outliers(
 
 
 def calculate_cumulative_depth_levels(
-    listing_events: List[SKUListingResponse],
+    listing_events: List[TCGPlayerListing],
 ) -> List[CumulativeDepthLevel]:
     """
     Helper function to calculate cumulative depth levels from a list of listing events.
     """
     depth_map: Dict[float, int] = defaultdict(int)
     for listing in listing_events:
-        # Access as attributes on Pydantic model
-        price = float(listing.price)
-        shipping_price = float(getattr(listing, "shippingPrice", 0.0) or 0.0)
-        quantity = int(getattr(listing, "quantity", 0) or 0)
-
+        # Compute delivered price and round to cents, convert to float once for key
+        total_price = float(
+            (listing.price + listing.shipping_price).quantize(Decimal("0.01"))
+        )
+        quantity = listing.quantity
         if quantity > 0:
-            total_price = round(price + shipping_price, 2)
             depth_map[total_price] += quantity
 
     # Calculate cumulative depth levels
@@ -131,7 +127,7 @@ def calculate_cumulative_depth_levels(
 
 # Add helper for cumulative sales depth levels
 def calculate_cumulative_sales_depth_levels(
-    sales_records: List[CardSaleResponse],
+    sales_records: List[TCGPlayerSale],
 ) -> List[CumulativeDepthLevel]:
     """
     Helper function to calculate cumulative depth levels from a list of sale records.
@@ -139,13 +135,11 @@ def calculate_cumulative_sales_depth_levels(
     """
     depth_map: Dict[float, int] = defaultdict(int)
     for sale in sales_records:
-        # Sum purchase and shipping price
-        price = round(
-            float(getattr(sale, "purchasePrice", 0.0))
-            + float(getattr(sale, "shippingPrice", 0.0)),
-            2,
+        # Sum purchase and shipping price; round to cents and convert to float once
+        price = float(
+            (sale.purchase_price + sale.shipping_price).quantize(Decimal("0.01"))
         )
-        quantity = int(getattr(sale, "quantity", 0) or 0)
+        quantity = sale.quantity
         if quantity > 0:
             depth_map[price] += quantity
 
@@ -165,8 +159,8 @@ def calculate_cumulative_sales_depth_levels(
 
 # Shared helper to compute aggregate metrics for market data endpoints
 def _compute_aggregated_metrics(
-    listings: List[SKUListingResponse],
-    sales_records: List[CardSaleResponse],
+    listings: List[TCGPlayerListing],
+    sales_records: List[TCGPlayerSale],
     days: int = 7,
 ) -> tuple[int, int, int, float, Optional[float]]:
     """
@@ -190,8 +184,8 @@ def _compute_aggregated_metrics(
 
 def _build_sku_item(
     sku: SKU,
-    listings: List[SKUListingResponse],
-    sales_records: List[CardSaleResponse],
+    listings: List[TCGPlayerListing],
+    sales_records: List[TCGPlayerSale],
     marketplace: str = "TCGPlayer",
     sales_lookback_days: int = 7,
 ) -> SKUMarketData:
@@ -263,7 +257,7 @@ async def get_market_data_for_sku(
     )
 
     # 3. Fetch listings and sales, then compute depth and metrics
-    listings: List[SKUListingResponse] = []
+    listings: List[TCGPlayerListing] = []
     sales_records: List[Any] = []
     try:
         listings = await get_product_active_listings(listing_request_data)
