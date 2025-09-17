@@ -47,9 +47,6 @@ class AuthUserResponse(BaseModel):
     email: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 class AuthResponse(BaseModel):
     """Standard authentication response"""

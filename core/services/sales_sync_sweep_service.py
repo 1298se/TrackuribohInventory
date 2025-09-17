@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Dict, List, Optional, TypedDict, NamedTuple
+from typing import Dict, List, Optional, TypedDict
 from dataclasses import dataclass
 from collections import defaultdict
 
@@ -18,6 +18,11 @@ from core.services.tcgplayer_listing_service import (
     CardSaleRequestData,
 )
 from core.services.tcgplayer_types import TCGPlayerSale
+from core.services.sku_lookup import (
+    SKUKey,
+    SKUVariantInput,
+    build_sku_lookup_from_processing_skus,
+)
 from core.dao.sales import upsert_sales_listings, SalesDataRow
 from core.dao.sync_state import (
     upsert_sync_timestamps,
@@ -37,12 +42,6 @@ class CatalogMappings(TypedDict):
     condition_name_to_id: Dict[str, uuid.UUID]
     printing_name_to_id_by_catalog_id: Dict[uuid.UUID, Dict[str, uuid.UUID]]
     language_name_to_id: Dict[str, uuid.UUID]
-
-
-class SKUKey(NamedTuple):
-    condition_id: uuid.UUID
-    printing_id: uuid.UUID
-    language_id: uuid.UUID
 
 
 @dataclass
@@ -102,23 +101,6 @@ def get_catalog_mappings(session: Session) -> CatalogMappings:
     )
 
 
-def build_sku_lookup_from_processing_skus(
-    skus_in_product: List[ProcessingSKU],
-) -> Dict[SKUKey, uuid.UUID]:
-    """
-    Build lookup table from ProcessingSKU objects (no database query needed).
-    """
-    sku_lookup: Dict[SKUKey, uuid.UUID] = {}
-    for sku in skus_in_product:
-        key = SKUKey(
-            condition_id=sku.condition_id,
-            printing_id=sku.printing_id,
-            language_id=sku.language_id,
-        )
-        sku_lookup[key] = sku.sku_id
-    return sku_lookup
-
-
 def transform_card_sale_responses_to_sales_data_by_sku(
     sales_responses: List[TCGPlayerSale],
     skus_in_product: List[ProcessingSKU],
@@ -140,8 +122,17 @@ def transform_card_sale_responses_to_sales_data_by_sku(
     Returns:
         Mapping of sku_id -> list of matched SalesDataRow
     """
-    # Build lookup table for (condition_id, printing_id, language_id) -> sku_id
-    sku_lookup = build_sku_lookup_from_processing_skus(skus_in_product)
+    # Build lookup table for (condition_id, printing_id, language_id) -> sku_id using shared helper
+    variant_inputs: List[SKUVariantInput] = [
+        SKUVariantInput(
+            sku_id=sku.sku_id,
+            condition_id=sku.condition_id,
+            printing_id=sku.printing_id,
+            language_id=sku.language_id,
+        )
+        for sku in skus_in_product
+    ]
+    sku_lookup = build_sku_lookup_from_processing_skus(variant_inputs)
 
     sales_by_sku_id: Dict[uuid.UUID, List[SalesDataRow]] = defaultdict(list)
 

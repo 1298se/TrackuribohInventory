@@ -122,7 +122,7 @@ export type InventorySkuMarketplacesResponse = z.infer<
   typeof InventorySkuMarketplacesResponseSchema
 >;
 
-export const MarketplaceSchema = z.enum(["TCGPLAYER"]);
+export const MarketplaceSchema = z.enum(["tcgplayer"]);
 
 export const DecisionSchema = z.enum(["BUY", "PASS"]);
 
@@ -151,3 +151,40 @@ export type BuyDecisionResponseSchemaType = z.infer<
 export type BuyDecisionsResponseSchemaType = z.infer<
   typeof BuyDecisionsResponseSchema
 >;
+/* -----------------------------------------------------
+ * 9) Market product listings and sales schemas
+ * ----------------------------------------------------- */
+
+export const ProductListingResponseSchema = z.object({
+  listing_id: z.string(),
+  sku: SKUWithProductResponseSchema, // Full SKU with nested product
+  price: MoneyAmountSchema,
+  quantity: z.number().int(),
+  shipping_price: MoneyAmountSchema.nullable(),
+  seller_name: z.string().nullable(),
+});
+
+export const ProductListingsResponseSchema = z.object({
+  results: z.array(ProductListingResponseSchema),
+});
+
+export const ProductSaleResponseSchema = z.object({
+  sku: SKUWithProductResponseSchema,
+  quantity: z.number().int(),
+  price: MoneyAmountSchema,
+  shipping_price: MoneyAmountSchema.nullable(),
+  order_date: z.string().datetime(),
+});
+
+export const ProductSalesResponseSchema = z.object({
+  results: z.array(ProductSaleResponseSchema),
+});
+
+export type ProductListingResponse = z.infer<
+  typeof ProductListingResponseSchema
+>;
+export type ProductListingsResponse = z.infer<
+  typeof ProductListingsResponseSchema
+>;
+export type ProductSaleResponse = z.infer<typeof ProductSaleResponseSchema>;
+export type ProductSalesResponse = z.infer<typeof ProductSalesResponseSchema>;
