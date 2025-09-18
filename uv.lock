@@ -157,6 +157,8 @@ pyyaml==6.0.2
     # via uvicorn
 realtime==2.6.0
     # via supabase
+redis==6.4.0
+    # via codex-tcg (pyproject.toml)
 rich==14.0.0
     # via
     #   rich-toolkit

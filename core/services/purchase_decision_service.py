@@ -11,8 +11,8 @@ from core.database import SessionLocal
 from core.models.decisions import BuyDecision, Decision
 from core.models.price import Marketplace
 from core.services.tcgplayer_listing_service import (
-    get_product_active_listings,
     CardListingRequestData,
+    TCGPlayerListingService,
 )
 from core.services.tcgplayer_types import TCGPlayerListing
 from core.dao.sales import get_recent_sales_for_skus
@@ -422,6 +422,7 @@ async def process_product_with_request_slot(
     product_group: ProductProcessingGroup,
     marketplace: Marketplace,
     sales_data_by_sku: Dict[uuid.UUID, List[SaleRecord]],
+    tcgplayer_listing_service: TCGPlayerListingService,
 ) -> List[PurchaseDecisionResult]:
     """Process all SKUs in a product group for purchase decisions with single API call.
     Raises exceptions on HTTP or processing errors; caller is responsible for handling.
@@ -436,7 +437,9 @@ async def process_product_with_request_slot(
 
     # Fetch listings data for entire product (let exceptions propagate)
     asof_listings = datetime.now(timezone.utc)
-    listings_responses = await get_product_active_listings(listings_request)
+    listings_responses = await tcgplayer_listing_service.get_product_active_listings(
+        listings_request
+    )
 
     # Process each SKU in the product using the shared listings data
     asof_sales = datetime.now(timezone.utc)

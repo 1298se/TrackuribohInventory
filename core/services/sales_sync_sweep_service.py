@@ -14,8 +14,8 @@ from core.models.price import Marketplace
 from core.models.decisions import BuyDecision
 from core.models.catalog import Condition, Printing, Language
 from core.services.tcgplayer_listing_service import (
-    get_sales,
     CardSaleRequestData,
+    TCGPlayerListingService,
 )
 from core.services.tcgplayer_types import TCGPlayerSale
 from core.services.sku_lookup import (
@@ -190,6 +190,7 @@ def transform_card_sale_responses_to_sales_data_by_sku(
 async def process_product_sales_sync(
     product_tcgplayer_id: int,
     last_sales_refresh_at: Optional[datetime],
+    tcgplayer_listing_service: TCGPlayerListingService,
 ) -> List[TCGPlayerSale]:
     """
     Fetch incremental sales for a product and return raw responses.
@@ -208,12 +209,13 @@ async def process_product_sales_sync(
     )
 
     # Fetch sales data (let exceptions propagate)
-    return await get_sales(sales_request, time_delta)
+    return await tcgplayer_listing_service.get_sales(sales_request, time_delta)
 
 
 async def run_sales_sync_sweep(
     marketplace: Marketplace,
     product_tcgplayer_ids: List[int],
+    tcgplayer_listing_service: TCGPlayerListingService,
 ) -> None:
     """
     Run sales sync sweep to refresh sales data for all SKUs in given products.
@@ -288,6 +290,7 @@ async def run_sales_sync_sweep(
             sales_responses = await process_product_sales_sync(
                 product_tcgplayer_id=product_tcgplayer_id,
                 last_sales_refresh_at=earliest_refresh_at,
+                tcgplayer_listing_service=tcgplayer_listing_service,
             )
 
             # Get catalog_id from the first SKU (all SKUs in same product have same catalog_id)

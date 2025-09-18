@@ -1,27 +1,35 @@
+import asyncio
+from dataclasses import dataclass
 import uuid
 from collections import defaultdict
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import timedelta
 import math
 import statistics
 from decimal import Decimal
 
-from fastapi import HTTPException  # Import HTTPException for error handling
-from sqlalchemy.orm import Session, joinedload
+from fastapi import Depends
+from sqlalchemy.orm import Session, joinedload, load_only
 from sqlalchemy import select
 
-from core.models.catalog import SKU  # Import necessary models
+from core.models.catalog import (
+    SKU,
+    Product,
+    Printing,
+    Condition,
+    Language,
+)  # Import necessary models
 from core.models.price import Marketplace
 from core.services.tcgplayer_listing_service import (
-    get_product_active_listings,
-    get_sales,
     CardListingRequestData,
     CardSaleRequestData,
+    get_tcgplayer_listing_service,
+    TCGPlayerListingService,
 )
 from core.services.tcgplayer_types import TCGPlayerListing, TCGPlayerSale
+import logging
 
-# Service DTOs - using frozen dataclasses for immutable data transfer objects
-from dataclasses import dataclass
+logger = logging.getLogger(__name__)
 
 
 # Service DTOs - frozen dataclasses for immutable data transfer
@@ -45,6 +53,10 @@ class SKUMarketData:
     cumulative_depth_levels: List[CumulativeDepthLevel]
     cumulative_sales_depth_levels: List[CumulativeDepthLevel]
     days_of_inventory: Optional[float] = None
+
+
+class SkuNotFoundError(Exception):
+    pass
 
 
 def _prune_price_outliers(
@@ -212,170 +224,166 @@ def _build_sku_item(
     )
 
 
-async def get_market_data_for_sku(
-    session: Session,
-    sku_id: uuid.UUID,
-    sales_lookback_days: int = 30,
-) -> Dict[Marketplace, List[SKUMarketData]]:
-    """
-    Fetches market data (cumulative depth + summary) for a specific SKU ID.
-    Raises HTTPException if SKU not found.
-    """
-    # 1. Load SKU with required relations for request_data
-    sku = session.execute(
-        select(SKU)
-        .options(
-            joinedload(SKU.product, innerjoin=True),
-            joinedload(SKU.printing, innerjoin=True),
-            joinedload(SKU.condition, innerjoin=True),
-            joinedload(SKU.language, innerjoin=True),
+class MarketDataService:
+    """Thin service wrapper for market data operations with DI for upstream services."""
+
+    def __init__(self, tcgplayer_listing_service: TCGPlayerListingService):
+        self.tcgplayer_listing_service = tcgplayer_listing_service
+
+    async def _fetch_listings_and_sales(
+        self,
+        listing_request_data: CardListingRequestData,
+        sales_request_data: CardSaleRequestData,
+        sales_lookback_days: int,
+    ) -> Tuple[List[TCGPlayerListing], List[TCGPlayerSale]]:
+        """
+        Fetch listings and sales data concurrently from TCGPlayer API.
+        Raises exceptions if either API call fails.
+        """
+        listings_task = self.tcgplayer_listing_service.get_product_active_listings(
+            listing_request_data
         )
-        .where(SKU.id == sku_id)
-    ).scalar_one_or_none()
-
-    if not sku:
-        raise HTTPException(status_code=404, detail=f"SKU not found: {sku_id}")
-
-    if not all([sku.product, sku.printing, sku.condition]):
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to load required SKU relations for {sku_id}",
-        )
-
-    # 2. Prepare listing and sales request data for the SKU
-    listing_request_data = CardListingRequestData(
-        product_id=sku.product.tcgplayer_id,
-        printings=[sku.printing.name],
-        conditions=[sku.condition.name],
-        languages=[sku.language.name],
-    )
-    sales_request_data = CardSaleRequestData(
-        product_id=sku.product.tcgplayer_id,
-        printings=[sku.printing.tcgplayer_id],
-        conditions=[sku.condition.tcgplayer_id],
-        languages=[sku.language.tcgplayer_id],
-    )
-
-    # 3. Fetch listings and sales, then compute depth and metrics
-    listings: List[TCGPlayerListing] = []
-    sales_records: List[Any] = []
-    try:
-        listings = await get_product_active_listings(listing_request_data)
-    except Exception as e:
-        print(f"Error fetching TCGPlayer listings for SKU {sku_id}: {e}")
-    try:
-        # Fetch sales records for the given time window
-        sales_records = await get_sales(
+        sales_task = self.tcgplayer_listing_service.get_sales(
             sales_request_data, timedelta(days=sales_lookback_days)
         )
-    except Exception as e:
-        print(f"Error fetching TCGPlayer sales for SKU {sku_id}: {e}")
 
-    # Build a single-item market data response using provided days
-    item = _build_sku_item(
-        sku,
-        listings,
-        sales_records,
-        marketplace="TCGPlayer",
-        sales_lookback_days=sales_lookback_days,
-    )
-    return {Marketplace.TCGPLAYER: [item]}
+        try:
+            listings, sales_records = await asyncio.gather(listings_task, sales_task)
+            return listings, sales_records
+        except Exception as e:
+            logger.error(f"Failed to fetch TCGPlayer data: {e}")
+            raise
 
+    async def get_market_data_for_sku(
+        self,
+        session: Session,
+        sku_id: uuid.UUID,
+        sales_lookback_days: int = 30,
+    ) -> Dict[Marketplace, List[SKUMarketData]]:
+        """
+        Fetches market data (cumulative depth + summary) for a specific SKU ID.
+        Raises SkuNotFoundError if SKU not found.
+        """
+        sku = session.execute(
+            select(SKU)
+            .options(
+                joinedload(SKU.product, innerjoin=True),
+                joinedload(SKU.printing, innerjoin=True),
+                joinedload(SKU.condition, innerjoin=True),
+                joinedload(SKU.language, innerjoin=True),
+            )
+            .where(SKU.id == sku_id)
+        ).scalar_one()
 
-async def get_market_data_for_product(
-    session: Session,
-    product_id: uuid.UUID,
-    sales_lookback_days: int = 30,
-) -> Dict[Marketplace, List[SKUMarketData]]:
-    """
-    Fetches market data for each SKU of a product, structured per marketplace.
-    Makes a single API call for all SKUs to improve performance.
-    Returns a dictionary with market_data_items and aggregated metrics.
-    """
-    # 1. Load Product and related SKU objects
-    skus = session.scalars(
-        select(SKU)
-        .options(
-            joinedload(SKU.printing),
-            joinedload(SKU.language),
-            joinedload(SKU.condition),
-            joinedload(SKU.product),
+        listing_request_data = CardListingRequestData(
+            product_id=sku.product.tcgplayer_id,
+            printings=[sku.printing.name],
+            conditions=[sku.condition.name],
+            languages=[sku.language.name],
         )
-        .where(SKU.product_id == product_id)
-        .order_by(SKU.id)
-    ).all()
+        sales_request_data = CardSaleRequestData(
+            product_id=sku.product.tcgplayer_id,
+            printings=[sku.printing.tcgplayer_id],
+            conditions=[sku.condition.tcgplayer_id],
+            languages=[sku.language.tcgplayer_id],
+        )
 
-    if not skus:
-        print(f"No SKUs found for product: {product_id}")
-        return {}
+        # Fetch listings and sales concurrently - fail fast if either fails
+        listings, sales_records = await self._fetch_listings_and_sales(
+            listing_request_data, sales_request_data, sales_lookback_days
+        )
 
-    # 2. Prepare for API request
+        item = _build_sku_item(
+            sku,
+            listings,
+            sales_records,
+            marketplace="TCGPlayer",
+            sales_lookback_days=sales_lookback_days,
+        )
+        return {Marketplace.TCGPLAYER: [item]}
 
-    results = []
-    all_listings = []
+    async def get_market_data_for_product(
+        self,
+        session: Session,
+        product_id: uuid.UUID,
+        sales_lookback_days: int = 30,
+    ) -> Dict[Marketplace, List[SKUMarketData]]:
+        """
+        Fetches market data for each SKU of a product, structured per marketplace.
+        Makes a single API call for all SKUs to improve performance.
+        Returns a dictionary with market_data_items and aggregated metrics.
+        """
+        skus = session.scalars(
+            select(SKU)
+            .options(
+                load_only(
+                    SKU.id,
+                    SKU.product_id,
+                    SKU.printing_id,
+                    SKU.condition_id,
+                    SKU.language_id,
+                ),
+                joinedload(SKU.product).load_only(Product.tcgplayer_id),
+                joinedload(SKU.printing).load_only(Printing.name),
+                joinedload(SKU.condition).load_only(Condition.name),
+                joinedload(SKU.language).load_only(Language.name),
+            )
+            .where(SKU.product_id == product_id)
+            .order_by(SKU.id)
+        ).all()
 
-    tcgplayer_id = skus[0].product.tcgplayer_id
+        if not skus:
+            logger.info(f"No SKUs found for product: {product_id}")
+            return {}
 
-    try:
+        tcgplayer_id = skus[0].product.tcgplayer_id
+
         listing_request_data = CardListingRequestData(
             product_id=tcgplayer_id,
-            printings=[sku.printing.name for sku in skus if sku.printing],
-            conditions=[sku.condition.name for sku in skus if sku.condition],
-            languages=[sku.language.name for sku in skus if sku.language],
         )
-        # 3. Make single API call for all SKUs
-        all_listings = await get_product_active_listings(listing_request_data)
-
-        # Fetch sales records for all SKUs in one call
         sales_request_data = CardSaleRequestData(
             product_id=tcgplayer_id,
-            printings=[sku.printing.tcgplayer_id for sku in skus if sku.printing],
-            conditions=[sku.condition.tcgplayer_id for sku in skus if sku.condition],
-            languages=[sku.language.tcgplayer_id for sku in skus if sku.language],
         )
-        try:
-            all_sales_records = await get_sales(
-                sales_request_data, timedelta(days=sales_lookback_days)
-            )
-        except Exception as e:
-            print(f"Error fetching TCGPlayer sales for product {product_id}: {e}")
-            all_sales_records = []
 
-        # 4. Process data for each SKU, including sales depth
+        # Fetch listings and sales concurrently - fail fast if either fails
+        all_listings, all_sales_records = await self._fetch_listings_and_sales(
+            listing_request_data, sales_request_data, sales_lookback_days
+        )
+
+        results: List[SKUMarketData] = []
         for sku in skus:
-            try:
-                sku_listings = [
-                    listing
-                    for listing in all_listings
-                    if (
-                        listing.printing == sku.printing.name
-                        and listing.condition == sku.condition.name
-                    )
-                ]
-                # Filter sales records for this SKU
-                sku_sales_records = [
-                    sale
-                    for sale in all_sales_records
-                    if (
-                        sale.variant == sku.printing.name
-                        and sale.condition == sku.condition.name
-                        and sale.language == sku.language.name
-                    )
-                ]
-                # Build per-SKU metrics including sales depth
-                item = _build_sku_item(
-                    sku,
-                    sku_listings,
-                    sku_sales_records,
-                    marketplace="TCGPlayer",
-                    sales_lookback_days=sales_lookback_days,
+            sku_listings = [
+                listing
+                for listing in all_listings
+                if (
+                    listing.printing == sku.printing.name
+                    and listing.condition == sku.condition.name
                 )
-                results.append(item)
-            except Exception as e:
-                print(f"Error processing SKU {sku.id}: {e}")
-                continue
-    except Exception as e:
-        print(f"Error fetching listings for product {product_id}: {e}")
-        return {}
+            ]
+            sku_sales_records = [
+                sale
+                for sale in all_sales_records
+                if (
+                    sale.variant == sku.printing.name
+                    and sale.condition == sku.condition.name
+                    and sale.language == sku.language.name
+                )
+            ]
+            item = _build_sku_item(
+                sku,
+                sku_listings,
+                sku_sales_records,
+                marketplace="TCGPlayer",
+                sales_lookback_days=sales_lookback_days,
+            )
+            results.append(item)
 
-    return {Marketplace.TCGPLAYER: results}
+        return {Marketplace.TCGPLAYER: results}
+
+
+def get_market_data_service(
+    tcgplayer_listing_service: TCGPlayerListingService = Depends(
+        get_tcgplayer_listing_service
+    ),
+) -> MarketDataService:
+    return MarketDataService(tcgplayer_listing_service)

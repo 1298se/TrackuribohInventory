@@ -1,19 +1,19 @@
 """
 DTO types for TCGPlayer service data transfer.
 
-These frozen dataclasses provide lightweight, immutable data containers for
-transferring TCGPlayer API data between services. Pydantic models are used
-internally for JSON parsing/validation only.
+These frozen Pydantic models provide lightweight, immutable data containers for
+transferring TCGPlayer API data between services with built-in serialization.
 """
 
-from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict
 
-@dataclass(frozen=True)
-class TCGPlayerListing:
+
+class TCGPlayerListing(BaseModel):
+    model_config = ConfigDict(frozen=True)
     """DTO for individual TCGPlayer listing data."""
 
     # Core pricing fields
@@ -66,8 +66,8 @@ class TCGPlayerListing:
     custom_data: Any
 
 
-@dataclass(frozen=True)
-class TCGPlayerSale:
+class TCGPlayerSale(BaseModel):
+    model_config = ConfigDict(frozen=True)
     """DTO for individual TCGPlayer sale record."""
 
     # Core sale data

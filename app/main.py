@@ -12,6 +12,7 @@ from app.routes.inventory.api import router as inventory_router
 from app.routes.market.api import router as market_router
 from app.routes.decisions.api import router as decisions_router
 from core.services.tcgplayer_catalog_service import get_tcgplayer_catalog_service
+from core.services.redis_service import get_redis_pool, close_redis_pool
 
 SQLALCHEMY_DATABASE_URL = get_environment().db_url
 
@@ -20,15 +21,20 @@ jobstores = {"default": SQLAlchemyJobStore(url=SQLALCHEMY_DATABASE_URL)}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    tcgplayer_catalog_service = get_tcgplayer_catalog_service()
+    # Initialize Redis connection pool
+    get_redis_pool()
 
+    # Initialize TCGPlayer catalog service
+    tcgplayer_catalog_service = get_tcgplayer_catalog_service()
     await tcgplayer_catalog_service.init()
 
     # scheduler.add_job(update_card_database)
 
     yield
 
+    # Cleanup on shutdown
     await tcgplayer_catalog_service.close()
+    await close_redis_pool()
 
 
 app = FastAPI(lifespan=lifespan)

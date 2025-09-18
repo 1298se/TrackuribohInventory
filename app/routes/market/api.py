@@ -31,7 +31,17 @@ from core.models.catalog import Set
 from core.models.price import Marketplace
 from core.services.schemas.schema import ProductType
 from core.services import market_data_service
-from core.services import tcgplayer_listing_service
+from core.services.market_data_service import (
+    MarketDataService,
+    get_market_data_service,
+    SkuNotFoundError,
+)
+from core.services.tcgplayer_listing_service import (
+    CardListingRequestData,
+    CardSaleRequestData,
+    get_tcgplayer_listing_service,
+    TCGPlayerListingService,
+)
 from core.services.sku_lookup import (
     build_sku_tcg_id_lookup_from_skus,
     build_sku_name_lookup_from_skus,
@@ -138,6 +148,7 @@ async def get_product_data(
     product_id: uuid.UUID,
     sales_lookback_days: int = 30,
     session: Session = Depends(get_db_session),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
 ):
     """
     Return market data for each **Near Mint or Unopened** SKU
@@ -164,17 +175,20 @@ async def get_sku_data(
     sku_id: uuid.UUID,
     sales_lookback_days: int = 30,
     session: Session = Depends(get_db_session),
+    market_data_service: MarketDataService = Depends(get_market_data_service),
 ):
     """
     Return market data for a specific SKU variant.
     Now calls the dedicated service function.
     """
-    # Delegate to service which returns marketplace-grouped data
-    service_data = await market_data_service.get_market_data_for_sku(
-        session=session,
-        sku_id=sku_id,
-        sales_lookback_days=sales_lookback_days,
-    )
+    try:
+        service_data = await market_data_service.get_market_data_for_sku(
+            session=session,
+            sku_id=sku_id,
+            sales_lookback_days=sales_lookback_days,
+        )
+    except SkuNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
     return _convert_service_data_to_response(service_data, session)
 
@@ -188,6 +202,9 @@ async def get_product_listings(
     product_id: uuid.UUID,
     request_params: ProductListingsRequestParams = Depends(),
     session: Session = Depends(get_db_session),
+    tcgplayer_listing_service: TCGPlayerListingService = Depends(
+        get_tcgplayer_listing_service
+    ),
 ):
     """
     Fetch active marketplace listings for a product.
@@ -203,9 +220,7 @@ async def get_product_listings(
         return ProductListingsResponseSchema(results=[])
 
     # Fetch listings from TCGPlayer
-    tcgplayer_request = tcgplayer_listing_service.CardListingRequestData(
-        product_id=int(tcgplayer_product_id)
-    )
+    tcgplayer_request = CardListingRequestData(product_id=int(tcgplayer_product_id))
     tcgplayer_listings = await tcgplayer_listing_service.get_product_active_listings(
         tcgplayer_request
     )
@@ -250,6 +265,9 @@ async def get_product_sales(
     product_id: uuid.UUID,
     request_params: ProductSalesRequestParams = Depends(),
     session: Session = Depends(get_db_session),
+    tcgplayer_listing_service: TCGPlayerListingService = Depends(
+        get_tcgplayer_listing_service
+    ),
 ):
     """
     Fetch recent sales for a product (up to 100 most recent).
@@ -265,9 +283,7 @@ async def get_product_sales(
         return ProductSalesResponseSchema(results=[])
 
     # Fetch sales from TCGPlayer (last 30 days, up to 100 results)
-    tcgplayer_request = tcgplayer_listing_service.CardSaleRequestData(
-        product_id=int(tcgplayer_product_id)
-    )
+    tcgplayer_request = CardSaleRequestData(product_id=int(tcgplayer_product_id))
     tcgplayer_sales = await tcgplayer_listing_service.get_sales(
         tcgplayer_request, timedelta(days=30)
     )
