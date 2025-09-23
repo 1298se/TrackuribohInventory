@@ -8,7 +8,8 @@ from typing import List, TypedDict, Any, Optional
 import aiohttp
 import redis.asyncio as redis
 from fastapi import Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
+from pydantic.alias_generators import to_camel
 
 from core.environment import get_environment
 from core.services.redis_service import get_redis_client
@@ -35,7 +36,15 @@ class CardSaleRequestData(TypedDict, total=False):
     languages: Optional[List[int]]  # Optional, defaults to None
 
 
-class CardSaleResponse(BaseModel):
+class TCGPlayerResponseModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        extra="ignore",
+    )
+
+
+class CardSaleResponse(TCGPlayerResponseModel):
     """Individual sale record from TCGPlayer sales API, with parsed orderDate."""
 
     condition: str
@@ -43,21 +52,21 @@ class CardSaleResponse(BaseModel):
     language: str
     quantity: int
     title: str
-    listingType: str
-    customListingId: str
-    purchasePrice: Decimal
-    shippingPrice: Decimal
-    orderDate: datetime
+    listing_type: str
+    custom_listing_id: str
+    purchase_price: Decimal
+    shipping_price: Decimal
+    order_date: datetime
 
 
-class CardSalesResponse(BaseModel):
+class CardSalesResponse(TCGPlayerResponseModel):
     """Full response from TCGPlayer sales API."""
 
-    previousPage: str
-    nextPage: str
-    resultCount: int
-    totalResults: int
-    data: List[CardSaleResponse]
+    previous_page: Optional[str] = None
+    next_page: Optional[str] = None
+    result_count: int
+    total_results: int
+    data: List[CardSaleResponse] = Field(default_factory=list)
 
 
 CACHE_TTL_SECONDS = 60 * 60
@@ -217,49 +226,49 @@ class TCGPlayerListingService:
         """Convert Pydantic ListingSchema to DTO."""
         return TCGPlayerListing(
             price=listing.price,
-            shipping_price=listing.shippingPrice,
+            shipping_price=listing.shipping_price,
             quantity=listing.quantity,
-            listing_id=listing.listingId,
-            product_id=listing.productId,
-            product_condition_id=listing.productConditionId,
+            listing_id=listing.listing_id,
+            product_id=listing.product_id,
+            product_condition_id=listing.product_condition_id,
             condition=listing.condition,
             printing=listing.printing,
             language=listing.language,
-            language_abbreviation=listing.languageAbbreviation,
-            language_id=listing.languageId,
-            seller_id=listing.sellerId,
-            seller_name=listing.sellerName,
-            seller_rating=listing.sellerRating,
-            seller_sales=listing.sellerSales,
-            seller_key=listing.sellerKey,
-            channel_id=listing.channelId,
-            condition_id=listing.conditionId,
-            listing_type=listing.listingType,
-            gold_seller=listing.goldSeller,
-            verified_seller=listing.verifiedSeller,
-            direct_seller=listing.directSeller,
-            direct_product=listing.directProduct,
-            direct_inventory=listing.directInventory,
-            ranked_shipping_price=listing.rankedShippingPrice,
-            seller_shipping_price=listing.sellerShippingPrice,
-            forward_freight=listing.forwardFreight,
+            language_abbreviation=listing.language_abbreviation,
+            language_id=listing.language_id,
+            seller_id=listing.seller_id,
+            seller_name=listing.seller_name,
+            seller_rating=listing.seller_rating,
+            seller_sales=listing.seller_sales,
+            seller_key=listing.seller_key,
+            channel_id=listing.channel_id,
+            condition_id=listing.condition_id,
+            listing_type=listing.listing_type,
+            gold_seller=listing.gold_seller,
+            verified_seller=listing.verified_seller,
+            direct_seller=listing.direct_seller,
+            direct_product=listing.direct_product,
+            direct_inventory=listing.direct_inventory,
+            ranked_shipping_price=listing.ranked_shipping_price,
+            seller_shipping_price=listing.seller_shipping_price,
+            forward_freight=listing.forward_freight,
             score=listing.score,
-            custom_data=listing.customData,
+            custom_data=listing.custom_data,
         )
 
     def _convert_sale_to_dto(self, sale: CardSaleResponse) -> TCGPlayerSale:
         """Convert Pydantic CardSaleResponse to DTO."""
         return TCGPlayerSale(
-            purchase_price=sale.purchasePrice,
-            shipping_price=sale.shippingPrice,
+            purchase_price=sale.purchase_price,
+            shipping_price=sale.shipping_price,
             quantity=sale.quantity,
-            order_date=sale.orderDate,
+            order_date=sale.order_date,
             condition=sale.condition,
             variant=sale.variant,
             language=sale.language,
             title=sale.title,
-            listing_type=sale.listingType,
-            custom_listing_id=sale.customListingId,
+            listing_type=sale.listing_type,
+            custom_listing_id=sale.custom_listing_id,
         )
 
     async def get_product_active_listings(
@@ -322,13 +331,13 @@ class TCGPlayerListingService:
                 # Validate and parse raw API response
                 parsed = TCGPlayerListingsResponseSchema.model_validate(raw)
                 page = parsed.results[0]
-                total_listings = page.totalResults
+                total_listings = page.total_results
                 results = page.results
 
                 # Convert each ListingSchema into a DTO
                 for listing in results:
                     dto = self._convert_listing_to_dto(listing)
-                    listings[listing.listingId] = dto
+                    listings[listing.listing_id] = dto
 
                 cur_offset += len(results)
                 if cur_offset >= total_listings:
@@ -394,73 +403,73 @@ class TCGPlayerListingService:
                 has_new_sales = True
                 for sale in parsed.data:
                     # sale.orderDate is already a datetime
-                    if sale.orderDate >= datetime.now(timezone.utc) - time_delta:
+                    if sale.order_date >= datetime.now(timezone.utc) - time_delta:
                         dto = self._convert_sale_to_dto(sale)
                         sales.append(dto)
                     else:
                         has_new_sales = False
 
-                if not parsed.nextPage or not has_new_sales:
+                if not parsed.next_page or not has_new_sales:
                     break
 
         return sales
 
 
 # Define Pydantic schemas for TCGPlayer listings API response
-class AggregationItemSchema(BaseModel):
+class AggregationItemSchema(TCGPlayerResponseModel):
     value: Any
     count: int
 
 
-class AggregationsSchema(BaseModel):
+class AggregationsSchema(TCGPlayerResponseModel):
     condition: List[AggregationItemSchema]
     quantity: List[AggregationItemSchema]
     language: List[AggregationItemSchema]
     printing: List[AggregationItemSchema]
 
 
-class ListingSchema(BaseModel):
-    directProduct: bool
-    goldSeller: bool
-    listingId: int
-    channelId: int
-    conditionId: int
-    verifiedSeller: bool
-    directInventory: int
-    rankedShippingPrice: Decimal
-    productId: int
+class ListingSchema(TCGPlayerResponseModel):
+    direct_product: bool
+    gold_seller: bool
+    listing_id: int
+    channel_id: int
+    condition_id: int
+    verified_seller: bool
+    direct_inventory: int
+    ranked_shipping_price: Decimal
+    product_id: int
     printing: str
-    languageAbbreviation: str
-    sellerName: str
-    forwardFreight: bool
-    sellerShippingPrice: Decimal
+    language_abbreviation: str
+    seller_name: str
+    forward_freight: bool
+    seller_shipping_price: Decimal
     language: str
-    shippingPrice: Decimal
+    shipping_price: Decimal
     condition: str
-    languageId: int
+    language_id: int
     score: float
-    directSeller: bool
-    productConditionId: int
-    sellerId: str
-    listingType: str
-    sellerRating: float
-    sellerSales: str
+    direct_seller: bool
+    product_condition_id: int
+    seller_id: str
+    listing_type: str
+    seller_rating: float
+    seller_sales: str
     quantity: int
-    sellerKey: str
+    seller_key: str
     price: Decimal
-    customData: Any
+    custom_data: Any
 
 
-class PageSchema(BaseModel):
-    totalResults: int
-    resultId: str
+class PageSchema(TCGPlayerResponseModel):
+    total_results: int
+    result_id: str
     aggregations: AggregationsSchema
     results: List[ListingSchema]
 
 
-class TCGPlayerListingsResponseSchema(BaseModel):
-    errors: List[str]
-    results: List[PageSchema]
+class TCGPlayerListingsResponseSchema(TCGPlayerResponseModel):
+    errors: List[str] = Field(default_factory=list)
+    results: List[PageSchema] = Field(default_factory=list)
 
 
 # FastAPI dependency function

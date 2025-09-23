@@ -91,6 +91,14 @@ resource "aws_ecs_task_definition" "snapshot_inventory_sku_prices_task" {
         {
           name      = "SENTRY_DSN"
           valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+        },
+        {
+          name      = "EBAY_CLIENT_ID"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
+        },
+        {
+          name      = "EBAY_CLIENT_SECRET"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
         }
       ]
 
@@ -169,6 +177,14 @@ resource "aws_ecs_task_definition" "snapshot_product_sku_prices_task" {
         {
           name      = "SENTRY_DSN"
           valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+        },
+        {
+          name      = "EBAY_CLIENT_ID"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
+        },
+        {
+          name      = "EBAY_CLIENT_SECRET"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
         }
       ]
 
@@ -246,6 +262,14 @@ resource "aws_ecs_task_definition" "snapshot_inventory_task" {
         {
           name      = "SENTRY_DSN"
           valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+        },
+        {
+          name      = "EBAY_CLIENT_ID"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
+        },
+        {
+          name      = "EBAY_CLIENT_SECRET"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
         }
       ]
 
@@ -323,6 +347,14 @@ resource "aws_ecs_task_definition" "update_catalog_db_task" {
         {
           name      = "SENTRY_DSN"
           valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+        },
+        {
+          name      = "EBAY_CLIENT_ID"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
+        },
+        {
+          name      = "EBAY_CLIENT_SECRET"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
         }
       ]
 
@@ -413,6 +445,15 @@ resource "aws_ecs_task_definition" "refresh_tcg_cookie_task" {
         {
           name      = "SENTRY_DSN"
           valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+        },
+        # eBay API credentials
+        {
+          name      = "EBAY_CLIENT_ID"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
+        },
+        {
+          name      = "EBAY_CLIENT_SECRET"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
         }
       ]
 
@@ -502,6 +543,14 @@ resource "aws_ecs_task_definition" "compute_sku_listing_data_refresh_priority_ta
           name      = "TCGPLAYER_CLIENT_SECRET"
           valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
         },
+        {
+          name      = "EBAY_CLIENT_ID"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
+        },
+        {
+          name      = "EBAY_CLIENT_SECRET"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
+        }
       ]
 
       environment = [
@@ -591,6 +640,14 @@ resource "aws_ecs_task_definition" "purchase_decision_sweep_task" {
         {
           name      = "SENTRY_DSN"
           valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+        },
+        {
+          name      = "EBAY_CLIENT_ID"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
+        },
+        {
+          name      = "EBAY_CLIENT_SECRET"
+          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
         }
       ]
 
