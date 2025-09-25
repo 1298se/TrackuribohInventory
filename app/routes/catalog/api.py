@@ -8,8 +8,6 @@ from app.routes.catalog.schemas import (
     ProductWithSetAndSKUsResponseSchema,
     ProductSearchResponseSchema,
     ProductTypesResponseSchema,
-    SetsResponseSchema,
-    MarketDataResponseSchema,
 )
 from core.database import get_db_session
 from core.models.catalog import Product, SKU
@@ -72,7 +70,6 @@ def search_products(
     query_text = search_params.query
     catalog_id = search_params.catalog_id
     product_type = search_params.product_type
-    set_id = search_params.set_id
     page = search_params.page
     limit = 10
 
@@ -88,10 +85,6 @@ def search_products(
         base_search_query = base_search_query.where(
             Product.product_type == product_type
         )
-
-    # Add set filter if provided
-    if set_id:
-        base_search_query = base_search_query.where(Product.set_id == set_id)
 
     # Get total count for pagination metadata
     count_query = select(func.count()).select_from(base_search_query.subquery())
@@ -136,69 +129,3 @@ def get_catalogs(session: Session = Depends(get_db_session)):
 def get_product_types(session: Session = Depends(get_db_session)):
     # Assuming ProductType is an Enum, return its values.
     return ProductTypesResponseSchema(product_types=list(ProductType))
-
-
-@router.get("/sets", response_model=SetsResponseSchema)
-def get_sets(session: Session = Depends(get_db_session)):
-    """
-    Endpoint to fetch all Pokemon sets with their display name and ID.
-    """
-    # Filter sets to only return Pokemon sets
-    pokemon_catalog_id = "067820ab-e61f-7a87-8000-f9c5e424c0c0"
-    sets = session.scalars(
-        select(Set)
-        .where(Set.catalog_id == pokemon_catalog_id)
-        .order_by(Set.name)
-    ).all()
-    return SetsResponseSchema(sets=sets)
-
-
-@router.get(
-    "/product/{product_id}/market-data",
-    response_model=MarketDataResponseSchema,
-    summary="Get market data for all Near Mint/Unopened SKUs of a Product",
-)
-async def get_product_market_data(
-    product_id: uuid.UUID,
-    sales_lookback_days: int = 30,
-    session: Session = Depends(get_db_session),
-):
-    """
-    Return market data for each **Near Mint or Unopened** SKU
-    associated with the product.
-    Includes aggregated metrics like total listings, total quantity,
-    sales velocity, and estimated days of inventory.
-    """
-    # Call the refactored service function from the new service module
-    market_data = await market_data_service.get_market_data_for_product(
-        session=session,
-        product_id=product_id,
-        sales_lookback_days=sales_lookback_days,
-    )
-    return MarketDataResponseSchema(**market_data)
-
-
-@router.get(
-    "/sku/{sku_id}/market-data",
-    response_model=MarketDataResponseSchema,
-    summary="Get market-depth data for a SKU variant",
-)
-async def get_sku_market_data(
-    sku_id: uuid.UUID,
-    sales_lookback_days: int = 30,
-    session: Session = Depends(get_db_session),
-):
-    """
-    Return market data for a specific SKU variant.
-    Now calls the dedicated service function.
-    """
-    # Delegate to service which returns a MarketDataResponse-like dict
-    market_data = await market_data_service.get_market_data_for_sku(
-        session=session,
-        sku_id=sku_id,
-        sales_lookback_days=sales_lookback_days,
-    )
-    return MarketDataResponseSchema(**market_data)
-
-
-

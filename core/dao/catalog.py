@@ -52,23 +52,20 @@ def build_product_search_query(query_text: str, prefix: bool = False):
     including the join to Set, a filter by full-text match,
     and ordering by relevance rank.
     """
-    stmt = select(Product).join(Product.set)
-    
-    # Only apply text search if we have a meaningful query
-    if query_text and query_text.strip() and query_text != "*":
-        if prefix and query_text:
-            prefix_terms = [term + ":*" for term in query_text.split()]
-            ts_query = func.to_tsquery("english", " & ".join(prefix_terms))
-        else:
-            ts_query = create_ts_query(query_text)
-
-        # Use the persisted search_vector column for faster full-text search
-        vector = Product.search_vector
-        stmt = stmt.where(vector.op("@@")(ts_query)).order_by(func.ts_rank(vector, ts_query).desc())
+    if prefix and query_text:
+        prefix_terms = [term + ":*" for term in query_text.split()]
+        ts_query = func.to_tsquery("english", " & ".join(prefix_terms))
     else:
-        # When no meaningful query, just order by product name
-        stmt = stmt.order_by(Product.name)
-    
+        ts_query = create_ts_query(query_text)
+
+    # Use the persisted search_vector column for faster full-text search
+    vector = Product.search_vector
+    stmt = (
+        select(Product)
+        .join(Product.set)
+        .where(vector.op("@@")(ts_query))
+        .order_by(func.ts_rank(vector, ts_query).desc())
+    )
     return stmt
 
 
