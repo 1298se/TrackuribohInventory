@@ -71,7 +71,7 @@ export const ProductWithSetAndSKUsResponseSchema =
   ProductBaseResponseSchema.extend({
     set: SetBaseResponseSchema,
     skus: z.array(
-      SKUBaseSchema.extend({ lowest_listing_price_total: z.number() }),
+      SKUBaseSchema.extend({ lowest_listing_price_total: z.number() })
     ),
   });
 export type ProductWithSetAndSKUs = z.infer<
@@ -126,7 +126,6 @@ export const CatalogsResponseSchema = z.object({
 
 export type Catalog = z.infer<typeof CatalogSchema>;
 export type CatalogsResponse = z.infer<typeof CatalogsResponseSchema>;
-<<<<<<< HEAD
 
 export const SetsResponseSchema = z.object({
   sets: z.array(SetBaseResponseSchema),
@@ -179,5 +178,3 @@ export const MarketDataResponseSchema = z.object({
 export type MarketDataResponseSchemaType = z.infer<
   typeof MarketDataResponseSchema
 >;
-=======
->>>>>>> 5ca826cc411ef8972280a4fbf60221b34fea70aa
