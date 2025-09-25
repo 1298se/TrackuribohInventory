@@ -5,6 +5,8 @@ import {
   ProductSearchResponse,
   ProductSearchResponseSchema,
   ProductWithSetAndSKUsResponseSchema,
+} from "./schemas";
+import {
   SKUMarketDataItem,
   MarketDataResponseSchema,
   MarketDataResponseSchemaType,
@@ -25,7 +27,7 @@ export function useSkuMarketData(
 ) {
   // Key for SWR: [path, params]
   const key: string | null = skuId
-    ? `/catalog/sku/${skuId}/market-data?sales_lookback_days=${salesLookbackDays}`
+    ? `/market/skus/${skuId}?sales_lookback_days=${salesLookbackDays}`
     : null;
 
   const {
@@ -138,7 +140,7 @@ export function useProductMarketData(
 ) {
   // Key for SWR: path string or null if productId is undefined
   const key: string | null = productId
-    ? `/catalog/product/${productId}/market-data?sales_lookback_days=${salesLookbackDays}` // Updated endpoint with sales_lookback_days
+    ? `/market/products/${productId}?sales_lookback_days=${salesLookbackDays}` // Updated endpoint with sales_lookback_days
     : null;
 
   const { data, error, isValidating } = useSWR<

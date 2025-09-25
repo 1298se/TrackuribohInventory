@@ -22,6 +22,13 @@ class Environment(BaseSettings):
     tcgplayer_client_id: str
     tcgplayer_client_secret: str
 
+    # eBay API configuration
+    ebay_client_id: str
+    ebay_client_secret: str
+
+    # Redis configuration
+    redis_url: str
+
     # TCGplayer login (for cookie refresh task)
     tcgplayer_email: str | None = None
     tcgplayer_password: str | None = None

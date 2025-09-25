@@ -16,7 +16,7 @@ import { AlertCircle } from "lucide-react";
 
 // Utils
 import { MarketDepthWithMetrics } from "@/components/market-depth-chart-with-metrics";
-import { SKUMarketDataItem } from "@/app/catalog/schemas";
+import { SKUMarketDataItem } from "@/app/market/schemas";
 
 interface ProductDetailsProps {
   productId: UUID;

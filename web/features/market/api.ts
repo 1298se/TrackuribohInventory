@@ -208,7 +208,7 @@ async function fetchMarketData(
   salesLookbackDays: number = 7
 ): Promise<MarketDataResponseSchemaType> {
   const response = await fetch(
-    `${API_URL}/catalog/product/${sku}/market-data?sales_lookback_days=${salesLookbackDays}`
+    `${API_URL}/market/products/${sku}?sales_lookback_days=${salesLookbackDays}`
   );
   return response.json();
 }

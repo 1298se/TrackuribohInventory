@@ -11,10 +11,10 @@ from core.models.catalog import sku_tablename
 from core.models.types import TextEnum
 from core.models.price import Marketplace
 
-sales_listing_tablename = "sales_listing"
+sales_listing_tablename = "sale_record"
 
 
-class SalesListing(Base):
+class SaleRecord(Base):
     __tablename__ = sales_listing_tablename
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
@@ -37,17 +37,17 @@ class SalesListing(Base):
     __table_args__ = (
         # Primary index for lambda_hat computation
         Index(
-            "ix_sales_listing_sku_marketplace_date",
+            "ix_sale_record_sku_marketplace_date",
             "sku_id",
             "marketplace",
             sale_date.desc(),
         ),
         # Index for time-based queries
-        Index("ix_sales_listing_date", sale_date.desc()),
-        CheckConstraint("sale_price > 0", name="ck_sales_listing_price_gt_zero"),
+        Index("ix_sale_record_date", sale_date.desc()),
+        CheckConstraint("sale_price > 0", name="ck_sale_record_price_gt_zero"),
         # Deduplication unique index
         Index(
-            "ux_sales_listing_sku_mkt_date_price_ship_qty",
+            "ux_sale_record_sku_mkt_date_price_ship_qty",
             "sku_id",
             "marketplace",
             "sale_date",

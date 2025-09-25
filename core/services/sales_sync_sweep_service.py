@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Dict, List, Optional, TypedDict, NamedTuple
+from typing import Dict, List, Optional, TypedDict
 from dataclasses import dataclass
 from collections import defaultdict
 
@@ -14,11 +14,16 @@ from core.models.price import Marketplace
 from core.models.decisions import BuyDecision
 from core.models.catalog import Condition, Printing, Language
 from core.services.tcgplayer_listing_service import (
-    get_sales,
     CardSaleRequestData,
-    CardSaleResponse,
+    TCGPlayerListingService,
 )
-from core.dao.sales_listing import upsert_sales_listings, SalesDataRow
+from core.services.tcgplayer_types import TCGPlayerSale
+from core.services.sku_lookup import (
+    SKUKey,
+    SKUVariantInput,
+    build_sku_lookup_from_processing_skus,
+)
+from core.dao.sales import upsert_sales_listings, SalesDataRow
 from core.dao.sync_state import (
     upsert_sync_timestamps,
     get_sales_refresh_timestamps,
@@ -37,12 +42,6 @@ class CatalogMappings(TypedDict):
     condition_name_to_id: Dict[str, uuid.UUID]
     printing_name_to_id_by_catalog_id: Dict[uuid.UUID, Dict[str, uuid.UUID]]
     language_name_to_id: Dict[str, uuid.UUID]
-
-
-class SKUKey(NamedTuple):
-    condition_id: uuid.UUID
-    printing_id: uuid.UUID
-    language_id: uuid.UUID
 
 
 @dataclass
@@ -102,32 +101,15 @@ def get_catalog_mappings(session: Session) -> CatalogMappings:
     )
 
 
-def build_sku_lookup_from_processing_skus(
-    skus_in_product: List[ProcessingSKU],
-) -> Dict[SKUKey, uuid.UUID]:
-    """
-    Build lookup table from ProcessingSKU objects (no database query needed).
-    """
-    sku_lookup: Dict[SKUKey, uuid.UUID] = {}
-    for sku in skus_in_product:
-        key = SKUKey(
-            condition_id=sku.condition_id,
-            printing_id=sku.printing_id,
-            language_id=sku.language_id,
-        )
-        sku_lookup[key] = sku.sku_id
-    return sku_lookup
-
-
 def transform_card_sale_responses_to_sales_data_by_sku(
-    sales_responses: List[CardSaleResponse],
+    sales_responses: List[TCGPlayerSale],
     skus_in_product: List[ProcessingSKU],
     marketplace: Marketplace,
     mappings: CatalogMappings,
     catalog_id: uuid.UUID,
 ) -> Dict[uuid.UUID, List[SalesDataRow]]:
     """
-    Transform TCGPlayer CardSaleResponse objects to SalesListing data format,
+    Transform TCGPlayer TCGPlayerSale objects to SalesListing data format,
     mapping them to specific SKUs based on condition, variant (printing), and language.
 
     Args:
@@ -140,8 +122,17 @@ def transform_card_sale_responses_to_sales_data_by_sku(
     Returns:
         Mapping of sku_id -> list of matched SalesDataRow
     """
-    # Build lookup table for (condition_id, printing_id, language_id) -> sku_id
-    sku_lookup = build_sku_lookup_from_processing_skus(skus_in_product)
+    # Build lookup table for (condition_id, printing_id, language_id) -> sku_id using shared helper
+    variant_inputs: List[SKUVariantInput] = [
+        SKUVariantInput(
+            sku_id=sku.sku_id,
+            condition_id=sku.condition_id,
+            printing_id=sku.printing_id,
+            language_id=sku.language_id,
+        )
+        for sku in skus_in_product
+    ]
+    sku_lookup = build_sku_lookup_from_processing_skus(variant_inputs)
 
     sales_by_sku_id: Dict[uuid.UUID, List[SalesDataRow]] = defaultdict(list)
 
@@ -186,12 +177,10 @@ def transform_card_sale_responses_to_sales_data_by_sku(
         sale_dict: SalesDataRow = {
             "sku_id": sku_id,
             "marketplace": marketplace,
-            "sale_date": sale.orderDate,
-            "sale_price": Decimal(str(sale.purchasePrice)),
-            "shipping_price": Decimal(str(sale.shippingPrice))
-            if sale.shippingPrice
-            else None,
-            "quantity": int(sale.quantity),
+            "sale_date": sale.order_date,
+            "sale_price": sale.purchase_price,
+            "shipping_price": sale.shipping_price if sale.shipping_price else None,
+            "quantity": sale.quantity,
         }
         sales_by_sku_id[sku_id].append(sale_dict)
 
@@ -201,7 +190,8 @@ def transform_card_sale_responses_to_sales_data_by_sku(
 async def process_product_sales_sync(
     product_tcgplayer_id: int,
     last_sales_refresh_at: Optional[datetime],
-) -> List[CardSaleResponse]:
+    tcgplayer_listing_service: TCGPlayerListingService,
+) -> List[TCGPlayerSale]:
     """
     Fetch incremental sales for a product and return raw responses.
     Caller is responsible for transforming to sales rows per SKU.
@@ -219,12 +209,13 @@ async def process_product_sales_sync(
     )
 
     # Fetch sales data (let exceptions propagate)
-    return await get_sales(sales_request, time_delta)
+    return await tcgplayer_listing_service.get_sales(sales_request, time_delta)
 
 
 async def run_sales_sync_sweep(
     marketplace: Marketplace,
     product_tcgplayer_ids: List[int],
+    tcgplayer_listing_service: TCGPlayerListingService,
 ) -> None:
     """
     Run sales sync sweep to refresh sales data for all SKUs in given products.
@@ -299,6 +290,7 @@ async def run_sales_sync_sweep(
             sales_responses = await process_product_sales_sync(
                 product_tcgplayer_id=product_tcgplayer_id,
                 last_sales_refresh_at=earliest_refresh_at,
+                tcgplayer_listing_service=tcgplayer_listing_service,
             )
 
             # Get catalog_id from the first SKU (all SKUs in same product have same catalog_id)
