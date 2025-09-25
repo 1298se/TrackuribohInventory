@@ -1,4 +1,5 @@
 "use client";
+
 import { Book, Menu, Search, Sunset, Trees, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -42,12 +43,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
-import { API_URL } from "@/app/api/fetcher";
-import { POKEMON_CATALOG_ID } from "@/shared/constants";
 import { useDebouncedState } from "@tanstack/react-pacer/debouncer";
-import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { EmptyState } from "@/shared/components/EmptyState";
+import { getProductSearchQuery } from "@/features/catalog/api";
 
 interface MenuItem {
   title: string;
@@ -55,15 +54,6 @@ interface MenuItem {
   description?: string;
   icon?: React.ReactNode;
   items?: MenuItem[];
-}
-
-interface SearchResult {
-  results: ProductWithSetAndSKUsResponse[];
-  total: number;
-  page: number;
-  limit: number;
-  has_next: boolean;
-  has_prev: boolean;
 }
 
 interface Props {
@@ -93,39 +83,7 @@ export function TopNav({
     alt: "logo",
     title: "codex",
   },
-  menu = [
-    {
-      title: "Sets",
-      url: "#",
-      items: [
-        {
-          title: "Blog",
-          description: "The latest industry news, updates, and info",
-          icon: <Book className="size-5 shrink-0" />,
-          url: "#",
-        },
-        {
-          title: "Company",
-          description: "Our mission is to innovate and empower the world",
-          icon: <Trees className="size-5 shrink-0" />,
-          url: "#",
-        },
-        {
-          title: "Careers",
-          description: "Browse job listing and discover our workspace",
-          icon: <Sunset className="size-5 shrink-0" />,
-          url: "#",
-        },
-        {
-          title: "Support",
-          description:
-            "Get in touch with our support team or visit our community forums",
-          icon: <Zap className="size-5 shrink-0" />,
-          url: "#",
-        },
-      ],
-    },
-  ],
+  menu = [],
   auth = {
     login: { title: "Sign in", url: "#" },
     signup: { title: "Sign up", url: "#" },
@@ -141,6 +99,9 @@ export function TopNav({
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const path = usePathname();
+  const isSearchPage = path.startsWith("/search");
 
   return (
     <section
@@ -162,7 +123,7 @@ export function TopNav({
               {logo.title}
             </span>
           </Link>
-          <SearchBar />
+          {!isSearchPage && <SearchBar />}
           <div className="flex items-center gap-2">
             <NavigationMenu>
               <NavigationMenuList>
@@ -332,23 +293,12 @@ export function SearchBar() {
     isLoading,
     isFetching,
     isPending,
-  } = useQuery<SearchResult>({
-    queryKey: ["search", debouncedQueryKey],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-
-      params.set("query", debouncedQueryKey);
-      params.set("catalog_id", POKEMON_CATALOG_ID);
-      params.set("product_type", "CARDS");
-      params.set("limit", LIMIT_PER_PAGE.toString());
-
-      const response = await fetch(
-        `${API_URL}/catalog/search?${params.toString()}`
-      );
-      const data = await response.json();
-      return data;
-    },
-  });
+  } = useQuery(
+    getProductSearchQuery({
+      query: debouncedQueryKey,
+      productType: "CARDS",
+    })
+  );
 
   const shouldShowSkeleton = isLoading || isFetching || isPending;
 

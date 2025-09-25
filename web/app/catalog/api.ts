@@ -9,8 +9,8 @@ import {
 import {
   SKUMarketDataItem,
   MarketDataResponseSchema,
-  MarketDataResponseSchemaType as MarketDataResponse,
-} from "@/app/market/schemas";
+  MarketDataResponseSchemaType,
+} from "./schemas";
 import { UUID } from "crypto";
 
 // Define the type inferred from the schema
@@ -23,7 +23,7 @@ type ProductDetailType = z.infer<typeof ProductWithSetAndSKUsResponseSchema>;
 export function useSkuMarketData(
   skuId: string | null,
   salesLookbackDays: number = 30,
-  token: string,
+  token: string
 ) {
   // Key for SWR: [path, params]
   const key: string | null = skuId
@@ -44,7 +44,7 @@ export function useSkuMarketData(
         schema: MarketDataResponseSchema,
         token,
       });
-    },
+    }
   );
 
   return {
@@ -62,7 +62,7 @@ export function useProductSearch(
   catalogId: string | null = null,
   token: string,
   page: number = 1,
-  limit: number = 20,
+  limit: number = 20
 ) {
   // Prepare query params (always include `query`, even if empty)
   const params: Record<string, string> = {
@@ -92,7 +92,7 @@ export function useProductSearch(
         schema: ProductSearchResponseSchema,
         token,
       });
-    },
+    }
   );
 
   return { data, error, isLoading };
@@ -136,7 +136,7 @@ export function useProductDetail(productId: UUID | undefined, token: string) {
 export function useProductMarketData(
   productId: UUID | undefined,
   salesLookbackDays: number = 30,
-  token: string,
+  token: string
 ) {
   // Key for SWR: path string or null if productId is undefined
   const key: string | null = productId
@@ -144,7 +144,7 @@ export function useProductMarketData(
     : null;
 
   const { data, error, isValidating } = useSWR<
-    MarketDataResponse,
+    MarketDataResponseSchemaType,
     Error,
     string | null
   >(key, (path) => {

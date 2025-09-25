@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { cn } from '@/lib/utils';
-import { ImageIcon } from 'lucide-react';
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { ImageIcon } from "lucide-react";
 
 interface ProductImageProps extends React.HTMLAttributes<HTMLDivElement> {
   src: string;
@@ -30,18 +30,18 @@ export function ProductImage({
   };
 
   return (
-    <div className={cn('relative h-16 w-16', containerClassName)} {...props}>
+    <div className={cn("relative h-16 w-16", containerClassName)} {...props}>
       {!hasError ? (
         <img
           src={src}
           alt={alt}
-          className={cn('h-full w-full object-contain rounded-md', className)}
+          className={cn("h-full w-full object-contain rounded-md", className)}
           onError={handleError}
         />
       ) : (
-        <div 
+        <div
           className={cn(
-            'h-full w-full flex items-center justify-center rounded-md bg-muted border', 
+            "h-full w-full flex items-center justify-center rounded-md bg-muted border",
             fallbackClassName
           )}
         >
@@ -53,4 +53,4 @@ export function ProductImage({
       )}
     </div>
   );
-} 
+}

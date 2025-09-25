@@ -67,4 +67,4 @@ terraform/.terraform/
 .tmp/
 
 
-/path
+/venv

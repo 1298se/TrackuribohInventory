@@ -70,7 +70,7 @@ import { useRouter } from "next/navigation";
 import { MoneyInput } from "@/components/ui/money-input";
 import { QuantityInput } from "@/components/ui/quantity-input";
 import { Separator } from "@/components/ui/separator";
-import { ProductImage } from "@/components/ui/product-image";
+import { ProductImage } from "@/features/catalog/components/ProductImage";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { FormFieldPlatformSelect } from "@/components/ui/platform-select";
 import { ProductDisplay } from "@/components/product-display";

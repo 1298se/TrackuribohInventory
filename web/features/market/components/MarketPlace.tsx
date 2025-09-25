@@ -1,139 +1,220 @@
 "use client";
 
-import { CardContent } from "@/components/ui/card";
-import Image from "next/image";
-import Link from "next/link";
+import { CardFooter } from "@/components/ui/card";
+import { useState } from "react";
+import { Plus } from "lucide-react";
+
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MarketAnalysisTable } from "./MarketAnalysisTable";
+import { SealedVsSingleOverviewChart } from "./SealedVsSingleOverviewChart";
+import { ClientOnly } from "@/components/ui/client-only";
 import { Separator } from "@/components/ui/separator";
-import { getLargeTCGPlayerImage } from "../utils";
-import { useQuery } from "@tanstack/react-query";
-import { API_URL } from "@/app/api/fetcher";
-import { BuyDecisionsResponseSchemaType } from "../schemas";
-import { formatCurrency } from "@/shared/utils";
-import { EmptyState } from "@/shared/components/EmptyState";
-import { Search } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { MonitorDot } from "@/shared/components/MonitorDot";
 
-export function MarketPlace() {
-  const { data: decisionsResponse, isLoading } =
-    useQuery<BuyDecisionsResponseSchemaType>({
-      queryKey: ["decisions"],
-      queryFn: async () => {
-        const response = await fetch(`${API_URL}/buy-decisions`);
-        return response.json();
-      },
-    });
+export const description = "An interactive area chart";
 
-  const cardDecisions =
-    decisionsResponse?.decisions.map((decision) => {
-      return {
-        decisionId: decision.id,
-        productId: decision.sku.product.id,
-        name: decision.sku.product.name,
-        number: decision.sku.product.number,
-        image_url: decision.sku.product.image_url,
-        set: {
-          name: decision.sku.product.set.name,
-          id: decision.sku.product.set.id,
-        },
-        price: decision.buy_vwap,
-      } satisfies DisplayCardProps;
-    }) ?? [];
-
-  return (
-    <section className="flex flex-col gap-4 m-8">
-      <DisplayCardsSection cards={cardDecisions} isLoading={isLoading} />
-    </section>
-  );
+interface DashboardConfig {
+  id: string;
+  name: string;
+  code: string;
+  statCards: StatCard[];
 }
 
-type DisplayCardProps = {
-  decisionId: string;
-  productId: string;
-  name: string;
-  number: string | null;
-  image_url: string;
-  set: {
-    name: string;
-    id: string;
-  };
-  price: number;
-};
+const dashboardConfigs: DashboardConfig[] = [
+  {
+    id: "general",
+    name: "SV01: Scarlet & Violet Base Set",
+    code: "GENERAL",
+    statCards: [
+      {
+        description: "Total Market Value",
+        value: "$15,847.50",
+        footer: "Sum of all cards in the set",
+        delta: "+12.3%",
+        isIncrease: true,
+      },
+      {
+        description: "Average Pack Price",
+        value: "$4.35",
+        footer: "Average price of a booster pack",
+        delta: "-2.1%",
+        isIncrease: false,
+      },
+      {
+        description: "Top Chase Card Performance",
+        value: "+52.8%",
+        footer: "Charizard VMax",
+        delta: "+52.8%",
+        isIncrease: true,
+      },
+    ],
+  },
+];
 
-function DisplayCardsSection({
-  cards,
-  isLoading,
-}: {
-  cards: DisplayCardProps[];
-  isLoading: boolean;
-}) {
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-5 gap-6 place-items-center">
-        {Array.from({ length: 10 }).map((_, index) => (
-          <div key={index} className="flex flex-col gap-4">
-            <Skeleton className="h-[277px] w-[195px] rounded-lg" />
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-4 w-full mb-1" />
-              <Skeleton className="h-4 w-full mb-1" />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  if (cards.length === 0) {
-    return (
-      <EmptyState
-        title="No cards found"
-        description="Try searching for a different Pokemon name or set"
-        icon={Search}
-        action={
-          <div className="text-xs text-muted-foreground">
-            Try &quot;Pikachu&quot;, &quot;Charizard&quot;, or &quot;Base
-            Set&quot;
-          </div>
-        }
-      />
-    );
-  }
+interface StatCard {
+  description: string;
+  value: string;
+  footer: string;
+}
+
+// Reusable dashboard component
+
+export function MarketPlace() {
+  const [dashboards, setDashboards] =
+    useState<DashboardConfig[]>(dashboardConfigs);
+  const [activeTab, setActiveTab] = useState("general");
+
+  const addNewDashboard = () => {
+    const newDashboard: DashboardConfig = {
+      id: `custom-${Date.now()}`,
+      name: "Custom Dashboard",
+      code: "CUSTOM",
+      statCards: [
+        {
+          description: "Total Set Value",
+          value: "$0.00",
+          footer: "Based on current market prices",
+          delta: "+0.0%",
+          isIncrease: true,
+        },
+        {
+          description: "Price Per Pack",
+          value: "$0.00",
+          footer: "Current market rate",
+          delta: "+0.0%",
+          isIncrease: true,
+        },
+        {
+          description: "Top Chase Card Performance",
+          value: "+0.0%",
+          footer: "Since set release",
+          delta: "+0.0%",
+          isIncrease: true,
+        },
+      ],
+    };
+
+    setDashboards([...dashboards, newDashboard]);
+    setActiveTab(newDashboard.id);
+  };
 
   return (
-    <div className="grid grid-cols-5 gap-6 place-items-center">
-      {cards.map((product) => (
-        <DisplayCard key={product.decisionId} card={product} />
-      ))}
+    <div className="flex flex-1 flex-col">
+      <div className="@container/main flex flex-1 flex-col gap-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+          <div className="px-6 pt-4">
+            <h4 className="text-md font-medium mb-4 flex gap-2 items-center">
+              Monitors
+            </h4>
+            <TabsList className="">
+              {dashboards.map((dashboard) => (
+                <TabsTrigger key={dashboard.id} value={dashboard.id}>
+                  {dashboard.name}
+                </TabsTrigger>
+              ))}
+              <Button
+                onClick={addNewDashboard}
+                size="sm"
+                className="h-8"
+                variant="ghost"
+              >
+                <Plus className="h-4 w-4 mr-0.5" />
+                Add
+              </Button>
+            </TabsList>
+          </div>
+
+          {dashboards.map((dashboard) => (
+            <TabsContent key={dashboard.id} value={dashboard.id}>
+              <Dashboard config={dashboard} />
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
     </div>
   );
 }
 
-function DisplayCard({ card }: { card: DisplayCardProps }) {
+interface DashboardProps {
+  config: DashboardConfig;
+}
+
+function Dashboard({ config }: DashboardProps) {
   return (
-    <Link href={`/market/${card.productId}`} className="h-[360px] w-[200px]">
-      <div className="w-[200px]">
-        <CardContent className="px-0 py-0 w-full">
-          <div className="w-[200px] h-[280px] flex items-center justify-center bg-muted bg-gradient-to-t from-muted/5 rounded-md border">
-            <Image
-              src={getLargeTCGPlayerImage({ imageUrl: card.image_url })}
-              alt={card.name}
-              width={200}
-              height={280}
-              className="rounded-md shadow-2xl outline-2 outline-sidebar-border"
-            />
+    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <h2 className="text-2xl font-semibold lg:px-6 flex gap-2 items-center">
+        <MonitorDot /> {config.name}
+      </h2>
+      <StatCardSection cards={config.statCards} />
+      <ClientOnly>
+        <div className="lg:px-6 flex flex-col gap-6">
+          <SealedVsSingleOverviewChart />
+          <div className="flex flex-col gap-4">
+            <h3 className="text-xl font-semibold">Chase cards</h3>
+            <MarketAnalysisTable />
           </div>
-        </CardContent>
-        <div>
-          <div className="pt-1">
-            <p className="mb-0 text-xs text-muted-foreground">{card.number}</p>
-            <p className="font-semibold text-xs">{card.name}</p>
-          </div>
-          <Separator className="my-2" />
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(card.price)}
-            </p>
+          <div className="flex flex-col gap-4">
+            <h3 className="text-xl font-semibold">Sealed product</h3>
+            <MarketAnalysisTable />
           </div>
         </div>
-      </div>
-    </Link>
+      </ClientOnly>
+    </div>
+  );
+}
+
+interface StatCard {
+  description: string;
+  value: string;
+  footer: string;
+  delta?: string;
+  isIncrease?: boolean;
+}
+
+interface SectionCardsProps {
+  cards: StatCard[];
+}
+
+function StatCardSection({ cards }: SectionCardsProps) {
+  return (
+    <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-3 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-3">
+      {cards.map((card, index) => (
+        <Card key={index} className="@container/card relative gap-2">
+          <CardHeader className="">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <CardDescription className="text-xs">
+                  {card.description}
+                </CardDescription>
+                <CardTitle className="text-xl font-semibold tabular-nums @[250px]/card:text-2xl">
+                  {card.value}
+                </CardTitle>
+              </div>
+              {card.delta && (
+                <div
+                  className={`ml-2 rounded-full px-2 py-1 text-xs font-medium ${
+                    card.isIncrease
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                      : "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+                  }`}
+                >
+                  {card.delta}
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardFooter className="flex-col items-start gap-1 text-xs pt-0">
+            <div className="text-muted-foreground">{card.footer}</div>
+          </CardFooter>
+        </Card>
+      ))}
+    </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { parseISO, format } from "date-fns";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
+import { AreaChart, Area, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -12,15 +12,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { TimeRangeToggle } from "@/components/ui/time-range-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useInventoryPerformance } from "./api";
-import { BarChart as BarChartIcon } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 
 interface InventoryHistoryGraphProps {
   catalogId: string | null;
+  token: string;
 }
 
 export function InventoryHistoryGraph({
   catalogId,
+  token,
 }: InventoryHistoryGraphProps) {
   const isMobile = useIsMobile();
   const [days, setDays] = useState<string | undefined>(undefined);
@@ -49,6 +50,7 @@ export function InventoryHistoryGraph({
   const { data, error, isLoading } = useInventoryPerformance(
     catalogId,
     daysNumber,
+    token
   );
 
   if (error) {
@@ -86,7 +88,9 @@ export function InventoryHistoryGraph({
           </div>
         ) : data.length === 0 ? (
           <EmptyState
-            message={`No inventory snapshots yet${daysNumber ? ` for the last ${daysNumber} days` : ""}`}
+            message={`No inventory snapshots yet${
+              daysNumber ? ` for the last ${daysNumber} days` : ""
+            }`}
           />
         ) : (
           <ChartContainer

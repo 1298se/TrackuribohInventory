@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SKUDisplay } from "@/components/sku-display";
-import { ProductImage } from "@/components/ui/product-image";
+import { ProductImage } from "@/features/catalog/components/ProductImage";
 import { useState } from "react";
 import { RowSelectionState } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
@@ -197,7 +197,7 @@ export function TransactionTable({
 
         const handleOptionClick = (
           value: string | undefined,
-          event: React.MouseEvent,
+          event: React.MouseEvent
         ) => {
           event.stopPropagation();
           if (onFiltersChange) {
@@ -263,7 +263,7 @@ export function TransactionTable({
           <div
             className={cn(
               "font-medium",
-              type === "PURCHASE" ? "text-blue-600" : "text-green-600",
+              type === "PURCHASE" ? "text-blue-600" : "text-green-600"
             )}
           >
             {type}
@@ -280,10 +280,10 @@ export function TransactionTable({
 
         // Local state for platform selections (only applied on "Apply")
         const [localPlatformIds, setLocalPlatformIds] = useState<string[]>(
-          filters?.platform_ids || [],
+          filters?.platform_ids || []
         );
         const [localIncludeNoPlatform, setLocalIncludeNoPlatform] = useState(
-          filters?.include_no_platform || false,
+          filters?.include_no_platform || false
         );
 
         // Reset local state when popover opens
@@ -299,7 +299,7 @@ export function TransactionTable({
           setLocalPlatformIds((prev) =>
             checked
               ? [...prev, platformId]
-              : prev.filter((id) => id !== platformId),
+              : prev.filter((id) => id !== platformId)
           );
         };
 
@@ -386,7 +386,7 @@ export function TransactionTable({
                         <div className="space-y-1 max-h-[200px] overflow-y-auto">
                           {filterOptions.platforms.map((platform) => {
                             const isChecked = localPlatformIds.includes(
-                              platform.id,
+                              platform.id
                             );
 
                             return (
@@ -404,7 +404,7 @@ export function TransactionTable({
                                   onCheckedChange={(checked) => {
                                     handlePlatformToggle(
                                       platform.id,
-                                      !!checked,
+                                      !!checked
                                     );
                                   }}
                                   onClick={(e) => e.stopPropagation()}
@@ -422,7 +422,7 @@ export function TransactionTable({
                             onClick={(e) => {
                               e.stopPropagation();
                               setLocalIncludeNoPlatform(
-                                !localIncludeNoPlatform,
+                                !localIncludeNoPlatform
                               );
                             }}
                           >
@@ -625,7 +625,7 @@ export function TransactionTable({
 
   // Compute selected IDs and count
   const selectedIds = Object.keys(rowSelection).filter(
-    (key) => rowSelection[key],
+    (key) => rowSelection[key]
   );
   const selectedCount = selectedIds.length;
 

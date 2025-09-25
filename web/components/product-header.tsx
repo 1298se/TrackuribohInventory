@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ProductImage } from "@/components/ui/product-image";
+import { ProductImage } from "@/features/catalog/components/ProductImage";
 import { Badge } from "@/components/ui/badge";
 
 interface ProductHeaderProps {

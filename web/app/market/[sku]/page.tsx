@@ -1,13 +1,10 @@
 "use client";
 
-import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
-import { MarketDataResponseSchemaType } from "@/app/market/schemas";
 import { getLargeTCGPlayerImage } from "@/features/market/utils";
-import { fetchProduct, fetchMarketData } from "@/features/market/api";
+import { getMarketDepthQuery } from "@/features/market/api";
+import { getProductQuery } from "@/features/catalog/api";
 import { useQuery } from "@tanstack/react-query";
-import Image from "next/image";
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -25,6 +22,9 @@ import { findFirstNearMintSku, formatCurrency } from "@/shared/utils";
 import { MarketRecentSalesSnapshot } from "@/features/market/components/MarketRecentSalesSnapshot";
 import { assertNotNullable } from "@/lib/validation";
 import { Loader2 } from "lucide-react";
+import { ProductImage } from "@/features/catalog/components/ProductImage";
+import { ClientOnly } from "@/components/ui/client-only";
+import { MonitorDot } from "@/shared/components/MonitorDot";
 
 export default function ProductSKUDetailsPage() {
   const { sku } = useParams();
@@ -33,24 +33,16 @@ export default function ProductSKUDetailsPage() {
     throw new Error("Invalid SKU");
   }
 
-  const { data: product } = useQuery<ProductWithSetAndSKUsResponse>({
-    queryKey: ["product", sku],
-    queryFn: () => fetchProduct(sku),
-  });
+  const { data: product } = useQuery(getProductQuery(sku));
 
   const nearMintSku =
     product && product.skus?.length > 0
       ? findFirstNearMintSku(product.skus)
       : null;
 
-  const { data: marketDepth } = useQuery<MarketDataResponseSchemaType>({
-    queryKey: ["marketDepth", sku],
-    queryFn: () => fetchMarketData(sku, 7),
-  });
-
-  const parsedMarketDepth = useMemo(() => {
-    return parseMarketData(marketDepth);
-  }, [marketDepth]);
+  const { data: parsedMarketDepth } = useQuery(
+    getMarketDepthQuery({ sku, salesLookbackDays: 7 })
+  );
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -64,7 +56,7 @@ export default function ProductSKUDetailsPage() {
           />
         </div>
 
-        <ProductImage
+        <ProductImageDisplay
           imageUrl={product?.image_url}
           name={product?.name}
           ratio={0.3}
@@ -100,14 +92,11 @@ export default function ProductSKUDetailsPage() {
 
       <div className="flex flex-row gap-4 items-center">
         {parsedMarketDepth ? (
-          <span className="relative flex size-3">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"></span>
-            <span className="relative inline-flex size-3 rounded-full bg-blue-500"></span>
-          </span>
+          <MonitorDot />
         ) : (
           <Loader2 className="w-3 h-3 animate-spin" />
         )}
-        <h2 className="text-2xl font-bold">Performance monitoring</h2>
+        <h2 className="text-2xl font-medium">Performance monitoring</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -126,7 +115,7 @@ export default function ProductSKUDetailsPage() {
   );
 }
 
-function ProductImage({
+function ProductImageDisplay({
   imageUrl,
   name,
   isLoading,
@@ -155,14 +144,13 @@ function ProductImage({
   assertNotNullable(name);
 
   return (
-    <Image
+    <ProductImage
       src={getLargeTCGPlayerImage({
         imageUrl: imageUrl,
         size: 800,
       })}
       alt={name}
-      width={300}
-      height={300}
+      containerClassName="w-full h-full"
       className="rounded-[10px] shadow-2xl mx-auto lg:mx-0"
       style={{ width: `${scaledWidth}px`, height: `${scaledHeight}px` }}
     />
@@ -392,172 +380,4 @@ function MarketDepthChartCard({
       </CardContent>
     </Card>
   );
-}
-
-function parseMarketData(
-  marketDepth: MarketDataResponseSchemaType | undefined,
-) {
-  if (!marketDepth?.market_data_items) return null;
-
-  const data = marketDepth.market_data_items;
-
-  // Get unique marketplaces
-  const marketplaces = Array.from(
-    new Set(
-      data
-        .filter((i) => i.sku.condition.abbreviation !== "NM")
-        .map((i) => i.marketplace),
-    ),
-  );
-
-  // For now, let's use the first marketplace (you can add marketplace selection later)
-  const selectedMarketplace = marketplaces[0] || "";
-  const itemsForMarketplace = data.filter(
-    (i) => i.marketplace === selectedMarketplace,
-  );
-
-  // Get SKUs for the selected marketplace
-  const skusForMarketplace = itemsForMarketplace.map((i) => i.sku);
-
-  // For aggregated view (multiple SKUs), combine the data
-  const isAggregated = skusForMarketplace.length > 1;
-
-  const parsedMarketData = {
-    marketplaces,
-    selectedMarketplace,
-    itemsForMarketplace,
-    skusForMarketplace,
-    isAggregated,
-  };
-
-  // Parse listing depth levels
-  const listingDepthLevels = (() => {
-    if (!parsedMarketData.itemsForMarketplace.length) return [];
-
-    const { itemsForMarketplace, isAggregated } = parsedMarketData;
-
-    if (isAggregated) {
-      // Aggregate across all SKUs
-      const rawMap = new Map<number, number>();
-      itemsForMarketplace.forEach(({ market_data }) => {
-        let prev = 0;
-        market_data.cumulative_depth_levels.forEach(
-          ({ price, cumulative_count }) => {
-            const delta = cumulative_count - prev;
-            rawMap.set(price, (rawMap.get(price) || 0) + delta);
-            prev = cumulative_count;
-          },
-        );
-      });
-      const sorted = Array.from(rawMap.keys()).sort((a, b) => a - b);
-      let cum = 0;
-      return sorted.map((p) => {
-        cum += rawMap.get(p)!;
-        return { price: p, cumulative_count: cum };
-      });
-    } else {
-      // Single SKU
-      return itemsForMarketplace[0]?.market_data.cumulative_depth_levels || [];
-    }
-  })();
-
-  // Parse sales depth levels
-  const salesDepthLevels = (() => {
-    if (!parsedMarketData.itemsForMarketplace.length) return [];
-
-    const { itemsForMarketplace, isAggregated } = parsedMarketData;
-
-    if (isAggregated) {
-      // Aggregate across all SKUs
-      const rawMap = new Map<number, number>();
-      itemsForMarketplace.forEach(({ market_data }) => {
-        let prev = 0;
-        market_data.cumulative_sales_depth_levels.forEach(
-          ({ price, cumulative_count }) => {
-            const delta = cumulative_count - prev;
-            rawMap.set(price, (rawMap.get(price) || 0) + delta);
-            prev = cumulative_count;
-          },
-        );
-      });
-      const sorted = Array.from(rawMap.keys()).sort((a, b) => a - b);
-      let cum = 0;
-      return sorted.map((p) => {
-        cum += rawMap.get(p)!;
-        return { price: p, cumulative_count: cum };
-      });
-    } else {
-      // Single SKU
-      return (
-        itemsForMarketplace[0]?.market_data.cumulative_sales_depth_levels || []
-      );
-    }
-  })();
-
-  // Transform for chart data
-  const listingChartData = listingDepthLevels.map(
-    ({ price, cumulative_count }) => ({
-      price,
-      cumulativeCount: cumulative_count,
-    }),
-  );
-
-  const salesChartData = (() => {
-    if (!salesDepthLevels.length) return [];
-
-    // Find the maximum cumulative count to reverse the sales data
-    const maxCount = Math.max(
-      ...salesDepthLevels.map((d) => d.cumulative_count),
-    );
-
-    return salesDepthLevels.map(({ price, cumulative_count }) => ({
-      price,
-      cumulativeCount: maxCount - cumulative_count,
-    }));
-  })();
-
-  // Calculate metrics
-  const metrics = (() => {
-    if (!parsedMarketData.itemsForMarketplace.length) return null;
-
-    const { itemsForMarketplace, isAggregated } = parsedMarketData;
-
-    if (isAggregated) {
-      const totalListings = itemsForMarketplace.reduce(
-        (s, i) => s + i.market_data.total_listings,
-        0,
-      );
-      const totalQuantity = itemsForMarketplace.reduce(
-        (s, i) => s + i.market_data.total_quantity,
-        0,
-      );
-      const totalSales = itemsForMarketplace.reduce(
-        (s, i) => s + i.market_data.total_sales,
-        0,
-      );
-
-      // Calculate true sales velocity: total sales / lookback days
-      const lookbackDays = 7; // from your API call
-      const salesVelocity = parseFloat((totalSales / lookbackDays).toFixed(2));
-
-      return {
-        total_listings: totalListings,
-        total_quantity: totalQuantity,
-        total_sales: totalSales,
-        sales_velocity: salesVelocity,
-      };
-    } else {
-      return itemsForMarketplace[0]?.market_data || null;
-    }
-  })();
-
-  // Combine all parsed data
-  return {
-    ...parsedMarketData,
-    listingDepthLevels,
-    salesDepthLevels,
-    listingChartData,
-    salesChartData,
-    metrics,
-  };
 }

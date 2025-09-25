@@ -57,7 +57,7 @@ import {
 } from "@/components/ui/card";
 import { SelectProductDialog } from "../../inventory/select-product-dialog";
 import { Trash } from "lucide-react";
-import { ProductImage } from "@/components/ui/product-image";
+import { ProductImage } from "@/features/catalog/components/ProductImage";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { FormFieldPlatformSelect } from "@/components/ui/platform-select";
 import {
@@ -208,7 +208,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                         onValueChange={(skuId) => {
                           const product = originalSku.product;
                           const newSku = product.skus.find(
-                            (s) => s.id === skuId,
+                            (s) => s.id === skuId
                           );
                           if (newSku) {
                             update(row.index, {
@@ -227,7 +227,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                               {formatSKU(
                                 sku.condition,
                                 sku.printing,
-                                sku.language,
+                                sku.language
                               )}
                             </SelectItem>
                           ))}
@@ -246,7 +246,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
               {formatSKU(
                 originalSku.condition,
                 originalSku.printing,
-                originalSku.language,
+                originalSku.language
               )}
             </div>
           );
@@ -365,7 +365,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
         },
       },
     ],
-    [isEditing, form.control, transaction?.currency],
+    [isEditing, form.control, transaction?.currency]
   );
 
   const handleSaveChanges = async () => {
@@ -389,7 +389,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
           sku_id: item.sku?.id,
           unit_price_amount: item.unit_price_amount,
           quantity: item.quantity,
-        }),
+        })
       );
 
       const updateRequestData: TransactionUpdateRequest = {
@@ -446,7 +446,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
     // Calculate the original total amount from the transaction
     const originalTotalAmount = transaction.line_items.reduce(
       (sum, item) => sum + item.unit_price_amount * item.quantity,
-      0,
+      0
     );
 
     // Prepare the request payload with line items from the form
@@ -470,7 +470,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
           result.calculated_line_items.map((item) => [
             item.sku_id,
             item.unit_price_amount,
-          ]),
+          ])
         );
 
         // Directly update each field using setValue
@@ -525,12 +525,12 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
       ? fields.reduce(
           (sum, item) =>
             sum + Number((item.unit_price_amount * item.quantity).toFixed(2)),
-          0,
+          0
         )
       : transaction?.line_items.reduce(
           (sum, item) =>
             sum + Number((item.unit_price_amount * item.quantity).toFixed(2)),
-          0,
+          0
         ) || 0;
 
   const currency = transaction?.currency || "USD";
@@ -547,15 +547,15 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
               ? `${Intl.NumberFormat("en-US", {
                   style: "currency",
                   currency: currency,
-                }).format(
-                  totalAmount,
-                )} purchase from ${transaction!.counterparty_name}`
+                }).format(totalAmount)} purchase from ${
+                  transaction!.counterparty_name
+                }`
               : `${Intl.NumberFormat("en-US", {
                   style: "currency",
                   currency: currency,
-                }).format(
-                  totalAmount,
-                )} sale to ${transaction!.counterparty_name}`}
+                }).format(totalAmount)} sale to ${
+                  transaction!.counterparty_name
+                }`}
           </CardTitle>
         )}
         {isLoadingState ? (
@@ -636,7 +636,7 @@ export function TransactionDetails({ transactionId }: TransactionDetailsProps) {
                             <div className="mt-2">
                               {format(
                                 new Date(transaction!.date),
-                                "MMMM d, yyyy",
+                                "MMMM d, yyyy"
                               )}
                             </div>
                           )}

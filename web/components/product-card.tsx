@@ -10,7 +10,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
-import { ProductImage } from "@/components/ui/product-image";
+import { ProductImage } from "@/features/catalog/components/ProductImage";
 
 interface ProductCardProps {
   product: ProductWithSetAndSKUsResponse;
