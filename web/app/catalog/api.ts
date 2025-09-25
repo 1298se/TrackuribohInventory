@@ -7,6 +7,7 @@ import {
   ProductWithSetAndSKUsResponseSchema,
   SKUMarketDataItem,
   MarketDataResponseSchema,
+  MarketDataResponseSchemaType,
 } from "./schemas";
 import { UUID } from "crypto";
 
@@ -141,7 +142,7 @@ export function useProductMarketData(
     : null;
 
   const { data, error, isValidating } = useSWR<
-    MarketDataResponse,
+    MarketDataResponseSchemaType,
     Error,
     string | null
   >(key, (path) => {

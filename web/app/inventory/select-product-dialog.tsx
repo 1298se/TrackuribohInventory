@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ProductImage } from "@/components/ui/product-image";
+import { ProductImage } from "@/features/catalog/components/ProductImage";
 import {
   PRODUCT_TYPES,
   ProductWithSetAndSKUsResponse,

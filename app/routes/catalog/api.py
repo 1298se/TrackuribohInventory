@@ -10,6 +10,7 @@ from app.routes.catalog.schemas import (
     ProductWithSetAndSKUsResponseSchema,
     ProductSearchResponseSchema,
     ProductTypesResponseSchema,
+    SetsResponseSchema,
     MarketDataResponseSchema,
 )
 from core.database import get_db_session
@@ -78,6 +79,7 @@ def search_products(
     query_text = search_params.query
     catalog_id = search_params.catalog_id
     product_type = search_params.product_type
+    set_id = search_params.set_id
     page = search_params.page
     limit = 10
 
@@ -93,6 +95,10 @@ def search_products(
         base_search_query = base_search_query.where(
             Product.product_type == product_type
         )
+
+    # Add set filter if provided
+    if set_id:
+        base_search_query = base_search_query.where(Product.set_id == set_id)
 
     # Get total count for pagination metadata
     count_query = select(func.count()).select_from(base_search_query.subquery())
@@ -139,6 +145,21 @@ def get_catalogs(session: Session = Depends(get_db_session)):
 def get_product_types(session: Session = Depends(get_db_session)):
     # Assuming ProductType is an Enum, return its values.
     return ProductTypesResponseSchema(product_types=list(ProductType))
+
+
+@router.get("/sets", response_model=SetsResponseSchema)
+def get_sets(session: Session = Depends(get_db_session)):
+    """
+    Endpoint to fetch all Pokemon sets with their display name and ID.
+    """
+    # Filter sets to only return Pokemon sets
+    pokemon_catalog_id = "067820ab-e61f-7a87-8000-f9c5e424c0c0"
+    sets = session.scalars(
+        select(Set)
+        .where(Set.catalog_id == pokemon_catalog_id)
+        .order_by(Set.name)
+    ).all()
+    return SetsResponseSchema(sets=sets)
 
 
 @router.get(

@@ -8,8 +8,6 @@ export function getLargeTCGPlayerImage({
   // Extract product number from tcgplayer_url like "tcgplayer-cdn.tcgplayer.com/product/215158_200w.jpg"
   const productNumber = imageUrl.match(/\/product\/(\d+)_200w\.jpg/)?.[1];
 
-  console.log(productNumber);
-
   if (!productNumber) return imageUrl; // fallback to original URL
 
   return `https://tcgplayer-cdn.tcgplayer.com/product/${productNumber}_in_${size}x${size}.jpg`;

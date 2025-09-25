@@ -3,14 +3,18 @@ import { MoneySchema, MoneyAmountSchema } from "../../app/schemas";
 import { TransactionTypeSchema } from "../../app/transactions/schemas";
 import { SKUWithProductResponseSchema } from "../../app/catalog/schemas";
 
+/* -----------------------------------------------------
+ * Price History Schemas
+ * ----------------------------------------------------- */
+
 // Price History Item Schema (needs to be defined first)
-export const InventoryPriceHistoryItemSchema = z.object({
+const InventoryPriceHistoryItemSchema = z.object({
   datetime: z.string().datetime(),
   price: MoneySchema,
 });
 
 // InventoryItemResponseSchema
-export const InventoryItemResponseSchema = z.object({
+const InventoryItemResponseSchema = z.object({
   sku: SKUWithProductResponseSchema,
   quantity: z.number(),
   average_cost_per_item: MoneySchema,
@@ -36,11 +40,8 @@ export const InventoryItemUpdateRequestSchema = z.object({
 });
 
 // Type inference (Remove types related to moved schemas)
-// export type ProductWithSetAndSKUsResponse = z.infer<typeof ProductWithSetAndSKUsResponseSchema>
 export type InventoryItemResponse = z.infer<typeof InventoryItemResponseSchema>;
 export type InventoryResponse = z.infer<typeof InventoryResponseSchema>;
-// export type ProductSearchResponse = z.infer<typeof ProductSearchResponseSchema>
-// export type SKUWithProductResponse = z.infer<typeof SKUWithProductResponseSchema>
 export type InventoryItemDetailResponse = z.infer<
   typeof InventoryItemDetailResponseSchema
 >;
@@ -49,7 +50,7 @@ export type InventoryItemUpdateRequest = z.infer<
 >;
 
 /* -----------------------------------------------------
- * 6) Inventory SKU Transaction History Schemas
+ * Inventory SKU Transaction History Schemas
  * ----------------------------------------------------- */
 
 export const InventorySKUTransactionLineItemSchema = z.object({

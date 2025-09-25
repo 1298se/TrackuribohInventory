@@ -15,12 +15,12 @@ export default function CatalogPage() {
   const [query, setQuery] = useState(searchParams.get("q") || "");
   // State for executed search term (only updates on submit)
   const [searchTerm, setSearchTerm] = useState<string>(
-    searchParams.get("q") || "",
+    searchParams.get("q") || ""
   );
 
   // State for selected catalog
   const [selectedCatalog, setSelectedCatalog] = useState<string | null>(
-    searchParams.get("catalog") || null,
+    searchParams.get("catalog") || null
   );
 
   // Fetch catalogs for filter dropdown
