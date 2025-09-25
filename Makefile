@@ -108,7 +108,7 @@ push-api:
 
 # Local development targets (uv)
 .PHONY: setup
-setup: uv.lock
+setup:
 	uv venv
 	uv pip sync uv.lock
 
@@ -124,7 +124,7 @@ run-local: setup
 	@echo "Backend will be available at http://localhost:8000"
 	@echo "Frontend will be available at http://localhost:3000"
 	cd web && npm run dev & \
-	.venv/bin/uvicorn app.main:app --reload
+	uvicorn app.main:app --reload
 
 # New target to apply Terraform changes for cron
 .PHONY: apply-infra-cron
