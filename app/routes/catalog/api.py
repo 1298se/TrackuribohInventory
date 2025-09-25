@@ -8,11 +8,8 @@ from app.routes.catalog.schemas import (
     ProductWithSetAndSKUsResponseSchema,
     ProductSearchResponseSchema,
     ProductTypesResponseSchema,
-<<<<<<< HEAD
     SetsResponseSchema,
     MarketDataResponseSchema,
-=======
->>>>>>> 5ca826cc411ef8972280a4fbf60221b34fea70aa
 )
 from core.database import get_db_session
 from core.models.catalog import Product, SKU
@@ -139,7 +136,6 @@ def get_catalogs(session: Session = Depends(get_db_session)):
 def get_product_types(session: Session = Depends(get_db_session)):
     # Assuming ProductType is an Enum, return its values.
     return ProductTypesResponseSchema(product_types=list(ProductType))
-<<<<<<< HEAD
 
 
 @router.get("/sets", response_model=SetsResponseSchema)
@@ -206,5 +202,3 @@ async def get_sku_market_data(
 
 
 
-=======
->>>>>>> 5ca826cc411ef8972280a4fbf60221b34fea70aa
