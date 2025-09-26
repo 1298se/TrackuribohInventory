@@ -1,4 +1,4 @@
-import { ProductType } from "./schemas";
+import { ProductType } from "./types";
 
 export const PRODUCT_TYPES: Record<ProductType, string> = {
   CARDS: "Cards",

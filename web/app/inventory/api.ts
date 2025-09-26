@@ -1,27 +1,20 @@
-import { z } from "zod";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import {
-  InventoryItemDetailResponseSchema,
   InventoryItemDetailResponse,
   InventoryItemUpdateRequest,
-  InventoryResponseSchema,
+  InventoryResponse,
   InventorySKUTransactionsResponse,
-  InventorySKUTransactionsResponseSchema,
   InventoryMetricsResponse,
-  InventoryMetricsResponseSchema,
-  InventoryHistoryItemSchema,
   InventoryHistoryItem,
   InventoryPriceHistoryResponse,
-  InventoryPriceHistoryResponseSchema,
   InventorySkuMarketplacesResponse,
-  InventorySkuMarketplacesResponseSchema,
-} from "../../features/market/schemas";
+} from "../../features/market/types";
 import {
-  ProductSearchResponseSchema,
-  CatalogsResponseSchema,
-} from "../catalog/schemas";
-import { API_URL, fetcher, HTTPMethod } from "../api/fetcher";
+  ProductSearchResponse,
+  CatalogsResponse,
+} from "../../features/catalog/types";
+import { API_URL, fetcherWithoutSchema, HTTPMethod } from "../api/fetcher";
 
 export function useInventory(
   query: string | null = null,
@@ -38,11 +31,10 @@ export function useInventory(
   }
 
   return useSWR(["/inventory", params], ([path, params]) =>
-    fetcher({
+    fetcherWithoutSchema<InventoryResponse>({
       url: `${API_URL}${path}`,
       params,
       method: HTTPMethod.GET,
-      schema: InventoryResponseSchema,
       token,
     })
   );
@@ -68,11 +60,10 @@ export function useSearchProducts(
   }
 
   return useSWR(["/catalog/search", params], ([path, params]) =>
-    fetcher({
+    fetcherWithoutSchema<ProductSearchResponse>({
       url: `${API_URL}${path}`,
       params,
       method: HTTPMethod.GET,
-      schema: ProductSearchResponseSchema,
       token,
     })
   );
@@ -80,10 +71,9 @@ export function useSearchProducts(
 
 export function useCatalogs(token: string) {
   return useSWR("/catalog/catalogs", (path) =>
-    fetcher({
+    fetcherWithoutSchema<CatalogsResponse>({
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
-      schema: CatalogsResponseSchema,
       token,
     })
   );
@@ -91,10 +81,9 @@ export function useCatalogs(token: string) {
 
 export function useInventoryCatalogs(token: string) {
   return useSWR("/inventory/catalogs", (path) =>
-    fetcher({
+    fetcherWithoutSchema<CatalogsResponse>({
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
-      schema: CatalogsResponseSchema,
       token,
     })
   );
@@ -104,10 +93,9 @@ export function useInventoryItem(inventoryItemId: string, token: string) {
   return useSWR(
     inventoryItemId ? `/inventory/${inventoryItemId}` : null,
     (path) =>
-      fetcher({
+      fetcherWithoutSchema<InventoryItemDetailResponse>({
         url: `${API_URL}${path}`,
         method: HTTPMethod.GET,
-        schema: InventoryItemDetailResponseSchema,
         token,
       })
   );
@@ -125,11 +113,10 @@ export function useUpdateInventoryItem(token: string) {
       _url: string,
       { arg }: { arg: { id: string; data: InventoryItemUpdateRequest } }
     ) => {
-      return fetcher({
+      return fetcherWithoutSchema<InventoryItemDetailResponse>({
         url: `${API_URL}/inventory/${arg.id}`,
         method: HTTPMethod.PATCH,
         body: arg.data,
-        schema: InventoryItemDetailResponseSchema,
         token,
       });
     }
@@ -144,10 +131,9 @@ export function useInventoryItemTransactions(
   const key = skuId ? `/inventory/${skuId}/transactions` : null;
 
   return useSWR<InventorySKUTransactionsResponse>(key, (path: string) =>
-    fetcher({
+    fetcherWithoutSchema<InventorySKUTransactionsResponse>({
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
-      schema: InventorySKUTransactionsResponseSchema, // Ensure validation against the correct schema
       token,
     })
   );
@@ -166,11 +152,10 @@ export function useInventoryMetrics(
     ["/inventory/metrics", params],
     (args: [string, Record<string, string>]) => {
       const [path, queryParams] = args;
-      return fetcher({
+      return fetcherWithoutSchema<InventoryMetricsResponse>({
         url: `${API_URL}${path}`,
         params: queryParams,
         method: HTTPMethod.GET,
-        schema: InventoryMetricsResponseSchema,
         token,
       });
     }
@@ -197,11 +182,10 @@ export function useInventoryPerformance(
     ["/inventory/performance", params],
     (args: [string, Record<string, string>]) => {
       const [path, queryParams] = args;
-      return fetcher({
+      return fetcherWithoutSchema<InventoryHistoryItem[]>({
         url: `${API_URL}${path}`,
         params: queryParams,
         method: HTTPMethod.GET,
-        schema: z.array(InventoryHistoryItemSchema),
         token,
       });
     }
@@ -223,11 +207,10 @@ export function useInventoryPriceHistory(
     skuId ? [`/inventory/${skuId}/price-history`, params] : null,
     (args: [string, Record<string, string>]) => {
       const [path, queryParams] = args;
-      return fetcher({
+      return fetcherWithoutSchema<InventoryPriceHistoryResponse>({
         url: `${API_URL}${path}`,
         params: queryParams,
         method: HTTPMethod.GET,
-        schema: InventoryPriceHistoryResponseSchema,
         token,
       });
     }
@@ -238,10 +221,9 @@ export function useSkuMarketplaces(skuId: string | null, token: string) {
   return useSWR<InventorySkuMarketplacesResponse>(
     skuId ? `/inventory/${skuId}/marketplaces` : null,
     (path: string) =>
-      fetcher({
+      fetcherWithoutSchema<InventorySkuMarketplacesResponse>({
         url: `${API_URL}${path}`,
         method: HTTPMethod.GET,
-        schema: InventorySkuMarketplacesResponseSchema,
         token,
       })
   );

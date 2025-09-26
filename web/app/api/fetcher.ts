@@ -132,3 +132,68 @@ export function createMutation<RequestType, ResponseType extends z.ZodTypeAny>(
     });
   };
 }
+
+// New fetcher function that doesn't require schema validation
+export const fetcherWithoutSchema = async <T = any>({
+  url,
+  method = HTTPMethod.GET,
+  body = undefined,
+  init = {},
+  params = undefined,
+  token,
+}: {
+  url: string;
+  method?: HTTPMethod;
+  body?: any;
+  init?: RequestInit;
+  params?: Record<string, string | string[]>;
+  token: string;
+}): Promise<T> => {
+  // Append params if they exist
+  if (params) {
+    const queryParams = new URLSearchParams();
+
+    // Handle array parameters properly
+    Object.entries(params).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        // For arrays, append each value as a separate parameter
+        value.forEach((v) => queryParams.append(key, v));
+      } else {
+        queryParams.append(key, value);
+      }
+    });
+
+    url = `${url}?${queryParams}`;
+  }
+
+  // Prepare fetch options
+  const fetchOptions: RequestInit = {
+    ...init,
+    method,
+  };
+
+  // Add body for non-GET requests
+  if (method !== HTTPMethod.GET && body !== undefined) {
+    fetchOptions.body = JSON.stringify(body);
+  }
+
+  // Perform the fetch with one retry after refresh on 401
+  let response = await doFetch({ url, options: fetchOptions, token });
+
+  if (response.status === 401) {
+    throw new Error("Authentication failed. Please log in again.");
+  }
+
+  // Check for HTTP errors
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  // Handle 204 No Content responses for any HTTP method
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  // Parse JSON and return without validation
+  return response.json();
+};

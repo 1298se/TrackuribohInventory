@@ -1,5 +1,5 @@
 import { DataTable } from "../../components/data-table";
-import { InventoryItemResponse } from "../../features/market/schemas";
+import { InventoryItemResponse } from "../../features/market/types";
 import {
   Card,
   CardContent,

@@ -3,7 +3,7 @@
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { format } from "date-fns";
-import { InventoryPriceHistoryItem } from "@/features/market/schemas";
+import { InventoryPriceHistoryItem } from "@/features/market/types";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
