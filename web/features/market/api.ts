@@ -1,20 +1,15 @@
 import { API_URL } from "@/app/api/fetcher";
-import { MarketDataResponseSchemaType } from "@/app/catalog/schemas";
-import { BuyDecisionsResponseSchemaType } from "./schemas";
+import { MarketDataResponse, BuyDecisionsResponse } from "./types";
 import { DisplayCardProps } from "@/features/catalog/components/DisplayCard";
 import { queryOptions } from "@tanstack/react-query";
 
-async function fetchBuyDecisions(): Promise<BuyDecisionsResponseSchemaType> {
+async function fetchBuyDecisions(): Promise<BuyDecisionsResponse> {
   const response = await fetch(`${API_URL}/buy-decisions`);
   return response.json();
 }
 
 export function getCardDecisionsQuery() {
-  return queryOptions<
-    BuyDecisionsResponseSchemaType,
-    Error,
-    DisplayCardProps[]
-  >({
+  return queryOptions<BuyDecisionsResponse, Error, DisplayCardProps[]>({
     queryKey: ["cardDecisions"],
     queryFn: fetchBuyDecisions,
     select: (data) => {
@@ -29,16 +24,14 @@ export function getCardDecisionsQuery() {
             name: decision.sku.product.set.name,
             id: decision.sku.product.set.id,
           },
-          price: decision.buy_vwap,
+          price: decision.buy_vwap.amount,
         } satisfies DisplayCardProps;
       });
     },
   });
 }
 
-function parseMarketData(
-  marketDepth: MarketDataResponseSchemaType | undefined
-) {
+function parseMarketData(marketDepth: MarketDataResponse | undefined) {
   if (!marketDepth?.market_data_items) return null;
 
   const data = marketDepth.market_data_items;
@@ -206,7 +199,7 @@ function parseMarketData(
 async function fetchMarketData(
   sku: string,
   salesLookbackDays: number = 7
-): Promise<MarketDataResponseSchemaType> {
+): Promise<MarketDataResponse> {
   const response = await fetch(
     `${API_URL}/market/products/${sku}?sales_lookback_days=${salesLookbackDays}`
   );
@@ -221,7 +214,7 @@ export function getMarketDepthQuery({
   salesLookbackDays: number;
 }) {
   return queryOptions<
-    MarketDataResponseSchemaType,
+    MarketDataResponse,
     Error,
     ReturnType<typeof parseMarketData>
   >({

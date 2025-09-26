@@ -1,20 +1,17 @@
-import { fetcher, HTTPMethod, API_URL } from "../api/fetcher";
+import { fetcherWithoutSchema, HTTPMethod, API_URL } from "../api/fetcher";
 import useSWR from "swr";
-import { z } from "zod";
 import {
   ProductSearchResponse,
-  ProductSearchResponseSchema,
-  ProductWithSetAndSKUsResponseSchema,
-} from "./schemas";
+  ProductWithSetAndSKUsResponse,
+} from "../../features/catalog/types";
 import {
   SKUMarketDataItem,
-  MarketDataResponseSchema,
-  MarketDataResponseSchemaType,
-} from "./schemas";
+  MarketDataResponse,
+} from "../../features/market/types";
 import { UUID } from "crypto";
 
-// Define the type inferred from the schema
-type ProductDetailType = z.infer<typeof ProductWithSetAndSKUsResponseSchema>;
+// Define the type for product details
+type ProductDetailType = ProductWithSetAndSKUsResponse;
 
 /**
  * Hook to fetch market depth and stubbed summary for a specific SKU.
@@ -38,10 +35,9 @@ export function useSkuMarketData(
     key,
     (path) => {
       if (!path) throw new Error("SKU ID required");
-      return fetcher({
+      return fetcherWithoutSchema<{ market_data_items: SKUMarketDataItem[] }>({
         url: `${API_URL}${path}`,
         method: HTTPMethod.GET,
-        schema: MarketDataResponseSchema,
         token,
       });
     }
@@ -85,11 +81,10 @@ export function useProductSearch(
     key,
     (keyTuple) => {
       const [path, params] = keyTuple;
-      return fetcher({
+      return fetcherWithoutSchema<ProductSearchResponse>({
         url: `${API_URL}${path}`,
         params,
         method: HTTPMethod.GET,
-        schema: ProductSearchResponseSchema,
         token,
       });
     }
@@ -113,10 +108,9 @@ export function useProductDetail(productId: UUID | undefined, token: string) {
     string | null
   >(key, (path) => {
     if (!path) throw new Error("Product ID is required");
-    return fetcher({
+    return fetcherWithoutSchema<ProductWithSetAndSKUsResponse>({
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
-      schema: ProductWithSetAndSKUsResponseSchema,
       token,
     });
   });
@@ -144,15 +138,14 @@ export function useProductMarketData(
     : null;
 
   const { data, error, isValidating } = useSWR<
-    MarketDataResponseSchemaType,
+    MarketDataResponse,
     Error,
     string | null
   >(key, (path) => {
     if (!path) throw new Error("Product ID is required for market data");
-    return fetcher({
+    return fetcherWithoutSchema<MarketDataResponse>({
       url: `${API_URL}${path}`,
       method: HTTPMethod.GET,
-      schema: MarketDataResponseSchema,
       token,
     });
   });

@@ -1,5 +1,5 @@
 import { API_URL } from "@/app/api/fetcher";
-import { ProductWithSetAndSKUsResponse, SetsResponse } from "./schemas";
+import { ProductWithSetAndSKUsResponse, SetsResponse } from "./types";
 import { POKEMON_CATALOG_ID } from "@/shared/constants";
 import { queryOptions } from "@tanstack/react-query";
 

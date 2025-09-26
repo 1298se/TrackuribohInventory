@@ -1,6 +1,6 @@
 "use client";
 
-import { InventoryPriceHistoryItem } from "@/features/market/schemas";
+import { InventoryPriceHistoryItem } from "@/features/market/types";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 

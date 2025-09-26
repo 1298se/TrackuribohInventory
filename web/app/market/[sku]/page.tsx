@@ -23,7 +23,6 @@ import { MarketRecentSalesSnapshot } from "@/features/market/components/MarketRe
 import { assertNotNullable } from "@/lib/validation";
 import { Loader2 } from "lucide-react";
 import { ProductImage } from "@/features/catalog/components/ProductImage";
-import { ClientOnly } from "@/components/ui/client-only";
 import { MonitorDot } from "@/shared/components/MonitorDot";
 
 export default function ProductSKUDetailsPage() {
