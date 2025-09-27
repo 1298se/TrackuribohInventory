@@ -29,10 +29,6 @@ class Environment(BaseSettings):
     # Redis configuration
     redis_url: str
 
-    # TCGplayer login (for cookie refresh task)
-    tcgplayer_email: str | None = None
-    tcgplayer_password: str | None = None
-
     # Optional: browser session cookie and feature param for TCGplayer web API
     tcgplayer_cookie: str | None = None
 

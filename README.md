@@ -80,13 +80,12 @@ DB_PORT=5432
 TCGPLAYER_CLIENT_ID=your_tcgplayer_client_id
 TCGPLAYER_CLIENT_SECRET=your_tcgplayer_client_secret
 
-# TCGPlayer Login (for cron tasks)
-TCGPLAYER_EMAIL=you@example.com
-TCGPLAYER_PASSWORD=your_password
+# TCGPlayer session cookie (manually rotated)
+TCGPLAYER_COOKIE=tcg_auth_ticket=...
 
 # AWS (Secrets Manager for cookie storage)
 AWS_REGION=us-east-1
-AWS_SECRETSMANAGER_SECRET_NAME=your-secret-name-or-arn
+TCGPLAYER_COOKIE_SECRET_NAME=your-secret-name-or-arn
 
 # Supabase Authentication
 SUPABASE_URL=https://your-project.supabase.co
@@ -131,9 +130,13 @@ cd web && npm run lint
 
 ```bash
 # Run specific cron task locally
-make run-cron CRON_TASK=refresh_tcg_cookie
 make run-cron CRON_TASK=snapshot_inventory
+make run-cron CRON_TASK=purchase_decision_sweep
 ```
+
+### TCGPlayer Cookie Rotation
+
+The automated refresh job has been removed. Rotate the session cookie manually by logging into TCGplayer, copying the `TCGAuthTicket_Production` value, and updating the `TCGPLAYER_COOKIE` secret (or local env var) so API and cron calls continue to authenticate.
 
 ## Deployment
 

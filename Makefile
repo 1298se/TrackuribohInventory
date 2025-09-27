@@ -79,7 +79,7 @@ build-api: uv.lock
 # Run targets locally
 .PHONY: run-cron
 run-cron: build-cron
-	@if [ -z "$(CRON_TASK)" ]; then echo "CRON_TASK is required, e.g. make run-cron CRON_TASK=refresh_tcg_cookie"; exit 1; fi
+	@if [ -z "$(CRON_TASK)" ]; then echo "CRON_TASK is required, e.g. make run-cron CRON_TASK=snapshot_inventory"; exit 1; fi
 	@echo "Running cron task: $(CRON_TASK)"
 	docker run --rm --name codex-tcg-$(CRON_TASK) --env-file .env $(CRON_REPO):$(IMAGE_TAG) \
 		python -m cron.tasks.$(CRON_TASK)

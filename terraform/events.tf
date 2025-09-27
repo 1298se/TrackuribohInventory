@@ -128,38 +128,6 @@ resource "aws_cloudwatch_event_target" "ecs_update_catalog_db_target" {
   }
 }
 
-# --- Refresh TCG Cookie Schedule ---
-resource "aws_cloudwatch_event_rule" "refresh_tcg_cookie_schedule" {
-  name                = "${var.project_name}-refresh-tcg-cookie-rule"
-  description         = "Runs cron.tasks.refresh_tcg_cookie to validate/refresh the TCG cookie"
-  schedule_expression = var.refresh_tcg_cookie_schedule_expression
-
-  tags = {
-    Name      = "${var.project_name}-refresh-tcg-cookie-rule"
-    ManagedBy = "Terraform"
-  }
-}
-
-resource "aws_cloudwatch_event_target" "ecs_refresh_tcg_cookie_target" {
-  rule      = aws_cloudwatch_event_rule.refresh_tcg_cookie_schedule.name
-  arn       = aws_ecs_cluster.cron_cluster.arn
-  role_arn  = aws_iam_role.event_bridge_role.arn
-  target_id = "${var.project_name}-refresh-tcg-cookie-target"
-
-  ecs_target {
-    launch_type         = "FARGATE"
-    task_count          = 1
-    task_definition_arn = aws_ecs_task_definition.refresh_tcg_cookie_task.arn
-    platform_version    = "LATEST"
-
-    network_configuration {
-      subnets          = var.private_subnet_ids
-      security_groups  = var.task_security_group_ids
-      assign_public_ip = true
-    }
-  }
-}
-
 # --- Event-Driven Compute SKU Listing Data Refresh Priority ---
 resource "aws_cloudwatch_event_rule" "compute_sku_listing_data_refresh_priority_event" {
   name        = "${var.project_name}-compute-sku-listing-data-refresh-priority-rule"
@@ -304,7 +272,6 @@ resource "aws_iam_policy" "event_bridge_policy" {
           aws_ecs_task_definition.snapshot_product_sku_prices_task.arn,
           aws_ecs_task_definition.snapshot_inventory_task.arn,
           aws_ecs_task_definition.update_catalog_db_task.arn,
-          aws_ecs_task_definition.refresh_tcg_cookie_task.arn,
           aws_ecs_task_definition.compute_sku_listing_data_refresh_priority_task.arn,
           aws_ecs_task_definition.purchase_decision_sweep_task.arn
         ],

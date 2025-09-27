@@ -8,12 +8,8 @@ WORKDIR /code
 # Copy dependency definition and lock file first for caching
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies from the lock file (should include playwright)
+# Install dependencies from the lock file
 RUN uv pip sync uv.lock --system
-
-# Install Playwright browsers matching the installed Playwright version
-# This must run AFTER deps are installed to avoid version mismatch errors
-RUN python -m playwright install --with-deps chromium
 
 # Copy application code
 COPY ./cron /code/cron
