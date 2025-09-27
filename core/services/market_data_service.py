@@ -26,7 +26,10 @@ from core.services.tcgplayer_listing_service import (
     get_tcgplayer_listing_service,
     TCGPlayerListingService,
 )
-from core.services.tcgplayer_types import TCGPlayerListing, TCGPlayerSale
+from core.services.schemas.tcgplayer import (
+    TCGPlayerListingSchema,
+    TCGPlayerSaleSchema,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -60,8 +63,8 @@ class SkuNotFoundError(Exception):
 
 
 def _prune_price_outliers(
-    listings: List[TCGPlayerListing], z_threshold: float = 3.0
-) -> List[TCGPlayerListing]:
+    listings: List[TCGPlayerListingSchema], z_threshold: float = 3.0
+) -> List[TCGPlayerListingSchema]:
     """
     Remove outlier listings based on log-transformed z-scores to handle skewed price distributions.
 
@@ -110,7 +113,7 @@ def _prune_price_outliers(
 
 
 def calculate_cumulative_depth_levels(
-    listing_events: List[TCGPlayerListing],
+    listing_events: List[TCGPlayerListingSchema],
 ) -> List[CumulativeDepthLevel]:
     """
     Helper function to calculate cumulative depth levels from a list of listing events.
@@ -139,7 +142,7 @@ def calculate_cumulative_depth_levels(
 
 # Add helper for cumulative sales depth levels
 def calculate_cumulative_sales_depth_levels(
-    sales_records: List[TCGPlayerSale],
+    sales_records: List[TCGPlayerSaleSchema],
 ) -> List[CumulativeDepthLevel]:
     """
     Helper function to calculate cumulative depth levels from a list of sale records.
@@ -171,8 +174,8 @@ def calculate_cumulative_sales_depth_levels(
 
 # Shared helper to compute aggregate metrics for market data endpoints
 def _compute_aggregated_metrics(
-    listings: List[TCGPlayerListing],
-    sales_records: List[TCGPlayerSale],
+    listings: List[TCGPlayerListingSchema],
+    sales_records: List[TCGPlayerSaleSchema],
     days: int = 7,
 ) -> tuple[int, int, int, float, Optional[float]]:
     """
@@ -196,8 +199,8 @@ def _compute_aggregated_metrics(
 
 def _build_sku_item(
     sku: SKU,
-    listings: List[TCGPlayerListing],
-    sales_records: List[TCGPlayerSale],
+    listings: List[TCGPlayerListingSchema],
+    sales_records: List[TCGPlayerSaleSchema],
     marketplace: str = "TCGPlayer",
     sales_lookback_days: int = 7,
 ) -> SKUMarketData:
@@ -235,7 +238,7 @@ class MarketDataService:
         listing_request_data: CardListingRequestData,
         sales_request_data: CardSaleRequestData,
         sales_lookback_days: int,
-    ) -> Tuple[List[TCGPlayerListing], List[TCGPlayerSale]]:
+    ) -> Tuple[List[TCGPlayerListingSchema], List[TCGPlayerSaleSchema]]:
         """
         Fetch listings and sales data concurrently from TCGPlayer API.
         Raises exceptions if either API call fails.

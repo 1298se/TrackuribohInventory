@@ -17,7 +17,7 @@ from core.services.tcgplayer_listing_service import (
     CardSaleRequestData,
     TCGPlayerListingService,
 )
-from core.services.tcgplayer_types import TCGPlayerSale
+from core.services.schemas.tcgplayer import TCGPlayerSaleSchema
 from core.services.sku_lookup import (
     SKUKey,
     SKUVariantInput,
@@ -102,14 +102,14 @@ def get_catalog_mappings(session: Session) -> CatalogMappings:
 
 
 def transform_card_sale_responses_to_sales_data_by_sku(
-    sales_responses: List[TCGPlayerSale],
+    sales_responses: List[TCGPlayerSaleSchema],
     skus_in_product: List[ProcessingSKU],
     marketplace: Marketplace,
     mappings: CatalogMappings,
     catalog_id: uuid.UUID,
 ) -> Dict[uuid.UUID, List[SalesDataRow]]:
     """
-    Transform TCGPlayer TCGPlayerSale objects to SalesListing data format,
+    Transform TCGPlayer TCGPlayerSaleSchema objects to SalesListing data format,
     mapping them to specific SKUs based on condition, variant (printing), and language.
 
     Args:
@@ -191,7 +191,7 @@ async def process_product_sales_sync(
     product_tcgplayer_id: int,
     last_sales_refresh_at: Optional[datetime],
     tcgplayer_listing_service: TCGPlayerListingService,
-) -> List[TCGPlayerSale]:
+) -> List[TCGPlayerSaleSchema]:
     """
     Fetch incremental sales for a product and return raw responses.
     Caller is responsible for transforming to sales rows per SKU.

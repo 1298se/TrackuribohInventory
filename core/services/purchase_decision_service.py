@@ -14,7 +14,7 @@ from core.services.tcgplayer_listing_service import (
     CardListingRequestData,
     TCGPlayerListingService,
 )
-from core.services.tcgplayer_types import TCGPlayerListing
+from core.services.schemas.tcgplayer import TCGPlayerListingSchema
 from core.dao.sales import get_recent_sales_for_skus
 from core.dao.buy_decision import insert_buy_decisions, BuyDecisionData
 from core.models.listings import SaleRecord
@@ -48,7 +48,7 @@ class MarketData:
 
     sku_id: uuid.UUID
     marketplace: Marketplace
-    listings: List[TCGPlayerListing]
+    listings: List[TCGPlayerListingSchema]
     sales: List[SaleRecord]
     asof_listings: datetime
     asof_sales: datetime
@@ -71,7 +71,7 @@ class AlgorithmResult:
 
 
 def apply_asp_gate(
-    listings: List[TCGPlayerListing],
+    listings: List[TCGPlayerListingSchema],
 ) -> Tuple[bool, Optional[Decimal]]:
     """
     Apply ASP (Average Selling Price) gate - filter by minimum threshold.
@@ -98,7 +98,7 @@ def apply_asp_gate(
 
 
 def compute_buy_ladder(
-    listings: List[TCGPlayerListing], cap: int
+    listings: List[TCGPlayerListingSchema], cap: int
 ) -> Dict[int, Decimal]:
     """
     Compute buy ladder - VWAP at different quantity levels up to a demand-based cap.
@@ -220,7 +220,7 @@ def estimate_sell_through(sales: List[SaleRecord]) -> Tuple[float, bool]:
 
 
 def apply_safety_rails(
-    listings: List[TCGPlayerListing], qty: int, vwap_curve: Dict[int, Decimal]
+    listings: List[TCGPlayerListingSchema], qty: int, vwap_curve: Dict[int, Decimal]
 ) -> Tuple[bool, List[str]]:
     """
     Apply safety rails: seller concentration.

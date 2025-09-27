@@ -33,7 +33,7 @@ login:
 
 # Regenerate lockfile when pyproject.toml changes
 uv.lock: pyproject.toml
-	uv pip compile pyproject.toml -o uv.lock
+	uv lock
 
 # Generic build function
 # We use --provenance false so that it only pushes one image - otherwise it pushes an image index (3 total images)
@@ -109,12 +109,11 @@ push-api:
 # Local development targets (uv)
 .PHONY: setup
 setup: uv.lock
-	uv venv
-	uv pip sync uv.lock
+	uv sync
 
 .PHONY: update-deps
 update-deps:
-	uv pip compile pyproject.toml -o uv.lock
+	uv lock
 
 .PHONY: run-local
 run-local: setup
