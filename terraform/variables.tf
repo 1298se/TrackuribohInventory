@@ -85,9 +85,3 @@ variable "snapshot_product_sku_prices_schedule_expression" {
   type        = string
   default     = "cron(0 3 * * ? *)" # Runs at 03:00 UTC daily
 }
-
-variable "refresh_tcg_cookie_schedule_expression" {
-  description = "Schedule for refreshing the TCG cookie"
-  type        = string
-  default     = "cron(0 */6 * * ? *)" # Every 6 hours
-} 

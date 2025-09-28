@@ -48,7 +48,7 @@ output "ebay_credentials_secret_arn" {
   value       = data.aws_secretsmanager_secret.ebay_credentials.arn
 }
 
-# TCG cookie secret used by the refresh task to read/write the browser cookie
+# TCG cookie secret used by services that call the TCGPlayer web endpoints
 # Canonical hierarchical name
 data "aws_secretsmanager_secret" "tcgplayer_cookie" {
   name = "${var.project_name}/tcgplayer/cookie"
@@ -57,17 +57,6 @@ data "aws_secretsmanager_secret" "tcgplayer_cookie" {
 output "tcgplayer_cookie_secret_arn" {
   description = "ARN of the Secrets Manager secret for the TCG cookie"
   value       = data.aws_secretsmanager_secret.tcgplayer_cookie.arn
-}
-
-# TCG account login (email/password) used by the refresh task
-# Canonical hierarchical name
-data "aws_secretsmanager_secret" "tcgplayer_account" {
-  name = "${var.project_name}/tcgplayer/account"
-}
-
-output "tcgplayer_account_secret_arn" {
-  description = "ARN of the Secrets Manager secret for the TCG account login"
-  value       = data.aws_secretsmanager_secret.tcgplayer_account.arn
 }
 
 # Sentry DSN for error monitoring

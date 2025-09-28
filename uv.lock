@@ -57,8 +57,6 @@ frozenlist==1.7.0
     #   aiosignal
 gotrue==2.12.3
     # via supabase
-greenlet==3.2.4
-    # via playwright
 h11==0.16.0
     # via
     #   httpcore
@@ -113,8 +111,6 @@ numpy==2.3.2
     # via codex-tcg (pyproject.toml)
 packaging==25.0
     # via deprecation
-playwright==1.54.0
-    # via codex-tcg (pyproject.toml)
 postgrest==1.1.1
     # via supabase
 propcache==0.3.2
@@ -135,8 +131,6 @@ pydantic-core==2.33.2
     # via pydantic
 pydantic-settings==2.10.1
     # via codex-tcg (pyproject.toml)
-pyee==13.0.0
-    # via playwright
 pygments==2.19.2
     # via rich
 pyjwt==2.10.1
@@ -207,7 +201,6 @@ typing-extensions==4.14.1
     #   fastapi
     #   pydantic
     #   pydantic-core
-    #   pyee
     #   realtime
     #   rich-toolkit
     #   sqlalchemy
