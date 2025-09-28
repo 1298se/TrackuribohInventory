@@ -97,3 +97,26 @@ export interface CatalogsResponse {
 export interface SetsResponse {
   sets: SetBaseResponse[];
 }
+
+export interface TopPricedCard {
+  sku_id: UUID;
+  product_name: string;
+  condition: string;
+  printing: string;
+  language: string;
+  price: number;
+}
+
+export interface SetPriceSummaryResponse {
+  total_market_value: number;
+  top_priced_card: TopPricedCard | null;
+}
+
+export interface HistoricalPriceComparisonResponse {
+  current_total_market_value: number;
+  historical_total_market_value: number | null;
+  growth_percentage: number | null;
+  current_top_priced_card: TopPricedCard | null;
+  historical_top_priced_card: TopPricedCard | null;
+  top_card_growth_percentage: number | null;
+}
