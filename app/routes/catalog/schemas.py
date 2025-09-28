@@ -124,21 +124,6 @@ class ProductTypesResponseSchema(BaseModel):
 class SetsResponseSchema(BaseModel):
     sets: list[SetBaseResponseSchema]
 
-
-class TopPricedCardSchema(BaseModel):
-    sku_id: uuid.UUID
-    product_name: str
-    condition: str
-    printing: str
-    language: str
-    price: float
-
-
-class SetPriceSummaryResponseSchema(BaseModel):
-    total_market_value: float
-    top_priced_card: TopPricedCardSchema | None
-
-
 class HistoricalPriceComparisonSchema(BaseModel):
     current_total_market_value: float
     historical_total_market_value: float | None

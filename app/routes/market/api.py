@@ -9,7 +9,6 @@ from app.routes.catalog.schemas import (
     ProductWithSetAndSKUsResponseSchema,
     ProductSearchResponseSchema,
     SKUWithProductResponseSchema,
-    SetPriceSummaryResponseSchema,
     TopPricedCardSchema,
     HistoricalPriceComparisonSchema,
 )
