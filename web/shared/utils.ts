@@ -1,3 +1,17 @@
+/**
+ * Check if a value is truthy (not null, undefined, 0, false, empty string, or NaN)
+ * @param value - The value to check
+ * @returns true if the value is truthy, false otherwise
+ */
+export function isTruthy<T>(value: T): value is NonNullable<T> {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "number" && isNaN(value)) return false;
+  if (typeof value === "string" && value === "") return false;
+  if (typeof value === "boolean" && value === false) return false;
+  if (typeof value === "number" && value === 0) return false;
+  return true;
+}
+
 export function formatCurrency(
   amount: number | null | undefined,
   currency: string = "USD"

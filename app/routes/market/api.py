@@ -253,6 +253,7 @@ async def get_product_listings(
                     quantity=listing.quantity,
                     shipping_price=listing.shipping_price,
                     seller_name=listing.seller_name,
+                    seller_id=listing.seller_id,
                 )
             )
 
