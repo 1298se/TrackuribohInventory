@@ -140,6 +140,14 @@ class HistoricalPriceComparisonSchema(BaseModel):
     historical_top_priced_card: TopPricedCardSchema | None
     top_card_growth_percentage: float | None
 
+class HistoricalPriceComparisonSchema(BaseModel):
+    current_total_market_value: float
+    historical_total_market_value: float | None
+    growth_percentage: float | None
+    current_top_priced_card: TopPricedCardSchema | None
+    historical_top_priced_card: TopPricedCardSchema | None
+    top_card_growth_percentage: float | None
+
 
 class ProductSearchRequestParams(BaseModel):
     query: str
