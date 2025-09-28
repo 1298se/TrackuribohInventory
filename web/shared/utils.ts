@@ -8,6 +8,21 @@ export function formatCurrency(
   );
 }
 
+export function formatPercentage(
+  value: number | null | undefined,
+  options: {
+    showSign?: boolean;
+    decimals?: number;
+  } = {}
+): string {
+  if (value == null) return "N/A";
+
+  const { showSign = true, decimals = 1 } = options;
+  const sign = showSign && value > 0 ? "+" : "";
+
+  return `${sign}${value.toFixed(decimals)}%`;
+}
+
 /**
  * Find Near Mint SKUs from a list of SKUs
  * @param skus - Array of SKU objects with condition property
