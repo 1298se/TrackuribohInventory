@@ -1,7 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { getLargeTCGPlayerImage } from "@/features/market/utils";
-import { getMarketDepthQuery } from "@/features/market/api";
+import {
+  getMarketDepthQuery,
+  getProductListingsQuery,
+} from "@/features/market/api";
 import { getProductQuery } from "@/features/catalog/api";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
@@ -19,18 +23,24 @@ import { MarketDepthChart } from "@/features/market/components/MarketDepthChart"
 import { MarketLevelingChart } from "@/features/market/components/MarketLevelingChart";
 import Link from "next/link";
 import { findFirstNearMintSku, formatCurrency } from "@/shared/utils";
-import { MarketRecentSalesSnapshot } from "@/features/market/components/MarketRecentSalesSnapshot";
-import { assertNotNullable } from "@/lib/validation";
+import { assertNotNullable, assert } from "@/lib/validation";
 import { Loader2 } from "lucide-react";
 import { ProductImage } from "@/features/catalog/components/ProductImage";
 import { MonitorDot } from "@/shared/components/MonitorDot";
+import {
+  MarketListingsTable,
+  MarketListingsTableLoading,
+} from "@/features/catalog/components/MarketListingsTable";
+import { MarketListingsTableConditions } from "@/features/catalog/components/MarketListingsTableConditions";
+import {
+  type ConditionFilter,
+  isValidCondition,
+} from "@/features/catalog/utils";
 
 export default function ProductSKUDetailsPage() {
   const { sku } = useParams();
 
-  if (typeof sku !== "string") {
-    throw new Error("Invalid SKU");
-  }
+  assert(typeof sku === "string", "Invalid SKU");
 
   const { data: product } = useQuery(getProductQuery(sku));
 
@@ -109,7 +119,7 @@ export default function ProductSKUDetailsPage() {
         />
       </div>
 
-      <ListingsCard />
+      <ListingsCard productId={product?.id} />
     </div>
   );
 }
@@ -301,17 +311,38 @@ function TCGMarketPlacePriceCard({
   );
 }
 
-function ListingsCard() {
+function ListingsCard({ productId }: { productId?: string }) {
+  const [selectedCondition, setSelectedCondition] =
+    useState<ConditionFilter>(null);
+
+  const { data: listingsData, isLoading } = useQuery(
+    getProductListingsQuery(productId!)
+  );
+
+  const allListings = listingsData?.results || [];
+
+  // Filter listings by condition if one is selected
+  const filteredListings = selectedCondition
+    ? allListings.filter(
+        (listing) =>
+          isValidCondition(listing.sku.condition.name) &&
+          listing.sku.condition.name === selectedCondition
+      )
+    : allListings;
+
+  if (isLoading) {
+    return <MarketListingsTableLoading />;
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Listings</CardTitle>
-      </CardHeader>
-      <Separator />
-      <CardContent>
-        <MarketRecentSalesSnapshot />
-      </CardContent>
-    </Card>
+    <div>
+      <MarketListingsTableConditions
+        listings={allListings}
+        selectedCondition={selectedCondition}
+        onConditionSelect={setSelectedCondition}
+      />
+      <MarketListingsTable listings={filteredListings} />
+    </div>
   );
 }
 

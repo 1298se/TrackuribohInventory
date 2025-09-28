@@ -1,5 +1,9 @@
 import { API_URL } from "@/app/api/fetcher";
-import { MarketDataResponse, BuyDecisionsResponse } from "./types";
+import {
+  MarketDataResponse,
+  BuyDecisionsResponse,
+  ProductListingsResponse,
+} from "./types";
 import { DisplayCardProps } from "@/features/catalog/components/DisplayCard";
 import { queryOptions } from "@tanstack/react-query";
 
@@ -221,5 +225,29 @@ export function getMarketDepthQuery({
     queryKey: ["marketDepth", sku],
     queryFn: () => fetchMarketData(sku, salesLookbackDays),
     select: parseMarketData,
+  });
+}
+
+async function fetchProductListings(
+  productId: string
+): Promise<ProductListingsResponse> {
+  const response = await fetch(
+    `${API_URL}/market/product/${productId}/listings`
+  );
+  return response.json();
+}
+
+export function getProductListingsQuery(productId: string) {
+  return queryOptions<ProductListingsResponse, Error>({
+    queryKey: ["productListings", productId],
+    queryFn: () => fetchProductListings(productId),
+    select: (data) => ({
+      ...data,
+      results: data.results.map((listing) => ({
+        ...listing,
+        price: Number(listing.price) || 0,
+        shipping_price: Number(listing.shipping_price) || 0,
+      })),
+    }),
   });
 }

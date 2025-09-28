@@ -74,6 +74,7 @@ class ProductListingResponseSchema(BaseModel):
     quantity: int
     shipping_price: Optional[MoneyAmountSchema]
     seller_name: Optional[str]
+    seller_id: Optional[str]
 
 
 class ProductListingsResponseSchema(BaseModel):

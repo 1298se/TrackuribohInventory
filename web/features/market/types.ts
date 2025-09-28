@@ -144,13 +144,14 @@ export interface BuyDecisionsResponse {
 /* -----------------------------------------------------
  * Product Listings and Sales Types
  * ----------------------------------------------------- */
+
 export interface ProductListingResponse {
   listing_id: string;
   sku: SKUWithProductResponse;
-  price: MoneyAmount;
-  quantity: number;
-  shipping_price: MoneyAmount | null;
+  price: number;
+  shipping_price: number;
   seller_name: string | null;
+  seller_id?: string;
 }
 
 export interface ProductListingsResponse {
