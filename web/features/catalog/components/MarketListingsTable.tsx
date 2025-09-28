@@ -34,6 +34,7 @@ import { ProductListingResponse } from "@/features/market/types";
 import {
   getConditionColor,
   getConditionDisplayName,
+  getConditionRank,
 } from "@/features/catalog/utils";
 import { TablePaginatedFooter } from "@/shared/components/TablePaginatedFooter";
 
@@ -94,22 +95,6 @@ const COLUMNS: ColumnDef<ProductListingResponse>[] = [
       );
     },
     sortingFn: (rowA, rowB) => {
-      const getConditionRank = (condition: string) => {
-        switch (condition.toLowerCase()) {
-          case "near mint":
-            return 5;
-          case "lightly played":
-            return 4;
-          case "moderately played":
-            return 3;
-          case "heavily played":
-            return 2;
-          case "damaged":
-            return 1;
-          default:
-            return 0;
-        }
-      };
       const rankA = getConditionRank(rowA.original.sku.condition.name);
       const rankB = getConditionRank(rowB.original.sku.condition.name);
       return rankA - rankB;

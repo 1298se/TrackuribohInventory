@@ -22,7 +22,7 @@ export function isValidCondition(
 }
 
 // Utility function to get condition rank for sorting
-export function getConditionRank(condition: ConditionType): number {
+export function getConditionRank(condition: ConditionType | string): number {
   switch (condition.toLowerCase()) {
     case "near mint":
       return 5;
