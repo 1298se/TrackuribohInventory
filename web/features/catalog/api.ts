@@ -1,5 +1,10 @@
 import { API_URL } from "@/app/api/fetcher";
-import { ProductWithSetAndSKUsResponse, SetsResponse } from "./types";
+import {
+  ProductWithSetAndSKUsResponse,
+  SetsResponse,
+  SetPriceSummaryResponse,
+  HistoricalPriceComparisonResponse,
+} from "./types";
 import { POKEMON_CATALOG_ID } from "@/shared/constants";
 import { queryOptions } from "@tanstack/react-query";
 
@@ -109,5 +114,45 @@ export function getProductTypesQuery() {
   return queryOptions<ProductTypesResponse>({
     queryKey: ["product-types"],
     queryFn: fetchProductTypes,
+  });
+}
+
+async function fetchSetPriceSummary(
+  setId: string
+): Promise<SetPriceSummaryResponse> {
+  const response = await fetch(`${API_URL}/market/set/${setId}/price-summary`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch set price summary");
+  }
+  return response.json();
+}
+
+export function getSetPriceSummaryQuery(setId: string) {
+  return queryOptions<SetPriceSummaryResponse>({
+    queryKey: ["set-price-summary", setId],
+    queryFn: () => fetchSetPriceSummary(setId),
+  });
+}
+
+async function fetchSetPriceComparison(
+  setId: string,
+  daysAgo: number = 30
+): Promise<HistoricalPriceComparisonResponse> {
+  const response = await fetch(
+    `${API_URL}/market/set/${setId}/price-comparison?days_ago=${daysAgo}`
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch set price comparison");
+  }
+  return response.json();
+}
+
+export function getSetPriceComparisonQuery(
+  setId: string,
+  daysAgo: number = 30
+) {
+  return queryOptions<HistoricalPriceComparisonResponse>({
+    queryKey: ["set-price-comparison", setId, daysAgo],
+    queryFn: () => fetchSetPriceComparison(setId, daysAgo),
   });
 }

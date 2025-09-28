@@ -1,6 +1,6 @@
 "use client";
 
-import { Book, Menu, Search, Sunset, Trees, Zap } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { useDebouncedState } from "@tanstack/react-pacer/debouncer";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { getProductSearchQuery } from "@/features/catalog/api";
 
@@ -319,8 +319,6 @@ export function SearchBar() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const history = useRouter();
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -377,31 +375,32 @@ export function SearchBar() {
                 <SearchResultSkeleton />
               ) : (
                 searchResults?.results.map((product) => (
-                  <CommandItem
-                    key={product.id}
-                    value={product.name}
-                    onSelect={() => {
-                      setOpen(false);
-                      history.push(`/market/${product.id}`);
-                    }}
-                  >
-                    <div className="flex items-center gap-3 w-full">
-                      <Image
-                        src={product.image_url}
-                        alt={product.name}
-                        width={35}
-                        height={56}
-                        className="rounded-sm"
-                      />
-                      <div className="flex flex-col">
-                        <span className="font-medium">{product.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {product.set.name}{" "}
-                          {product.number && `#${product.number}`}
-                        </span>
+                  <Link href={`/market/${product.id}`} key={product.id}>
+                    <CommandItem
+                      key={product.id}
+                      value={product.name}
+                      onSelect={() => {
+                        setOpen(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-3 w-full">
+                        <Image
+                          src={product.image_url}
+                          alt={product.name}
+                          width={35}
+                          height={56}
+                          className="rounded-sm"
+                        />
+                        <div className="flex flex-col">
+                          <span className="font-medium">{product.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {product.set.name}{" "}
+                            {product.number && `#${product.number}`}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  </CommandItem>
+                    </CommandItem>
+                  </Link>
                 ))
               )}
             </CommandGroup>
