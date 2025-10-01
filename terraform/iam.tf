@@ -77,7 +77,8 @@ resource "aws_iam_policy" "ecs_execution_read_secrets_policy" {
           data.aws_secretsmanager_secret.db_credentials.arn,
           data.aws_secretsmanager_secret.tcgplayer_credentials.arn,
           data.aws_secretsmanager_secret.ebay_credentials.arn,
-          data.aws_secretsmanager_secret.sentry.arn
+          data.aws_secretsmanager_secret.sentry.arn,
+          data.aws_secretsmanager_secret.redis.arn
         ]
       }
     ]

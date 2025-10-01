@@ -69,6 +69,16 @@ output "sentry_secret_arn" {
   value       = data.aws_secretsmanager_secret.sentry.arn
 } 
 
+# Redis connection URL used by backend services and cron tasks
+data "aws_secretsmanager_secret" "redis" {
+  name = "${var.project_name}/redis/url"
+}
+
+output "redis_secret_arn" {
+  description = "ARN of the Secrets Manager secret for Redis URL"
+  value       = data.aws_secretsmanager_secret.redis.arn
+}
+
 # Supabase configuration (URL and anon key)
 # Stored as a JSON secret with keys SUPABASE_URL and SUPABASE_ANON_KEY
 data "aws_secretsmanager_secret" "supabase" {

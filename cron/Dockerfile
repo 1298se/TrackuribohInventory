@@ -1,15 +1,20 @@
+FROM ghcr.io/astral-sh/uv:0.8.22 AS uv
+
 FROM python:3.12-slim-bullseye
 
-# Install uv (Python package manager)
-RUN pip install --no-cache-dir uv
+# Install a pinned uv binary for reproducible builds
+COPY --from=uv /uv /uvx /bin/
 
 WORKDIR /code
 
-# Copy dependency definition and lock file first for caching
-COPY pyproject.toml uv.lock ./
+ENV VIRTUAL_ENV=/code/.venv
+ENV PATH="/code/.venv/bin:${PATH}"
 
-# Install dependencies from the lock file
-RUN uv pip sync uv.lock --system
+# Copy dependency definition and lock file first for caching
+COPY pyproject.toml uv.lock README.md ./
+
+# Install only runtime dependencies to leverage Docker layer caching
+RUN uv sync --locked --no-dev --no-install-project
 
 # Copy application code
 COPY ./cron /code/cron
