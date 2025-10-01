@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, TypedDict
@@ -6,6 +5,7 @@ from typing import List, Optional, TypedDict
 import redis.asyncio as redis
 from fastapi import Depends
 
+from core.services.base_marketplace_listing_service import BaseMarketplaceListingService
 from core.services.redis_service import get_redis_client
 from core.services.schemas.tcgplayer import (
     TCGPlayerSaleSchema,
@@ -37,83 +37,23 @@ class CardSaleRequestData(TypedDict, total=False):
     languages: Optional[List[int]]  # Language TCGPlayer ID
 
 
-CACHE_TTL_SECONDS = 60 * 60
-CACHE_VERSION = "v1"  # Increment when DTO schemas change to invalidate cache
-"""
-To invalidate cache when DTOs change:
-1. Increment CACHE_VERSION (e.g., "v1" -> "v2")
-2. Deploy the change - old cache keys become unreachable
-3. Optionally call invalidate_cache_version("v1") to clean up old keys
-"""
-
-
-class TCGPlayerListingService:
+class TCGPlayerListingService(BaseMarketplaceListingService[TCGPlayerListingSchema]):
     """Service for fetching TCGPlayer listings and sales with Redis caching."""
 
     # Class constants
     LISTING_PAGINATION_SIZE = 50
+
+    @property
+    def marketplace_name(self) -> str:
+        return "tcgplayer"
 
     def __init__(
         self,
         redis_client: redis.Redis,
         api_client: TCGPlayerInternalAPIClient,
     ) -> None:
-        self.redis = redis_client
+        super().__init__(redis_client)
         self.api_client = api_client
-
-    def _get_cache_key(self, cache_type: str, product_id: int) -> str:
-        """Generate versioned Redis cache key for DTO cache invalidation."""
-        return f"{CACHE_VERSION}:tcgplayer:{cache_type}:{product_id}"
-
-    async def _get_from_cache(self, cache_key: str, data_class: type) -> Optional[List]:
-        """Get data from Redis cache and deserialize."""
-        try:
-            cached_data = await self.redis.get(cache_key)
-            if cached_data:
-                data = json.loads(cached_data)
-                return [data_class.model_validate(item) for item in data]
-        except Exception as e:
-            logger.warning("Cache retrieval error for key %s: %s", cache_key, e)
-        return None
-
-    async def _set_cache(self, cache_key: str, data: List) -> None:
-        """Serialize and store data in Redis cache."""
-        try:
-            serializable_data = [item.model_dump(mode="json") for item in data]
-            await self.redis.setex(
-                cache_key, CACHE_TTL_SECONDS, json.dumps(serializable_data)
-            )
-        except Exception as e:
-            logger.warning("Cache storage error for key %s: %s", cache_key, e)
-
-    async def invalidate_cache_version(self, version: str | None = None) -> int:
-        """Invalidate all cache keys for a specific version."""
-
-        target_version = version or CACHE_VERSION
-        pattern = f"v{target_version}:tcgplayer:*"
-
-        try:
-            keys = []
-            async for key in self.redis.scan_iter(match=pattern):
-                keys.append(key)
-
-            if keys:
-                deleted_count = await self.redis.delete(*keys)
-                logger.info(
-                    "Invalidated %d cache keys for version v%s",
-                    deleted_count,
-                    target_version,
-                )
-                return deleted_count
-
-            logger.info("No cache keys found for version v%s", target_version)
-            return 0
-
-        except Exception as e:
-            logger.error(
-                "Cache invalidation error for version v%s: %s", target_version, e
-            )
-            return 0
 
     async def get_product_active_listings(
         self,

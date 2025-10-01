@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+from collections.abc import Mapping
 from typing import Any, Optional, TypedDict
 
 import aiohttp
@@ -20,7 +21,6 @@ EBAY_OAUTH_TOKEN_URL = f"{EBAY_API_BASE_URL}/identity/v1/oauth2/token"
 EBAY_BROWSE_SEARCH_URL = f"{EBAY_API_BASE_URL}/buy/browse/v1/item_summary/search"
 EBAY_DEFAULT_SCOPE = "https://api.ebay.com/oauth/api_scope"
 EBAY_US_MARKETPLACE_ID = "EBAY_US"
-TOKEN_SAFETY_SECONDS = 60
 
 
 class EbayBrowseSearchRequest(TypedDict, total=False):
@@ -30,9 +30,10 @@ class EbayBrowseSearchRequest(TypedDict, total=False):
     limit: int
     offset: int
     category_ids: list[str]
-    filter: str
+    filter: Mapping[str, str]
     sort: str
     aspect_filter: str
+    epid: str
 
 
 class EbayAPIClient:
@@ -84,11 +85,13 @@ class EbayAPIClient:
         if category_ids := request.get("category_ids"):
             params["category_ids"] = ",".join(category_ids)
         if request_filter := request.get("filter"):
-            params["filter"] = request_filter
+            params["filter"] = self._serialize_filters(request_filter)
         if aspect_filter := request.get("aspect_filter"):
             params["aspect_filter"] = aspect_filter
         if sort := request.get("sort"):
             params["sort"] = sort
+        if epid := request.get("epid"):
+            params["epid"] = epid
 
         async with session.get(
             EBAY_BROWSE_SEARCH_URL, params=params, headers=headers
@@ -96,6 +99,17 @@ class EbayAPIClient:
             resp.raise_for_status()
             payload = await resp.json()
             return BrowseSearchResponseSchema.model_validate(payload)
+
+    @staticmethod
+    def _serialize_filters(filters: Mapping[str, str]) -> str:
+        parts: list[str] = []
+        for key, raw_value in filters.items():
+            if raw_value is None:
+                continue
+
+            parts.append(f"{key}:{raw_value}")
+
+        return " AND ".join(parts)
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
@@ -129,9 +143,7 @@ class EbayAPIClient:
     def _token_valid(self) -> bool:
         if not self._access_token or not self._token_expiry:
             return False
-        return datetime.now(timezone.utc) < self._token_expiry - timedelta(
-            seconds=TOKEN_SAFETY_SECONDS
-        )
+        return datetime.now(timezone.utc) < self._token_expiry
 
     async def _request_new_token(self) -> tuple[str, int]:
         session = await self._get_session()
@@ -150,3 +162,11 @@ class EbayAPIClient:
         if not token or not expires_in:
             raise RuntimeError("Invalid token response from eBay OAuth endpoint")
         return token, expires_in
+
+
+def get_ebay_api_client() -> EbayAPIClient:
+    """FastAPI dependency factory for the eBay API client."""
+
+    # The API client manages its own async session and token cache, so a fresh
+    # instance per-request is acceptable. Revisit when we optimise connection reuse.
+    return EbayAPIClient()
