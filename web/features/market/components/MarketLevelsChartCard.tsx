@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MarketLevelingChart } from "./MarketLevelingChart";
 import { formatCurrency } from "@/shared/utils";
+import { TrendingUp, Calculator, Target, DollarSign } from "lucide-react";
 
 export function MarketLevelsChartCard({
   listingsCumulativeDepth,
@@ -28,7 +29,10 @@ export function MarketLevelsChartCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Price leveling</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5" />
+          Price leveling
+        </CardTitle>
         <CardDescription>
           See how many listings need to be sold to reach different price points
         </CardDescription>
@@ -131,7 +135,8 @@ function PriceCalculator({
         />
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <DollarSign className="h-3 w-3" />
           Current market price
         </span>
         <span className="text-xs font-medium">
@@ -145,8 +150,9 @@ function PriceCalculator({
         <AlertDescription className="space-y-3">
           <div>
             <h4 className="font-medium flex justify-between gap-2">
-              <span className="text-muted-foreground">
-                Listings needed to reach
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Target className="h-3 w-3" />
+                Listings sold to reach
               </span>
               <span className="font-bold">
                 {listingsToTarget
@@ -157,7 +163,10 @@ function PriceCalculator({
           </div>
           <div className="grid grid-cols-1 gap-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Listings to sell</span>
+              <span className="text-muted-foreground flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" />
+                Listings to sell
+              </span>
               <span className="font-bold">
                 {listingsToTarget?.listingsToSell ?? 0}
               </span>
