@@ -82,13 +82,18 @@ export default function ProductSKUDetailsPage() {
 
         {/* Main Content Area */}
         <div className="flex-1 p-6 space-y-6">
-          <div className="flex flex-row gap-4 items-center">
-            {parsedMarketDepth ? (
-              <MonitorDot />
-            ) : (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            )}
-            <h2 className="text-lg font-medium">Performance monitoring</h2>
+          <div>
+            <div className="flex flex-row gap-3 items-center">
+              {parsedMarketDepth ? (
+                <MonitorDot />
+              ) : (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              )}
+              <h2 className="text-lg font-medium">Performance monitoring</h2>
+            </div>
+            <h3 className="text-sm font-medium text-muted-foreground pl-6">
+              Current market listing trends
+            </h3>
           </div>
 
           <div className="flex flex-col gap-4">
