@@ -54,7 +54,7 @@ export function MetricCard({
     value === null || value === undefined ? "N/A" : `${valuePrefix}${value}`;
 
   return (
-    <Card>
+    <Card className="gap-2">
       <CardHeader className="pb-2">
         <CardDescription className="flex justify-between items-center">
           {title} {/* Title is always needed, even if loading */}
