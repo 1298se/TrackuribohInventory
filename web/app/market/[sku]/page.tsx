@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { MarketDepthChart } from "@/features/market/components/MarketDepthChart";
 import { MarketLevelingChart } from "@/features/market/components/MarketLevelingChart";
+import { MarketLevelsChartCard } from "@/features/market/components/MarketLevelsChartCard";
 import Link from "next/link";
 import { findFirstNearMintSku, formatCurrency } from "@/shared/utils";
 import { assertNotNullable, assert } from "@/lib/validation";
@@ -108,13 +109,14 @@ export default function ProductSKUDetailsPage() {
         <h2 className="text-2xl font-medium">Performance monitoring</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="flex flex-col gap-4">
         <MarketDepthChartCard
           listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
           salesCumulativeDepth={parsedMarketDepth?.salesChartData}
         />
         <MarketLevelsChartCard
           listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
+          currentPrice={nearMintSku?.lowest_listing_price_total}
           isLoading={!parsedMarketDepth}
         />
       </div>
@@ -343,37 +345,6 @@ function ListingsCard({ productId }: { productId?: string }) {
       />
       <MarketListingsTable listings={filteredListings} />
     </div>
-  );
-}
-
-function MarketLevelsChartCard({
-  listingsCumulativeDepth,
-}: {
-  listingsCumulativeDepth:
-    | { price: number; cumulativeCount: number }[]
-    | undefined;
-  isLoading: boolean;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Price leveling</CardTitle>
-        <CardDescription>
-          See how many listings need to be sold to reach different price points
-        </CardDescription>
-      </CardHeader>
-      <Separator />
-      <CardContent className="pt-4 w-full">
-        {listingsCumulativeDepth ? (
-          <MarketLevelingChart
-            listingsCumulativeDepth={listingsCumulativeDepth}
-            currency="USD"
-          />
-        ) : (
-          <Skeleton className="w-full mb-1 h-[240px]" />
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
