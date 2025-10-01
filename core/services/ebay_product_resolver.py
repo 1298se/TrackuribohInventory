@@ -28,6 +28,8 @@ class EbayProductResolver:
 
     DEFAULT_CATEGORY_ID = "183454"  # CCG Individual Cards category
     DEFAULT_LIMIT = 25
+    MIN_TOTAL_MATCHES = 5
+    DOMINANCE_RATIO = 2.0
 
     def __init__(self, api_client: EbayAPIClient | None = None) -> None:
         self.api_client = api_client or EbayAPIClient()
@@ -52,6 +54,27 @@ class EbayProductResolver:
 
         best_epid, best_count = max(epid_counts.items(), key=lambda kv: kv[1])
         total_hits = sum(epid_counts.values())
+
+        if total_hits < self.MIN_TOTAL_MATCHES:
+            logger.debug(
+                "Skipping EPID resolution due to insufficient matches (%d <= %d)",
+                total_hits,
+                self.MIN_TOTAL_MATCHES,
+            )
+            return None
+
+        second_best_count = 0
+        if len(epid_counts) > 1:
+            sorted_counts = sorted(epid_counts.values(), reverse=True)
+            second_best_count = sorted_counts[1]
+
+        if second_best_count and best_count / second_best_count < self.DOMINANCE_RATIO:
+            logger.debug(
+                "Skipping EPID resolution due to dominance ratio %.2f < %.2f",
+                best_count / second_best_count,
+                self.DOMINANCE_RATIO,
+            )
+            return None
 
         logger.debug(
             "Resolved search input (%s, %s, %s) to EPID=%s using %d/%d supporting listings",

@@ -56,6 +56,9 @@ class Product(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
+    ebay_product_id: Mapped[str | None] = mapped_column(
+        String, nullable=True, index=True
+    )
     # Blue-Eyes White Dragon
     name: Mapped[str] = mapped_column(index=True)
     # name but without hyphens, semicolons, etc
