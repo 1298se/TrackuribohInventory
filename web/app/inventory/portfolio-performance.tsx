@@ -47,7 +47,6 @@ export function PortfolioPerformance({
               value={days}
               onChange={setDays}
               options={[
-                { label: "7d", value: "7d" },
                 { label: "30d", value: "30d" },
                 { label: "90d", value: "90d" },
                 { label: "1y", value: "1y" },

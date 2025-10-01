@@ -39,13 +39,13 @@ export function InventoryPage({ token }: { token: string }) {
   const { data, isLoading, error } = useInventory(
     initialQuery,
     selectedCatalogId,
-    token
+    token,
   );
 
   // Fetch aggregate metrics (does not depend on search query)
   const { data: metricData, isLoading: metricLoading } = useInventoryMetrics(
     selectedCatalogId,
-    token
+    token,
   );
 
   // Sync selectedCatalogId when URL param changes (e.g., via back/forward)
@@ -68,7 +68,7 @@ export function InventoryPage({ token }: { token: string }) {
       const queryStr = search ? `?${search}` : "";
       router.replace(`${pathname}${queryStr}`);
     },
-    [router, searchParams, pathname]
+    [router, searchParams, pathname],
   );
 
   // Handler for catalog tab change
@@ -86,7 +86,7 @@ export function InventoryPage({ token }: { token: string }) {
       const queryStr = search ? `?${search}` : "";
       router.replace(`${pathname}${queryStr}`);
     },
-    [router, searchParams, pathname]
+    [router, searchParams, pathname],
   );
 
   // Handle potential error state from useInventory
@@ -115,7 +115,6 @@ export function InventoryPage({ token }: { token: string }) {
                   {catalog.display_name}
                 </TabsTrigger>
               ))}
-              f
             </TabsList>
           </Tabs>
         )}

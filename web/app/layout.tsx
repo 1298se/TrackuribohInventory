@@ -5,6 +5,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import NextTopLoader from "nextjs-toploader";
 import Providers from "@/shared/Providers";
 import { TopNav } from "@/components/top-nav";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -18,11 +19,26 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   weight: ["400", "700"], // Or specify a range for variable fonts
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const authState = session?.user
+    ? {
+        isAuthenticated: true,
+        user: {
+          id: session.user.id,
+          email: session.user.email ?? undefined,
+        },
+      }
+    : { isAuthenticated: false };
+
   return (
     <html
       lang="en"
@@ -33,7 +49,7 @@ export default function RootLayout({
         <Providers>
           <SWRConfig value={{ revalidateOnFocus: false }}>
             <div className="in-h-screen">
-              <TopNav />
+              <TopNav authState={authState} />
               <main className="mx-auto max-w-7xl">{children}</main>
             </div>
           </SWRConfig>

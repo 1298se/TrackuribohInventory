@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import {
   Accordion,
@@ -44,9 +44,10 @@ import {
 } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { useDebouncedState } from "@tanstack/react-pacer/debouncer";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { getProductSearchQuery } from "@/features/catalog/api";
+import { logout } from "@/features/auth/actions";
 
 interface MenuItem {
   title: string;
@@ -56,7 +57,16 @@ interface MenuItem {
   items?: MenuItem[];
 }
 
+interface AuthState {
+  isAuthenticated: boolean;
+  user?: {
+    id: string;
+    email?: string;
+  };
+}
+
 interface Props {
+  authState?: AuthState;
   logo?: {
     url: string;
     src: string;
@@ -77,6 +87,7 @@ interface Props {
 }
 
 export function TopNav({
+  authState,
   logo = {
     url: "/",
     src: "https://deifkwefumgah.cloudfront.net/shadcnblocks/block/logos/shadcnblockscom-icon.svg",
@@ -102,6 +113,26 @@ export function TopNav({
 
   const path = usePathname();
   const isSearchPage = path.startsWith("/search");
+  const router = useRouter();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [isLoggingOut, startLogoutTransition] = useTransition();
+
+  const isAuthenticated = Boolean(authState?.isAuthenticated);
+
+  const handleLogout = () => {
+    setLogoutError(null);
+
+    startLogoutTransition(async () => {
+      try {
+        await logout();
+        router.replace("/login");
+        router.refresh();
+      } catch (error) {
+        console.error("Logout failed", error);
+        setLogoutError("Unable to log out. Please try again.");
+      }
+    });
+  };
 
   return (
     <section
@@ -130,12 +161,37 @@ export function TopNav({
                 {menu.map((item) => renderMenuItem(item))}
               </NavigationMenuList>
             </NavigationMenu>
-            <Link href={auth.login.url}>
-              <Button variant="ghost">{auth.login.title}</Button>
-            </Link>
-            <Link href={auth.signup.url}>
-              <Button>{auth.signup.title}</Button>
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link href="/inventory">
+                  <Button variant="ghost">Inventory</Button>
+                </Link>
+                <Link href="/transactions">
+                  <Button variant="ghost">Transactions</Button>
+                </Link>
+                <Button
+                  variant="ghost"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                >
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href={auth.login.url}>
+                  <Button variant="ghost">{auth.login.title}</Button>
+                </Link>
+                <Link href={auth.signup.url}>
+                  <Button>{auth.signup.title}</Button>
+                </Link>
+              </>
+            )}
+            {logoutError && (
+              <span className="sr-only" role="alert">
+                {logoutError}
+              </span>
+            )}
           </div>
         </nav>
 
@@ -179,8 +235,41 @@ export function TopNav({
                     </Accordion>
 
                     <div className="flex flex-col gap-3">
-                      <Link href={auth.login.url}>{auth.login.title}</Link>
-                      <Link href={auth.signup.url}>{auth.signup.title}</Link>
+                      {isAuthenticated ? (
+                        <>
+                          <Link href="/inventory">
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start"
+                            >
+                              Inventory
+                            </Button>
+                          </Link>
+                          <Link href="/transactions">
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start"
+                            >
+                              Transactions
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            onClick={handleLogout}
+                            className="w-full justify-start"
+                            disabled={isLoggingOut}
+                          >
+                            Logout
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Link href={auth.login.url}>{auth.login.title}</Link>
+                          <Link href={auth.signup.url}>
+                            {auth.signup.title}
+                          </Link>
+                        </>
+                      )}
                     </div>
                   </div>
                 </SheetContent>
@@ -282,7 +371,7 @@ export function SearchBar() {
     (state) => ({
       isPending: state.isPending,
       executionCount: state.executionCount,
-    })
+    }),
   );
 
   const debouncedQueryKey =
@@ -297,7 +386,7 @@ export function SearchBar() {
     getProductSearchQuery({
       query: debouncedQueryKey,
       productType: "CARDS",
-    })
+    }),
   );
 
   const shouldShowSkeleton = isLoading || isFetching || isPending;
