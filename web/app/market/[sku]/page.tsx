@@ -55,46 +55,57 @@ export default function ProductSKUDetailsPage() {
   );
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-col md:flex-row gap-6 grow-1 min-w-[200px]">
-        <div className="block md:hidden">
-          <ProductTitle
-            productName={product?.name}
-            productSetName={product?.set.name}
-            productSetID={product?.set.id}
-            isLoading={!product}
-          />
+    <div className="flex flex-col md:flex-row min-h-screen">
+      {/* Desktop: Sidebar + Main content */}
+      <div className="md:flex w-full">
+        {/* Persistent Sidebar */}
+        <div className="md:w-80 md:flex-shrink-0 p-6 md:border-r md:bg-background/50 md:sticky md:top-[60px] md:h-[calc(100vh-60px)] md:overflow-y-auto ">
+          <div className="space-y-6">
+            <ProductTitleInsightsCard
+              productName={product?.name}
+              productSetName={product?.set.name}
+              productSetID={product?.set.id}
+              imageUrl={product?.image_url}
+              isLoading={!product}
+            />
+
+            <TCGMarketPlacePriceCard
+              totalQuantity={parsedMarketDepth?.metrics?.total_quantity || 0}
+              lowestListingPriceTotal={
+                nearMintSku?.lowest_listing_price_total || 0
+              }
+              productURL={product?.tcgplayer_url}
+              isLoading={!product}
+            />
+          </div>
         </div>
 
-        <ProductImageDisplay
-          imageUrl={product?.image_url}
-          name={product?.name}
-          ratio={0.3}
-          isLoading={!product}
-        />
+        {/* Main Content Area */}
+        <div className="flex-1 p-6 space-y-6">
+          <div className="flex flex-row gap-4 items-center">
+            {parsedMarketDepth ? (
+              <MonitorDot />
+            ) : (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            )}
+            <h2 className="text-lg font-medium">Performance monitoring</h2>
+          </div>
 
-        <div className="grow-2 hidden md:block">
-          <ProductTitleInsightsCard
-            productName={product?.name}
-            productSetName={product?.set.name}
-            productSetID={product?.set.id}
-            isLoading={!product}
-          />
-        </div>
+          <div className="flex flex-col gap-4">
+            <MarketDepthChartCard
+              listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
+              salesCumulativeDepth={parsedMarketDepth?.salesChartData}
+            />
+            <MarketLevelsChartCard
+              listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
+              currentPrice={nearMintSku?.lowest_listing_price_total}
+              isLoading={!parsedMarketDepth}
+            />
+          </div>
 
-        <div className="min-w-[200px]">
-          <TCGMarketPlacePriceCard
-            totalQuantity={parsedMarketDepth?.metrics?.total_quantity || 0}
-            lowestListingPriceTotal={
-              nearMintSku?.lowest_listing_price_total || 0
-            }
-            productURL={product?.tcgplayer_url}
-            isLoading={!product}
-          />
-        </div>
+          <Separator className="my-8" />
 
-        <div className="block md:hidden">
-          <ProductInsightsCard />
+          <ListingsCard productId={product?.id} />
         </div>
       </div>
 
@@ -145,7 +156,7 @@ function ProductImageDisplay({
   if (isLoading) {
     return (
       <Skeleton
-        className="rounded-[10px] shadow-2xl mx-auto lg:mx-0"
+        className="rounded-[10px]  mx-auto lg:mx-0"
         style={{ width: `${scaledWidth}px`, height: `${scaledHeight}px` }}
       />
     );
@@ -162,7 +173,7 @@ function ProductImageDisplay({
       })}
       alt={name}
       containerClassName="w-full h-full"
-      className="rounded-[10px] shadow-2xl mx-auto lg:mx-0"
+      className="rounded-[10px] mx-auto lg:mx-0"
       style={{ width: `${scaledWidth}px`, height: `${scaledHeight}px` }}
     />
   );
@@ -194,7 +205,7 @@ function ProductTitle({
 
   return (
     <div>
-      <CardTitle className="text-2xl font-bold">{productName}</CardTitle>
+      <CardTitle className="text-xl font-bold">{productName}</CardTitle>
       <Link
         target="_blank"
         href={`/market/set/${productSetID}`}
@@ -206,33 +217,18 @@ function ProductTitle({
   );
 }
 
-function ProductInsightsCard() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Insights</CardTitle>
-      </CardHeader>
-      <CardContent className="min-h-[138px] h-full">
-        <ProductInsightsContent />
-      </CardContent>
-    </Card>
-  );
-}
-
-function ProductInsightsContent() {
-  return <div>AI insights here</div>;
-}
-
 function ProductTitleInsightsCard({
   productName,
   productSetName,
   productSetID,
   isLoading,
+  imageUrl,
 }: {
   productName: string | undefined;
   productSetName: string | undefined;
   productSetID: string | undefined;
   isLoading: boolean;
+  imageUrl: string | undefined;
 }) {
   if (isLoading) {
     return (
@@ -251,7 +247,7 @@ function ProductTitleInsightsCard({
   assertNotNullable(productSetID, "Product set ID is required");
 
   return (
-    <Card>
+    <Card className="pb-0 pt-4">
       <CardHeader className="hidden md:block">
         <ProductTitle
           productName={productName}
@@ -260,10 +256,14 @@ function ProductTitleInsightsCard({
           isLoading={isLoading}
         />
       </CardHeader>
-      <Separator />
-      <CardContent className="min-h-[133px] h-full">
-        <ProductInsightsContent />
-      </CardContent>
+      <div className="w-full h-full bg-white flex items-center justify-center py-2 rounded-b-xl">
+        <ProductImageDisplay
+          imageUrl={imageUrl}
+          name={productName}
+          ratio={0.2}
+          isLoading={isLoading}
+        />
+      </div>
     </Card>
   );
 }
@@ -299,13 +299,16 @@ function TCGMarketPlacePriceCard({
   return (
     <MetricCard
       title={
-        <Link
-          href={productURL}
-          target="_blank"
-          className="underline text-muted-foreground text-xs"
-        >
-          TCGPlayer
-        </Link>
+        <div className="flex gap-1">
+          <Link
+            href={productURL}
+            target="_blank"
+            className="underline text-muted-foreground text-xs"
+          >
+            TCGPlayer
+          </Link>
+          <span className="text-muted-foreground text-xs">Market Price</span>
+        </div>
       }
       value={formatCurrency(lowestListingPriceTotal)}
       subtitle={`From ${totalQuantity} units in the market`}
