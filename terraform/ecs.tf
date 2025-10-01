@@ -28,6 +28,62 @@ resource "aws_cloudwatch_log_group" "cron_log_group" {
 # Construct the ECR Image URI using the variable
 locals {
   image_uri = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/${var.ecr_repo_name}:${var.image_tag}"
+
+  # Common secrets shared across all task definitions
+  common_secrets = [
+    {
+      name      = "db_username"
+      valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
+    },
+    {
+      name      = "db_password"
+      valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
+    },
+    {
+      name      = "db_endpoint"
+      valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
+    },
+    {
+      name      = "db_port"
+      valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
+    },
+    {
+      name      = "db_name"
+      valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
+    },
+    {
+      name      = "TCGPLAYER_CLIENT_ID"
+      valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
+    },
+    {
+      name      = "TCGPLAYER_CLIENT_SECRET"
+      valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
+    },
+    {
+      name      = "SENTRY_DSN"
+      valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+    },
+    {
+      name      = "EBAY_CLIENT_ID"
+      valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
+    },
+    {
+      name      = "EBAY_CLIENT_SECRET"
+      valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
+    },
+    {
+      name      = "REDIS_URL"
+      valueFrom = "${data.aws_secretsmanager_secret.redis.arn}:REDIS_URL::"
+    }
+  ]
+
+  # Common environment variables
+  common_environment = [
+    {
+      name  = "ENV"
+      value = "PROD"
+    }
+  ]
 }
 
 # --- Define ECS Task Definition for Inventory Update ---
@@ -59,56 +115,10 @@ resource "aws_ecs_task_definition" "snapshot_inventory_sku_prices_task" {
       }
 
       # Use secrets from AWS Secrets Manager
-      secrets = [
-        {
-          name      = "db_username"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
-        },
-        {
-          name      = "db_password"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
-        },
-        {
-          name      = "db_endpoint"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
-        },
-        {
-          name      = "db_port"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
-        },
-        {
-          name      = "db_name"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
-        },
-        {
-          name      = "SENTRY_DSN"
-          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
-        },
-        {
-          name      = "EBAY_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
-        },
-        {
-          name      = "EBAY_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
-        }
-      ]
+      secrets = local.common_secrets
 
       # Use the same environment variables as the catalog task
-      environment = [
-        {
-          name = "ENV"
-          value = "PROD"
-        }
-      ]
+      environment = local.common_environment
     }
   ])
 
@@ -145,55 +155,9 @@ resource "aws_ecs_task_definition" "snapshot_product_sku_prices_task" {
         }
       }
 
-      secrets = [
-        {
-          name      = "db_username"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
-        },
-        {
-          name      = "db_password"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
-        },
-        {
-          name      = "db_endpoint"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
-        },
-        {
-          name      = "db_port"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
-        },
-        {
-          name      = "db_name"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
-        },
-        {
-          name      = "SENTRY_DSN"
-          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
-        },
-        {
-          name      = "EBAY_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
-        },
-        {
-          name      = "EBAY_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
-        }
-      ]
+      secrets = local.common_secrets
 
-      environment = [
-        {
-          name  = "ENV"
-          value = "PROD"
-        }
-      ]
+      environment = local.common_environment
     }
   ])
 
@@ -230,55 +194,9 @@ resource "aws_ecs_task_definition" "snapshot_inventory_task" {
         }
       }
 
-      secrets = [
-        {
-          name      = "db_username"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
-        },
-        {
-          name      = "db_password"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
-        },
-        {
-          name      = "db_endpoint"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
-        },
-        {
-          name      = "db_port"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
-        },
-        {
-          name      = "db_name"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
-        },
-        {
-          name      = "SENTRY_DSN"
-          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
-        },
-        {
-          name      = "EBAY_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
-        },
-        {
-          name      = "EBAY_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
-        }
-      ]
+      secrets = local.common_secrets
 
-      environment = [
-        {
-          name  = "ENV"
-          value = "PROD"
-        }
-      ]
+      environment = local.common_environment
     }
   ])
 
@@ -315,55 +233,9 @@ resource "aws_ecs_task_definition" "update_catalog_db_task" {
         }
       }
 
-      secrets = [
-        {
-          name      = "db_username"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
-        },
-        {
-          name      = "db_password"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
-        },
-        {
-          name      = "db_endpoint"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
-        },
-        {
-          name      = "db_port"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
-        },
-        {
-          name      = "db_name"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
-        },
-        {
-          name      = "SENTRY_DSN"
-          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
-        },
-        {
-          name      = "EBAY_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
-        },
-        {
-          name      = "EBAY_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
-        }
-      ]
+      secrets = local.common_secrets
 
-      environment = [
-        {
-          name  = "ENV"
-          value = "PROD"
-        }
-      ]
+      environment = local.common_environment
     }
   ])
 
@@ -400,59 +272,17 @@ resource "aws_ecs_task_definition" "compute_sku_listing_data_refresh_priority_ta
         }
       }
 
-      secrets = [
-        {
-          name      = "SENTRY_DSN"
-          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
-        },
-        {
-          name      = "db_endpoint"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
-        },
-        {
-          name      = "db_name"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
-        },
-        {
-          name      = "db_password"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
-        },
-        {
-          name      = "db_port"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
-        },
-        {
-          name      = "db_username"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
-        },
-        {
-          name      = "EBAY_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
-        },
-        {
-          name      = "EBAY_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
-        }
-      ]
+      secrets = local.common_secrets
 
-      environment = [
-        {
-          name  = "ENV"
-          value = "PROD"
-        },
-        {
-          name  = "AWS_REGION"
-          value = data.aws_region.current.name
-        }
-      ]
+      environment = concat(
+        local.common_environment,
+        [
+          {
+            name  = "AWS_REGION"
+            value = data.aws_region.current.name
+          }
+        ]
+      )
     }
   ])
 
@@ -489,63 +319,21 @@ resource "aws_ecs_task_definition" "purchase_decision_sweep_task" {
         }
       }
 
-      secrets = [
-        {
-          name      = "db_username"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:username::"
-        },
-        {
-          name      = "db_password"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:password::"
-        },
-        {
-          name      = "db_endpoint"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:host::"
-        },
-        {
-          name      = "db_port"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:port::"
-        },
-        {
-          name      = "db_name"
-          valueFrom = "${data.aws_secretsmanager_secret.db_credentials.arn}:dbname::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_ID::"
-        },
-        {
-          name      = "TCGPLAYER_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.tcgplayer_credentials.arn}:TCGPLAYER_CLIENT_SECRET::"
-        },
-        {
-          name      = "SENTRY_DSN"
-          valueFrom = "${data.aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
-        },
-        {
-          name      = "EBAY_CLIENT_ID"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_ID::"
-        },
-        {
-          name      = "EBAY_CLIENT_SECRET"
-          valueFrom = "${data.aws_secretsmanager_secret.ebay_credentials.arn}:EBAY_CLIENT_SECRET::"
-        }
-      ]
+      secrets = local.common_secrets
 
-      environment = [
-        {
-          name  = "ENV"
-          value = "PROD"
-        },
-        {
-          name  = "AWS_REGION"
-          value = data.aws_region.current.name
-        },
-        {
-          name  = "TCGPLAYER_COOKIE_SECRET_NAME"
-          value = data.aws_secretsmanager_secret.tcgplayer_cookie.name
-        }
-      ]
+      environment = concat(
+        local.common_environment,
+        [
+          {
+            name  = "AWS_REGION"
+            value = data.aws_region.current.name
+          },
+          {
+            name  = "TCGPLAYER_COOKIE_SECRET_NAME"
+            value = data.aws_secretsmanager_secret.tcgplayer_cookie.name
+          }
+        ]
+      )
     }
   ])
 

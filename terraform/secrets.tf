@@ -78,4 +78,14 @@ data "aws_secretsmanager_secret" "supabase" {
 output "supabase_secret_arn" {
   description = "ARN of the Secrets Manager secret for Supabase config"
   value       = data.aws_secretsmanager_secret.supabase.arn
+}
+
+# Redis URL for caching
+data "aws_secretsmanager_secret" "redis" {
+  name = "${var.project_name}/redis/url"
+}
+
+output "redis_secret_arn" {
+  description = "ARN of the Secrets Manager secret for Redis URL"
+  value       = data.aws_secretsmanager_secret.redis.arn
 } 
