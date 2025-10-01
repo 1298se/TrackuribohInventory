@@ -82,39 +82,6 @@ export default function ProductSKUDetailsPage() {
 
         {/* Main Content Area */}
         <div className="flex-1 p-6 space-y-6">
-<<<<<<< HEAD
-          <div>
-            <div className="flex flex-row gap-3 items-center">
-              {parsedMarketDepth ? (
-                <MonitorDot />
-              ) : (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              )}
-              <h2 className="text-lg font-semibold">
-                Listing performance monitoring
-              </h2>
-            </div>
-
-            <h3 className="text-sm font-medium text-muted-foreground pl-6">
-              Current market listing trends
-            </h3>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            <MarketDepthChartCard
-              listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
-              salesCumulativeDepth={parsedMarketDepth?.salesChartData}
-            />
-            <MarketLevelsChartCard
-              listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
-              currentPrice={nearMintSku?.lowest_listing_price_total}
-              isLoading={!parsedMarketDepth}
-            />
-          </div>
-
-          <Separator className="my-8" />
-
-=======
           <div className="flex flex-row gap-4 items-center">
             {parsedMarketDepth ? (
               <MonitorDot />
@@ -138,7 +105,6 @@ export default function ProductSKUDetailsPage() {
 
           <Separator className="my-8" />
 
->>>>>>> de8f2c9e8ebed8f432e6efe0796ce8e5325a8e97
           <ListingsCard productId={product?.id} />
         </div>
       </div>
