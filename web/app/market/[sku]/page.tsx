@@ -20,6 +20,7 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { MarketDepthChart } from "@/features/market/components/MarketDepthChart";
+import { MarketLevelingChart } from "@/features/market/components/MarketLevelingChart";
 import { MarketLevelsChartCard } from "@/features/market/components/MarketLevelsChartCard";
 import Link from "next/link";
 import { findFirstNearMintSku, formatCurrency } from "@/shared/utils";
@@ -107,6 +108,31 @@ export default function ProductSKUDetailsPage() {
           <ListingsCard productId={product?.id} />
         </div>
       </div>
+
+      <Separator className="my-8" />
+
+      <div className="flex flex-row gap-4 items-center">
+        {parsedMarketDepth ? (
+          <MonitorDot />
+        ) : (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        )}
+        <h2 className="text-2xl font-medium">Performance monitoring</h2>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <MarketDepthChartCard
+          listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
+          salesCumulativeDepth={parsedMarketDepth?.salesChartData}
+        />
+        <MarketLevelsChartCard
+          listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
+          currentPrice={nearMintSku?.lowest_listing_price_total}
+          isLoading={!parsedMarketDepth}
+        />
+      </div>
+
+      <ListingsCard productId={product?.id} />
     </div>
   );
 }
