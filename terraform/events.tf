@@ -132,6 +132,7 @@ resource "aws_cloudwatch_event_target" "ecs_update_catalog_db_target" {
 resource "aws_cloudwatch_event_rule" "compute_sku_listing_data_refresh_priority_event" {
   name        = "${var.project_name}-compute-sku-listing-data-refresh-priority-rule"
   description = "Triggered by snapshot_product_sku_prices completion to compute SKU listing data refresh priority scores"
+  is_enabled  = false
   
   event_pattern = jsonencode({
     source      = ["codex.jobs"]
@@ -169,6 +170,7 @@ resource "aws_cloudwatch_event_rule" "compute_sku_listing_data_refresh_priority_
   name                = "${var.project_name}-compute-priority-schedule"
   description         = "Run compute_sku_listing_data_refresh_priority every 3 hours"
   schedule_expression = "cron(0 */3 * * ? *)" # Every 3 hours at minute 0
+  is_enabled          = false
 
   tags = {
     Name      = "${var.project_name}-compute-priority-schedule"

@@ -58,10 +58,6 @@ class TCGPlayerCatalogService:
             self.session = None
 
     async def get_authorization_headers(self) -> dict:
-        """Get authorization headers, ensuring the access token is valid"""
-        if self.session is None or self.session.closed:
-            await self.init()
-
         async with self.lock:
             refreshed = await self._check_and_refresh_access_token()
             if not refreshed:
@@ -198,10 +194,6 @@ class TCGPlayerCatalogService:
             return SKUPricingResponseSchema.model_validate(await response.json())
 
     async def _check_and_refresh_access_token(self) -> bool:
-        """Checks if token is expired and refreshes if needed. Returns True if token is valid after check."""
-        if self.session is None or self.session.closed:
-            await self.init()
-
         if access_token_expired(self.access_token_expiry):
             logging.debug("ACCESS TOKEN EXPIRED: Fetching new one")
             environment = get_environment()
