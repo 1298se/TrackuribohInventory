@@ -13,7 +13,10 @@ from core.models.price import Marketplace
 from core.services.price_service import update_latest_sku_prices
 from core.dao.latest_price import get_today_updated_sku_ids
 from core.dao.market_indicators import get_market_indicator_sku_tcgplayer_ids
-from core.services.tcgplayer_catalog_service import tcgplayer_service_context
+from core.services.tcgplayer_catalog_service import (
+    TCGPlayerCatalogService,
+    tcgplayer_service_context,
+)
 from core.utils.workers import process_task_queue
 from cron.telemetry import init_sentry
 
@@ -35,6 +38,7 @@ JOB_NAME = "sku_price_history_snapshot"
 
 async def process_sku_batch_for_daily_flush(
     sku_batch_tcgplayer_ids: list[int],
+    service: TCGPlayerCatalogService,
 ) -> int:
     """
     Fetch pricing for a batch, update cache, and write to history.
@@ -46,35 +50,34 @@ async def process_sku_batch_for_daily_flush(
         logger.debug("Empty SKU batch — skipping")
         return 0
 
-    async with tcgplayer_service_context() as service:
-        with SessionLocal() as session:
-            # Filter out any None values
-            active_tcgplayer_ids = [tid for tid in sku_batch_tcgplayer_ids if tid]
+    with SessionLocal() as session:
+        # Filter out any None values
+        active_tcgplayer_ids = [tid for tid in sku_batch_tcgplayer_ids if tid]
 
-            # Map external TCGPlayer IDs to internal UUIDs
-            sku_id_rows = session.execute(
-                select(SKU.id).where(SKU.tcgplayer_id.in_(active_tcgplayer_ids))
-            ).all()
+        # Map external TCGPlayer IDs to internal UUIDs
+        sku_id_rows = session.execute(
+            select(SKU.id).where(SKU.tcgplayer_id.in_(active_tcgplayer_ids))
+        ).all()
 
-            internal_sku_ids = [row.id for row in sku_id_rows]
+        internal_sku_ids = [row.id for row in sku_id_rows]
 
-            if not internal_sku_ids:
-                logger.debug("No internal SKU IDs found for batch; skipping.")
-                return 0
+        if not internal_sku_ids:
+            logger.debug("No internal SKU IDs found for batch; skipping.")
+            return 0
 
-            # Use unified price service - updates cache AND writes history
-            try:
-                cache_updates = await update_latest_sku_prices(
-                    session=session,
-                    catalog_service=service,
-                    sku_ids=internal_sku_ids,
-                    marketplace=Marketplace.TCGPLAYER,
-                    write_through=True,  # Write both cache and history
-                )
-                return cache_updates
-            except Exception as e:
-                logger.error(f"Failed to update prices for batch: {e}")
-                return 0
+        # Use unified price service - updates cache AND writes history
+        try:
+            cache_updates = await update_latest_sku_prices(
+                session=session,
+                catalog_service=service,
+                sku_ids=internal_sku_ids,
+                marketplace=Marketplace.TCGPLAYER,
+                write_through=True,  # Write both cache and history
+            )
+            return cache_updates
+        except Exception as e:
+            logger.error(f"Failed to update prices for batch: {e}")
+            return 0
 
 
 async def publish_compute_trigger_event() -> None:
@@ -158,12 +161,15 @@ async def main():
                 return
 
             # 4. Process in batches
-            task_queue = asyncio.Queue()
-            for i in range(0, len(all_target_tcgplayer_ids), SKU_BATCH_SIZE):
-                batch_ids = all_target_tcgplayer_ids[i : i + SKU_BATCH_SIZE]
-                await task_queue.put(process_sku_batch_for_daily_flush(batch_ids))
+            async with tcgplayer_service_context() as service:
+                task_queue = asyncio.Queue()
+                for i in range(0, len(all_target_tcgplayer_ids), SKU_BATCH_SIZE):
+                    batch_ids = all_target_tcgplayer_ids[i : i + SKU_BATCH_SIZE]
+                    await task_queue.put(
+                        process_sku_batch_for_daily_flush(batch_ids, service)
+                    )
 
-            successes = await process_task_queue(task_queue)
+                successes = await process_task_queue(task_queue)
 
             # Sum up results from all batches
             total_cache_updates = sum(successes)
