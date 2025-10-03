@@ -12,7 +12,10 @@ from core.models.catalog import SKU
 from core.models.price import Marketplace
 from core.services.price_service import update_latest_sku_prices
 from core.dao.latest_price import get_today_updated_sku_ids
-from core.dao.market_indicators import get_market_indicator_sku_tcgplayer_ids
+from core.dao.market_indicators import (
+    get_booster_pack_tcgplayer_ids,
+    get_market_indicator_sku_tcgplayer_ids,
+)
 from core.services.tcgplayer_catalog_service import (
     TCGPlayerCatalogService,
     tcgplayer_service_context,
@@ -145,22 +148,30 @@ async def main():
             else:
                 today_updated_tcg_ids = []
 
-            # 3. Build union of target SKUs (avoid duplicates)
+            # 3. Get sealed booster pack SKUs
+            booster_pack_tcg_ids = get_booster_pack_tcgplayer_ids(session)
+
+            # 4. Build union of target SKUs (avoid duplicates)
             all_target_tcgplayer_ids = list(
-                set(market_indicator_tcgplayer_ids + today_updated_tcg_ids)
+                set(
+                    market_indicator_tcgplayer_ids
+                    + today_updated_tcg_ids
+                    + booster_pack_tcg_ids
+                )
             )
             total_skus_targeted = len(all_target_tcgplayer_ids)
 
             logger.info(
                 f"{JOB_NAME}: Targeting {len(market_indicator_tcgplayer_ids)} market indicator SKUs + "
-                f"{len(today_updated_tcg_ids)} today-updated SKUs = {total_skus_targeted} total SKUs"
+                f"{len(today_updated_tcg_ids)} today-updated SKUs + "
+                f"{len(booster_pack_tcg_ids)} booster pack SKUs = {total_skus_targeted} total SKUs"
             )
 
             if not all_target_tcgplayer_ids:
                 logger.info("No SKUs found to process.")
                 return
 
-            # 4. Process in batches
+            # 5. Process in batches
             async with tcgplayer_service_context() as service:
                 task_queue = asyncio.Queue()
                 for i in range(0, len(all_target_tcgplayer_ids), SKU_BATCH_SIZE):
