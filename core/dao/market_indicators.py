@@ -115,3 +115,32 @@ def get_market_indicator_sku_tcgplayer_ids(session: Session) -> List[int]:
     )
 
     return list(tcgplayer_ids)
+
+
+def get_booster_pack_tcgplayer_ids(session: Session) -> List[int]:
+    """
+    Get TCGPlayer external IDs for all sealed booster pack SKUs.
+
+    This is a convenience wrapper for price snapshot tasks.
+
+    Args:
+        session: Active SQLAlchemy session
+
+    Returns:
+        List of TCGPlayer IDs for booster pack SKUs
+    """
+    booster_pack_tcg_ids = (
+        session.execute(
+            select(SKU.tcgplayer_id)
+            .join(Product, SKU.product_id == Product.id)
+            .where(
+                Product.product_type == ProductType.SEALED,
+                Product.name.ilike("%Booster Pack%"),
+                SKU.tcgplayer_id.isnot(None),
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    return list(booster_pack_tcg_ids)
