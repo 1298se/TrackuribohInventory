@@ -100,24 +100,13 @@ export function TopNav({
     signup: { title: "Sign up", url: "#" },
   },
 }: Props) {
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 0);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   const path = usePathname();
   const isSearchPage = path.startsWith("/search");
   const router = useRouter();
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [isLoggingOut, startLogoutTransition] = useTransition();
 
-  const isAuthenticated = Boolean(authState?.isAuthenticated);
+  const isAuthenticated = !!authState?.isAuthenticated;
 
   const handleLogout = () => {
     setLogoutError(null);
@@ -135,11 +124,7 @@ export function TopNav({
   };
 
   return (
-    <section
-      className={`sticky top-0 z-50 ${
-        isScrolled ? "bg-background shadow-sm border-b-2" : "bg-transparent"
-      }`}
-    >
+    <section className={`sticky top-0 z-50 bg-background shadow-sm border-b-2`}>
       <div className="container mx-auto max-w-7xl py-4 h-[65px] flex items-center px-4">
         {/* Desktop Menu */}
         <nav className="hidden justify-between lg:flex  w-full">
@@ -371,7 +356,7 @@ export function SearchBar() {
     (state) => ({
       isPending: state.isPending,
       executionCount: state.executionCount,
-    }),
+    })
   );
 
   const debouncedQueryKey =
@@ -386,7 +371,7 @@ export function SearchBar() {
     getProductSearchQuery({
       query: debouncedQueryKey,
       productType: "CARDS",
-    }),
+    })
   );
 
   const shouldShowSkeleton = isLoading || isFetching || isPending;

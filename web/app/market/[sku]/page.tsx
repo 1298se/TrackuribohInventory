@@ -59,7 +59,7 @@ export default function ProductSKUDetailsPage() {
       {/* Desktop: Sidebar + Main content */}
       <div className="md:flex w-full">
         {/* Persistent Sidebar */}
-        <div className="md:w-80 md:flex-shrink-0 p-6 md:border-r md:bg-background/50 md:sticky md:top-[60px] md:h-[calc(100vh-60px)] md:overflow-y-auto ">
+        <div className="md:w-80 md:flex-shrink-0 p-6 md:border-r md:bg-background/50 md:sticky md:top-[62px] md:h-[calc(100vh-62px)] md:overflow-y-auto ">
           <div className="space-y-6">
             <ProductTitleInsightsCard
               productName={product?.name}
@@ -108,31 +108,6 @@ export default function ProductSKUDetailsPage() {
           <ListingsCard productId={product?.id} />
         </div>
       </div>
-
-      <Separator className="my-8" />
-
-      <div className="flex flex-row gap-4 items-center">
-        {parsedMarketDepth ? (
-          <MonitorDot />
-        ) : (
-          <Loader2 className="w-3 h-3 animate-spin" />
-        )}
-        <h2 className="text-2xl font-medium">Performance monitoring</h2>
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <MarketDepthChartCard
-          listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
-          salesCumulativeDepth={parsedMarketDepth?.salesChartData}
-        />
-        <MarketLevelsChartCard
-          listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
-          currentPrice={nearMintSku?.lowest_listing_price_total}
-          isLoading={!parsedMarketDepth}
-        />
-      </div>
-
-      <ListingsCard productId={product?.id} />
     </div>
   );
 }
