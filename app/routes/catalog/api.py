@@ -71,6 +71,7 @@ def search_products(
     catalog_id = search_params.catalog_id
     product_type = search_params.product_type
     page = search_params.page
+    # No limit
     limit = 10
 
     # Build search query (automatically joins Set, filters, and orders by rank)

@@ -7,18 +7,11 @@ export default function LoginPage() {
     <AuthCenteredContainer>
       <SignUpSignInFormCard
         redirect="/signup/confirm"
-        title="Sign up to your account"
+        title="Sign up"
         cta="Sign up"
         description="Enter your email below to sign up to your account"
         formAction={signupUser}
-        footer={
-          <div className="mt-4 text-center text-sm">
-            Have an account?{" "}
-            <a href="/login" className="underline underline-offset-4">
-              Login
-            </a>
-          </div>
-        }
+        variant="signup"
       />
     </AuthCenteredContainer>
   );
