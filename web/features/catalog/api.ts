@@ -31,7 +31,7 @@ async function fetchSearch({
   query: string;
   productType?: string;
   setId?: string;
-  limit: number;
+  limit?: number;
 }) {
   const params = new URLSearchParams();
 
@@ -76,8 +76,7 @@ export function getProductSearchQuery({
 }) {
   return queryOptions<SearchResult>({
     queryKey: ["search", query, productType, setId],
-    queryFn: () =>
-      fetchSearch({ query, productType, setId, limit: DEFAULT_LIMIT }),
+    queryFn: () => fetchSearch({ query, productType, setId }),
   });
 }
 
