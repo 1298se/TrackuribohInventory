@@ -154,8 +154,6 @@ class ProductSearchRequestParams(BaseModel):
     catalog_id: Optional[uuid.UUID] = None
     product_type: Optional[ProductType] = None
     set_id: Optional[uuid.UUID] = None
-    page: int = Field(default=1, ge=1, description="Page number (1-based)")
-    limit: int = Field(default=20, ge=1, le=100, description="Number of items per page")
 
     class Config:
         extra = "forbid"

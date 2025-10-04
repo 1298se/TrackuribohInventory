@@ -7,7 +7,7 @@ import {
   getProductListingsQuery,
 } from "@/features/market/api";
 import { getProductQuery } from "@/features/catalog/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import {
   Card,
@@ -20,7 +20,6 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { MarketDepthChart } from "@/features/market/components/MarketDepthChart";
-import { MarketLevelingChart } from "@/features/market/components/MarketLevelingChart";
 import { MarketLevelsChartCard } from "@/features/market/components/MarketLevelsChartCard";
 import Link from "next/link";
 import { findFirstNearMintSku, formatCurrency } from "@/shared/utils";
@@ -43,7 +42,9 @@ export default function ProductSKUDetailsPage() {
 
   assert(typeof sku === "string", "Invalid SKU");
 
-  const { data: product } = useQuery(getProductQuery(sku));
+  const { data: product } = useSuspenseQuery(getProductQuery(sku));
+
+  assertNotNullable(product, "Product not found");
 
   const nearMintSku =
     product && product.skus?.length > 0
@@ -105,7 +106,7 @@ export default function ProductSKUDetailsPage() {
 
           <Separator className="my-8" />
 
-          <ListingsCard productId={product?.id} />
+          {product?.id && <ListingsCard productId={product.id} />}
         </div>
       </div>
     </div>

@@ -70,9 +70,6 @@ def search_products(
     query_text = search_params.query
     catalog_id = search_params.catalog_id
     product_type = search_params.product_type
-    page = search_params.page
-    # No limit
-    limit = 10
 
     # Build search query (automatically joins Set, filters, and orders by rank)
     base_search_query = build_product_search_query(query_text)
@@ -87,30 +84,18 @@ def search_products(
             Product.product_type == product_type
         )
 
-    # Get total count for pagination metadata
-    count_query = select(func.count()).select_from(base_search_query.subquery())
-    total = session.scalar(count_query)
-
-    # Calculate offset and apply pagination
-    offset = (page - 1) * limit
-    paginated_query = base_search_query.offset(offset).limit(limit)
-
-    # Execute paginated query
+    # Execute query without pagination
     results = session.scalars(
-        paginated_query.options(*ProductWithSetAndSKUsResponseSchema.get_load_options())
+        base_search_query.options(*ProductWithSetAndSKUsResponseSchema.get_load_options())
     ).all()
-
-    # Calculate pagination metadata
-    has_next = (page * limit) < total
-    has_prev = page > 1
 
     return ProductSearchResponseSchema(
         results=results,
-        total=total,
-        page=page,
-        limit=limit,
-        has_next=has_next,
-        has_prev=has_prev,
+        total=len(results),
+        page=1,
+        limit=len(results),
+        has_next=False,
+        has_prev=False,
     )
 
 
