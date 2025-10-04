@@ -1,8 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -10,7 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FormFieldError, FormRootError } from "@/components/FormFieldError";
+import { FormRootError } from "@/components/FormFieldError";
+import { FormFieldInputContainer } from "@/components/FormFieldInputContainer";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useHookFormAction } from "@next-safe-action/adapter-react-hook-form/hooks";
@@ -22,16 +21,16 @@ export function SignUpSignInFormCard({
   title,
   description,
   formAction,
-  footer,
   cta,
   redirect,
+  variant,
   ...props
 }: React.ComponentProps<"div"> & {
   title: string;
   description: string;
   cta: string;
   formAction: EmailAuthAction;
-  footer: React.ReactNode;
+  variant: "signup" | "login";
   redirect: string;
 }) {
   const router = useRouter();
@@ -52,7 +51,7 @@ export function SignUpSignInFormCard({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
+      <Card className="h-[400px]">
         <CardHeader>
           <CardTitle>{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
@@ -60,25 +59,22 @@ export function SignUpSignInFormCard({
         <CardContent>
           <form onSubmit={handleSubmitWithAction}>
             <div className="flex flex-col gap-6">
-              <div className="grid gap-3">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  {...form.register("email")}
-                />
-                <FormFieldError form={form} name="email" />
-              </div>
-              <div className="grid gap-3">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  {...form.register("password")}
-                />
-                <FormFieldError form={form} name="password" />
-              </div>
+              <FormFieldInputContainer
+                form={form}
+                name="email"
+                label="Email"
+                type="email"
+                placeholder="Email"
+                required
+              />
+              <FormFieldInputContainer
+                form={form}
+                name="password"
+                label="Password"
+                type="password"
+                placeholder="Password"
+                required
+              />
               <div className="flex flex-col gap-3">
                 <Button
                   type="submit"
@@ -91,7 +87,17 @@ export function SignUpSignInFormCard({
               </div>
               <FormRootError form={form} />
             </div>
-            {footer}
+            <div className="mt-4 text-center text-xs text-muted-foreground">
+              {variant === "signup"
+                ? "Already have an account?"
+                : "Don't have an account?"}{" "}
+              <a
+                href={variant === "signup" ? "/login" : "/signup"}
+                className="underline underline-offset-4 text-primary hover:text-muted-foreground"
+              >
+                {variant === "signup" ? "Login" : "Sign up"}
+              </a>
+            </div>
           </form>
         </CardContent>
       </Card>

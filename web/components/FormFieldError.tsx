@@ -26,7 +26,7 @@ export function FormFieldError<
   }
 
   return (
-    <p className={cn("text-sm text-red-500", className)}>{error.message}</p>
+    <p className={cn("text-xs text-red-500", className)}>{error.message}</p>
   );
 }
 
