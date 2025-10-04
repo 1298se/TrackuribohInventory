@@ -26,18 +26,15 @@ async function fetchSearch({
   query,
   productType,
   setId,
-  limit,
 }: {
   query: string;
   productType?: string;
   setId?: string;
-  limit?: number;
 }) {
   const params = new URLSearchParams();
 
   params.set("query", query);
   params.set("catalog_id", POKEMON_CATALOG_ID);
-  params.set("limit", limit.toString());
 
   if (productType) {
     params.set("product_type", productType);
@@ -58,12 +55,9 @@ interface SearchResult {
   results: ProductWithSetAndSKUsResponse[];
   total: number;
   page: number;
-  limit: number;
   has_next: boolean;
   has_prev: boolean;
 }
-
-const DEFAULT_LIMIT = 15;
 
 export function getProductSearchQuery({
   query,
