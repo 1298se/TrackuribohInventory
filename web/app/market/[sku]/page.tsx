@@ -7,7 +7,7 @@ import {
   getProductListingsQuery,
 } from "@/features/market/api";
 import { getProductQuery } from "@/features/catalog/api";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import {
   Card,

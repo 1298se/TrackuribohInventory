@@ -73,8 +73,12 @@ export interface SKUWithProductResponse extends SKUBase {
   product: ProductWithSetAndSKUsResponse;
 }
 
+export interface ProductSearchResultItem extends ProductBaseResponse {
+  set: SetBaseResponse;
+}
+
 export interface ProductSearchResponse {
-  results: ProductWithSetAndSKUsResponse[];
+  results: ProductSearchResultItem[];
 }
 
 /* -----------------------------------------------------

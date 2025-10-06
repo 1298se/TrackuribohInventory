@@ -46,20 +46,44 @@ def create_ts_query(query_text: str) -> ColumnElement:
     return func.plainto_tsquery("english", " & ".join(terms))
 
 
-def build_product_search_query(query_text: str, prefix: bool = False):
+def build_product_search_query(query_text: str, prefix: bool = False, fuzzy: bool = True):
     """
     Builds a complete SQLAlchemy select for Product text search,
     including the join to Set, a filter by full-text match,
     and ordering by relevance rank.
+
+    Args:
+        query_text: The search query
+        prefix: Enable prefix matching (e.g., "pika" matches "pikachu")
+        fuzzy: Enable fuzzy matching with OR logic for better typo tolerance
     """
+    vector = Product.search_vector
+
+    # Handle empty query - return all products without search filter
+    if not query_text or not query_text.strip():
+        return select(Product).join(Product.set)
+
     if prefix and query_text:
+        # Prefix search: "pika" matches "pikachu"
         prefix_terms = [term + ":*" for term in query_text.split()]
         ts_query = func.to_tsquery("english", " & ".join(prefix_terms))
+    elif fuzzy:
+        # Fuzzy search: Use OR logic instead of AND for typo tolerance
+        # This allows partial matches even if some words are misspelled
+        terms = query_text.split()
+        if len(terms) > 1:
+            # Use websearch_to_tsquery for better OR handling
+            ts_query = func.websearch_to_tsquery("english", " OR ".join(terms))
+        elif len(terms) == 1:
+            # For single term, add prefix matching for better results
+            ts_query = func.to_tsquery("english", terms[0] + ":*")
+        else:
+            # Empty after split (whitespace only)
+            return select(Product).join(Product.set)
     else:
+        # Strict AND search (original behavior)
         ts_query = create_ts_query(query_text)
 
-    # Use the persisted search_vector column for faster full-text search
-    vector = Product.search_vector
     stmt = (
         select(Product)
         .join(Product.set)
