@@ -22,7 +22,7 @@ router = APIRouter(
 )
 
 
-@router.get("/product/{product_id}", response_model=ProductWithSetAndSKUsResponseSchema)
+@router.get("/product/{product_id}", response_model=ProductWithSetAndSKUsResponseSchema | None)
 async def get_product(product_id: str, session: Session = Depends(get_db_session)):
     # Use a single query with LEFT JOIN to get product, SKUs, and prices efficiently
     result = session.execute(
@@ -44,7 +44,7 @@ async def get_product(product_id: str, session: Session = Depends(get_db_session
     ).all()
 
     if not result:
-        raise HTTPException(status_code=404, detail="Product not found")
+        return None
 
     # Group results by product and build the response
     product = result[0][0]  # First row, first column (Product)
@@ -84,9 +84,8 @@ def search_products(
             Product.product_type == product_type
         )
 
-    # Execute query without pagination
     results = session.scalars(
-        base_search_query.options(*ProductWithSetAndSKUsResponseSchema.get_load_options())
+        base_search_query.options(*ProductWithSetAndSKUsResponseSchema.get_load_options()).limit(30)
     ).all()
 
     return ProductSearchResponseSchema(results=results)
