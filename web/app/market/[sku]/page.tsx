@@ -85,7 +85,7 @@ export default function ProductSKUDetailsPage() {
             />
 
             <TCGMarketPlacePriceCard
-              totalQuantity={parsedMarketDepth?.metrics?.total_quantity || 0}
+              totalQuantity={parsedMarketDepth?.metrics?.total_quantity ?? null}
               lowestListingPriceTotal={
                 nearMintSku?.lowest_listing_price_total || 0
               }
@@ -264,7 +264,7 @@ function TCGMarketPlacePriceCard({
   productURL,
   isLoading,
 }: {
-  totalQuantity: number | undefined;
+  totalQuantity: number | null;
   lowestListingPriceTotal: number | undefined;
   productURL: string | undefined;
   isLoading: boolean;
@@ -282,7 +282,6 @@ function TCGMarketPlacePriceCard({
     );
   }
 
-  assertNotNullable(totalQuantity);
   assertNotNullable(lowestListingPriceTotal);
   assertNotNullable(productURL);
 
@@ -301,7 +300,13 @@ function TCGMarketPlacePriceCard({
         </div>
       }
       value={formatCurrency(lowestListingPriceTotal)}
-      subtitle={`From ${totalQuantity} units in the market`}
+      subtitle={
+        totalQuantity === null ? (
+          <Skeleton className="h-4 w-32" />
+        ) : (
+          `From ${totalQuantity} units in the market`
+        )
+      }
     />
   );
 }
