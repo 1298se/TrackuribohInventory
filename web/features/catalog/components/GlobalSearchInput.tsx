@@ -1,13 +1,14 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import {
   useState,
   useEffect,
+  useRef,
   type KeyboardEvent,
   type SyntheticEvent,
 } from "react";
-import { Command, CommandInput } from "@/components/ui/command";
+import { Command } from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -32,10 +33,9 @@ const DEFAULT_QUERY = "pikachu";
 export function GlobalSearchInput() {
   const [open, setOpen] = useState(false);
 
-  useKeyboardListener(() => setOpen(true), {
+  useKeyboardListener(() => setOpen((prev) => !prev), {
     key: "k",
-    metaKey: true,
-    ctrlKey: true,
+    metaOrCtrl: true,
     preventDefault: true,
   });
 
@@ -52,14 +52,14 @@ export function GlobalSearchInput() {
             <Search className="size-4" />
             Search Pokemon cards...
           </div>
-          <div className="flex items-center gap-1">
+          <div className="items-center gap-1 hidden md:flex">
             <CommandKeyBlock>⌘</CommandKeyBlock>
             <CommandKeyBlock>K</CommandKeyBlock>
           </div>
         </Button>
       </DialogTrigger>
 
-      {open && <SearchDialogContent onClose={() => setOpen(false)} />}
+      <SearchDialogContent onClose={() => setOpen(false)} />
     </Dialog>
   );
 }
@@ -68,6 +68,7 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [debouncedQuery, setDebouncedQuery] = useDebouncedState(
     query,
     {
@@ -87,23 +88,37 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
     data: searchResults,
     isLoading,
     isFetching,
-    isRefetching,
     isPending,
   } = useQuery({
     ...getProductSearchQuery({
       query: debouncedQueryKey,
     }),
+    placeholderData: (previousData) => previousData,
   });
 
-  const shouldShowSkeleton =
-    isLoading || isFetching || isPending || isRefetching;
+  const shouldShowSkeleton = isLoading || isPending;
 
-  useEffect(() => {
-    setDebouncedQuery(query);
-    setSelectedIndex(0); // Reset selection when query changes
-  }, [query, setDebouncedQuery]);
+  useEffect(
+    function onQueryChange() {
+      setDebouncedQuery(query);
+      setSelectedIndex(0);
+    },
+    [query, setDebouncedQuery]
+  );
 
-  // Handle keyboard navigation
+  useEffect(
+    function scrollSelectedItemIntoView() {
+      const selectedElement = itemRefs.current[selectedIndex];
+      if (selectedElement) {
+        selectedElement.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      }
+    },
+    [selectedIndex]
+  );
+
   function handleKeyDown(e: KeyboardEvent) {
     const results = searchResults?.results || [];
 
@@ -111,12 +126,10 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
-
-      setSelectedIndex((prev) => (prev + 1) % results.length);
+      setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-
-      setSelectedIndex((prev) => (prev - 1 + results.length) % results.length);
+      setSelectedIndex((prev) => Math.max(prev - 1, 0));
     } else if (
       (e.key === "Enter" || e.key === "Tab") &&
       results[selectedIndex]
@@ -128,15 +141,22 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <DialogContent className="w-xl overflow-y-auto p-0">
+    <DialogContent className="w-[90%]sm:w-sm md:w-xl overflow-y-auto p-0">
       <DialogTitle className="sr-only">Search Pokemon cards</DialogTitle>
       <Command onKeyDown={handleKeyDown}>
-        <CommandInput
-          placeholder="Search Pokemon cards..."
-          className="h-12 text-lg"
-          value={query}
-          onValueChange={setQuery}
-        />
+        <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+          {isFetching ? (
+            <Loader2 className="mr-2 h-4 w-4 shrink-0 opacity-50 animate-spin" />
+          ) : (
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+          )}
+          <input
+            placeholder="Search Pokemon cards..."
+            className="flex h-12 w-full rounded-md bg-transparent py-3 text-lg outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
 
         <div className="h-[300px] overflow-auto p-1 flex flex-col gap-1">
           {renderSearchResults()}
@@ -154,21 +174,71 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
       return <SearchEmptyState />;
     }
 
+    const sortedResults = sortResultsByRelevance(searchResults?.results, query);
+
     return (
       <>
-        {searchResults?.results.map((product, index) => {
+        {sortedResults.map((product, index) => {
           return (
-            <SearchResultItem
-              product={product}
-              query={query}
-              onSelect={onClose}
+            <div
               key={product.id}
-              isSelected={index === selectedIndex}
-            />
+              ref={(el) => {
+                itemRefs.current[index] = el;
+              }}
+            >
+              <SearchResultItem
+                product={product}
+                query={query}
+                onSelect={onClose}
+                isSelected={index === selectedIndex}
+              />
+            </div>
           );
         })}
       </>
     );
+  }
+
+  function calculateMatchScore(
+    product: ProductSearchResultItem,
+    query: string
+  ): number {
+    if (!query.trim()) return 0;
+
+    const queryWords = query
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((word) => word.length > 0);
+
+    if (queryWords.length === 0) return 0;
+
+    const productText = `${product.name} ${product.set.name} ${
+      product.number || ""
+    }`.toLowerCase();
+
+    // Count how many query words are found in the product text
+    let matchCount = 0;
+    queryWords.forEach((word) => {
+      if (productText.includes(word)) {
+        matchCount++;
+      }
+    });
+
+    return matchCount;
+  }
+
+  function sortResultsByRelevance(
+    results: ProductSearchResultItem[] | undefined,
+    query: string
+  ): ProductSearchResultItem[] {
+    if (!results) return [];
+
+    return [...results].sort((a, b) => {
+      const scoreA = calculateMatchScore(a, query);
+      const scoreB = calculateMatchScore(b, query);
+      return scoreB - scoreA;
+    });
   }
 }
 
@@ -192,9 +262,9 @@ function SearchResultItem({
     img.src = "/assets/placeholder-pokemon-back.png";
   }
 
-  // TODO: We should prefetch product types when we hover over the search result
-  // Doing this in development is reallyyyy slow, so will stop for now
   function handlePrefetch() {
+    // TODO: We should prefetch product types when we hover over the search result
+    // Doing this in development is reallyyyy slow, so will stop for now
     // queryClient.prefetchQuery(getProductQuery(product.id));
   }
 
