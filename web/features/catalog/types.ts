@@ -75,11 +75,6 @@ export interface SKUWithProductResponse extends SKUBase {
 
 export interface ProductSearchResponse {
   results: ProductWithSetAndSKUsResponse[];
-  total: number;
-  page: number;
-  limit: number;
-  has_next: boolean;
-  has_prev: boolean;
 }
 
 /* -----------------------------------------------------

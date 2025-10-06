@@ -101,11 +101,6 @@ class SKUWithProductResponseSchema(SKUBaseResponseSchema):
 
 class ProductSearchResponseSchema(BaseModel):
     results: list[ProductWithSetAndSKUsResponseSchema]
-    total: int = Field(description="Total number of results")
-    page: int = Field(description="Current page number (1-based)")
-    limit: int = Field(description="Number of items per page")
-    has_next: bool = Field(description="Whether there are more pages")
-    has_prev: bool = Field(description="Whether there are previous pages")
 
 
 class CatalogResponseSchema(ORMModel):

@@ -33,7 +33,7 @@ import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
 import { CommandKeyBlock } from "@/shared/components/CommandKeyBlock";
 import { useKeyboardListener } from "@/shared/hooks/useKeyboardListener";
 
-const SEARCH_DEBOUNCE_TIME_MS = 200;
+const SEARCH_DEBOUNCE_TIME_MS = 500;
 const DEFAULT_QUERY = "pikachu";
 
 export function GlobalSearchInput() {
