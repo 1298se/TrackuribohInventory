@@ -36,13 +36,15 @@ import {
   type ConditionFilter,
   isValidCondition,
 } from "@/features/catalog/utils";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { PackageX } from "lucide-react";
 
 export default function ProductSKUDetailsPage() {
   const { sku } = useParams();
 
   assert(typeof sku === "string", "Invalid SKU");
 
-  const { data: product } = useQuery(getProductQuery(sku));
+  const { data: product, isLoading } = useQuery(getProductQuery(sku));
 
   const nearMintSku =
     product && product.skus?.length > 0
@@ -53,6 +55,20 @@ export default function ProductSKUDetailsPage() {
     getMarketDepthQuery({ sku, salesLookbackDays: 7 })
   );
 
+  const isProductNotFound = !isLoading && !product;
+
+  if (isProductNotFound) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-62px)]">
+        <EmptyState
+          icon={PackageX}
+          title="Product not found"
+          description="The product you're looking for doesn't exist or has been removed."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
       {/* Desktop: Sidebar + Main content */}
@@ -62,10 +78,10 @@ export default function ProductSKUDetailsPage() {
           <div className="space-y-6">
             <ProductTitleInsightsCard
               productName={product?.name}
-              productSetName={product?.set.name}
-              productSetID={product?.set.id}
+              productSetName={product?.set?.name}
+              productSetID={product?.set?.id}
               imageUrl={product?.image_url}
-              isLoading={!product}
+              isLoading={isLoading}
             />
 
             <TCGMarketPlacePriceCard
@@ -74,7 +90,7 @@ export default function ProductSKUDetailsPage() {
                 nearMintSku?.lowest_listing_price_total || 0
               }
               productURL={product?.tcgplayer_url}
-              isLoading={!product}
+              isLoading={isLoading}
             />
           </div>
         </div>

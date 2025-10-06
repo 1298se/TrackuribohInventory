@@ -10,13 +10,13 @@ import { queryOptions } from "@tanstack/react-query";
 
 async function fetchProduct(
   sku: string
-): Promise<ProductWithSetAndSKUsResponse> {
+): Promise<ProductWithSetAndSKUsResponse | null> {
   const response = await fetch(`${API_URL}/catalog/product/${sku}`);
   return response.json();
 }
 
 export function getProductQuery(sku: string) {
-  return queryOptions<ProductWithSetAndSKUsResponse>({
+  return queryOptions<ProductWithSetAndSKUsResponse | null>({
     queryKey: ["product", sku],
     queryFn: () => fetchProduct(sku),
   });
