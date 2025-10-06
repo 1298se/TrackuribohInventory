@@ -28,6 +28,7 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { useBreakpoint } from "@/shared/hooks/useBreakpoint";
 import { logout } from "@/features/auth/actions";
 import { GlobalSearchInput } from "@/features/catalog/components/GlobalSearchInput";
 
@@ -82,11 +83,10 @@ export function TopNav({
     signup: { title: "Sign up", url: "#" },
   },
 }: Props) {
-  const path = usePathname();
-  const isSearchPage = path.startsWith("/search");
   const router = useRouter();
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [isLoggingOut, startLogoutTransition] = useTransition();
+  const isMdOrLarger = useBreakpoint("md");
 
   const isAuthenticated = !!authState?.isAuthenticated;
 
@@ -121,7 +121,7 @@ export function TopNav({
               {logo.title}
             </span>
           </Link>
-          {!isSearchPage && <GlobalSearchInput />}
+          {isMdOrLarger && <GlobalSearchInput />}
           <div className="flex items-center gap-2">
             <NavigationMenu>
               <NavigationMenuList>
@@ -242,7 +242,7 @@ export function TopNav({
                 </SheetContent>
               </Sheet>
             </div>
-            <GlobalSearchInput />
+            {!isMdOrLarger && <GlobalSearchInput />}
           </div>
         </div>
       </div>

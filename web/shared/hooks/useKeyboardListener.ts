@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export interface KeyboardListenerOptions {
   key: string;
@@ -15,38 +15,48 @@ export function useKeyboardListener(
   callback: () => void,
   options: KeyboardListenerOptions
 ) {
+  const callbackRef = useRef(callback);
+  const optionsRef = useRef(options);
+
+  // Keep refs up to date
+  useEffect(() => {
+    callbackRef.current = callback;
+    optionsRef.current = options;
+  });
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      const keyMatch = event.key === options.key;
+      const opts = optionsRef.current;
+      const keyMatch = event.key === opts.key;
 
       // Handle metaOrCtrl for cross-platform support
-      if (options.metaOrCtrl) {
+      if (opts.metaOrCtrl) {
         const modifierMatch = event.metaKey || event.ctrlKey;
-        const shiftMatch = options.shiftKey === undefined || event.shiftKey === options.shiftKey;
-        const altMatch = options.altKey === undefined || event.altKey === options.altKey;
+        const shiftMatch = opts.shiftKey === undefined || event.shiftKey === opts.shiftKey;
+        const altMatch = opts.altKey === undefined || event.altKey === opts.altKey;
 
         if (keyMatch && modifierMatch && shiftMatch && altMatch) {
-          if (options.preventDefault) {
+          if (opts.preventDefault) {
             event.preventDefault();
           }
-          callback();
+          callbackRef.current();
         }
       } else {
-        const metaMatch = options.metaKey === undefined || event.metaKey === options.metaKey;
-        const ctrlMatch = options.ctrlKey === undefined || event.ctrlKey === options.ctrlKey;
-        const shiftMatch = options.shiftKey === undefined || event.shiftKey === options.shiftKey;
-        const altMatch = options.altKey === undefined || event.altKey === options.altKey;
+        const metaMatch = opts.metaKey === undefined || event.metaKey === opts.metaKey;
+        const ctrlMatch = opts.ctrlKey === undefined || event.ctrlKey === opts.ctrlKey;
+        const shiftMatch = opts.shiftKey === undefined || event.shiftKey === opts.shiftKey;
+        const altMatch = opts.altKey === undefined || event.altKey === opts.altKey;
 
         if (metaMatch && ctrlMatch && shiftMatch && altMatch && keyMatch) {
-          if (options.preventDefault) {
+          if (opts.preventDefault) {
             event.preventDefault();
           }
-          callback();
+          callbackRef.current();
         }
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [callback, options]);
+  }, []); // Empty deps - only run once
 }
