@@ -24,6 +24,8 @@ from app.routes.market.schemas import (
     ProductSalesRequestParams,
     ProductSaleResponseSchema,
     ProductSalesResponseSchema,
+    SKUMarketPriceSchema,
+    ProductMarketPricesResponseSchema,
 )
 from app.routes.catalog.schemas import SKUBaseResponseSchema
 from core.database import get_db_session
@@ -53,7 +55,6 @@ from core.services.sku_lookup import (
 router = APIRouter(
     prefix="/market",
 )
-
 
 def _convert_service_data_to_response(
     service_data: Dict[Marketplace, List[market_data_service.SKUMarketData]],
@@ -124,23 +125,6 @@ def _convert_service_data_to_response(
             market_data_items.append(api_item)
 
     return MarketDataResponseSchema(market_data_items=market_data_items)
-
-
-# @klin testing
-@router.get("/products", response_model=ProductSearchResponseSchema)
-def get_products_list(session: Session = Depends(get_db_session)):
-    products = session.scalars(
-        select(Product)
-        .join(Set)
-        .join(Catalog)
-        .where(Product.product_type == ProductType.CARDS)
-        .where(Catalog.display_name == "Pokemon")
-        .limit(10)
-        .options(*ProductWithSetAndSKUsResponseSchema.get_load_options())
-    ).all()
-
-    return ProductSearchResponseSchema(results=products)
-
 
 @router.get(
     "/products/{product_id}",
@@ -473,3 +457,39 @@ def get_set_price_comparison(
         historical_top_priced_card=historical_top_priced_card,
         top_card_growth_percentage=top_card_growth_percentage,
     )
+
+
+@router.get(
+    "/product/{product_id}/market-prices",
+    response_model=ProductMarketPricesResponseSchema,
+    summary="Get market prices for all SKUs of a product",
+)
+def get_product_market_prices(
+    product_id: uuid.UUID,
+    session: Session = Depends(get_db_session),
+):
+    """
+    Fetch the lowest listing price for each SKU of a product.
+    """
+    # Query to get SKU IDs and their prices
+    result = session.execute(
+        select(SKU.id, SKULatestPrice.lowest_listing_price_total)
+        .select_from(SKU)
+        .outerjoin(
+            SKULatestPrice,
+            (SKULatestPrice.sku_id == SKU.id)
+            & (SKULatestPrice.marketplace == Marketplace.TCGPLAYER),
+        )
+        .where(SKU.product_id == product_id)
+    ).all()
+
+    # Build response
+    prices = [
+        SKUMarketPriceSchema(
+            sku_id=str(sku_id),
+            lowest_listing_price_total=float(price) if price is not None else None,
+        )
+        for sku_id, price in result
+    ]
+
+    return ProductMarketPricesResponseSchema(prices=prices)

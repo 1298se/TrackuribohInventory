@@ -1,6 +1,7 @@
 import { API_URL } from "@/app/api/fetcher";
 import {
   ProductWithSetAndSKUsResponse,
+  ProductMarketPricesResponse,
   SetsResponse,
   SetPriceSummaryResponse,
   HistoricalPriceComparisonResponse,
@@ -19,6 +20,20 @@ export function getProductQuery(sku: string) {
   return queryOptions<ProductWithSetAndSKUsResponse | null>({
     queryKey: ["product", sku],
     queryFn: () => fetchProduct(sku),
+  });
+}
+
+async function fetchProductMarketPrices(
+  productId: string
+): Promise<ProductMarketPricesResponse> {
+  const response = await fetch(`${API_URL}/market/product/${productId}/market-prices`);
+  return response.json();
+}
+
+export function getProductMarketPricesQuery(productId: string) {
+  return queryOptions<ProductMarketPricesResponse>({
+    queryKey: ["product-market-prices", productId],
+    queryFn: () => fetchProductMarketPrices(productId),
   });
 }
 

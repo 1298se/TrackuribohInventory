@@ -6,9 +6,13 @@ import {
   getMarketDepthQuery,
   getProductListingsQuery,
 } from "@/features/market/api";
-import { getProductQuery } from "@/features/catalog/api";
+import {
+  getProductQuery,
+  getProductMarketPricesQuery,
+} from "@/features/catalog/api";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
+import { useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -44,18 +48,35 @@ export default function ProductSKUDetailsPage() {
 
   assert(typeof sku === "string", "Invalid SKU");
 
-  const { data: product, isLoading } = useQuery(getProductQuery(sku));
+  const { data: product, isLoading: isProductLoading } = useQuery(
+    getProductQuery(sku)
+  );
+
+  const { data: marketPrices, isLoading: isMarketPricesLoading } = useQuery({
+    ...getProductMarketPricesQuery(sku),
+    enabled: !!product,
+  });
+
+  // Create a map of sku_id to price
+  const priceMap = useMemo(() => {
+    if (!marketPrices) return new Map<string, number | null>();
+    return new Map(
+      marketPrices.prices.map((p) => [p.sku_id, p.lowest_listing_price_total])
+    );
+  }, [marketPrices]);
 
   const nearMintSku =
     product && product.skus?.length > 0
       ? findFirstNearMintSku(product.skus)
       : null;
 
+  const nearMintSkuPrice = nearMintSku ? priceMap.get(nearMintSku.id) : null;
+
   const { data: parsedMarketDepth } = useQuery(
     getMarketDepthQuery({ sku, salesLookbackDays: 7 })
   );
 
-  const isProductNotFound = !isLoading && !product;
+  const isProductNotFound = !isProductLoading && !product;
 
   if (isProductNotFound) {
     return (
@@ -81,16 +102,13 @@ export default function ProductSKUDetailsPage() {
               productSetName={product?.set?.name}
               productSetID={product?.set?.id}
               imageUrl={product?.image_url}
-              isLoading={isLoading}
+              isLoading={isProductLoading}
             />
 
             <TCGMarketPlacePriceCard
               totalQuantity={parsedMarketDepth?.metrics?.total_quantity ?? null}
-              lowestListingPriceTotal={
-                nearMintSku?.lowest_listing_price_total || 0
-              }
-              productURL={product?.tcgplayer_url}
-              isLoading={isLoading}
+              lowestListingPriceTotal={nearMintSkuPrice ?? null}
+              productURL={product?.tcgplayer_url ?? null}
             />
           </div>
         </div>
@@ -113,7 +131,7 @@ export default function ProductSKUDetailsPage() {
             />
             <MarketLevelsChartCard
               listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
-              currentPrice={nearMintSku?.lowest_listing_price_total}
+              currentPrice={nearMintSkuPrice ?? undefined}
               isLoading={!parsedMarketDepth}
             />
           </div>
@@ -262,44 +280,36 @@ function TCGMarketPlacePriceCard({
   totalQuantity,
   lowestListingPriceTotal,
   productURL,
-  isLoading,
 }: {
   totalQuantity: number | null;
-  lowestListingPriceTotal: number | undefined;
-  productURL: string | undefined;
-  isLoading: boolean;
+  lowestListingPriceTotal: number | null;
+  productURL: string | null;
 }) {
-  if (isLoading) {
-    return (
-      <Card className="min-h-[128px]">
-        <CardHeader>
-          <Skeleton className="h-4 w-3/4 mb-1" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-4 w-3/4 mb-1" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  assertNotNullable(lowestListingPriceTotal);
-  assertNotNullable(productURL);
-
   return (
     <MetricCard
       title={
         <div className="flex gap-1">
-          <Link
-            href={productURL}
-            target="_blank"
-            className="underline text-muted-foreground text-xs"
-          >
-            TCGPlayer
-          </Link>
+          {productURL === "string" ? (
+            <Link
+              href={productURL}
+              target="_blank"
+              className="underline text-muted-foreground text-xs"
+            >
+              TCGPlayer
+            </Link>
+          ) : (
+            <span className="text-muted-foreground text-xs">TCGPlayer</span>
+          )}
           <span className="text-muted-foreground text-xs">Market Price</span>
         </div>
       }
-      value={formatCurrency(lowestListingPriceTotal)}
+      value={
+        lowestListingPriceTotal === null ? (
+          <Skeleton className="h-8 w-3/4 mb-1" />
+        ) : (
+          formatCurrency(lowestListingPriceTotal)
+        )
+      }
       subtitle={
         totalQuantity === null ? (
           <Skeleton className="h-4 w-32" />

@@ -62,7 +62,16 @@ export interface ProductBaseResponse {
 
 export interface ProductWithSetAndSKUsResponse extends ProductBaseResponse {
   set: SetBaseResponse;
-  skus: (SKUBase & { lowest_listing_price_total: number })[];
+  skus: SKUBase[];
+}
+
+export interface SKUMarketPrice {
+  sku_id: string;
+  lowest_listing_price_total: number | null;
+}
+
+export interface ProductMarketPricesResponse {
+  prices: SKUMarketPrice[];
 }
 
 /* -----------------------------------------------------

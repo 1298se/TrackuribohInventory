@@ -57,7 +57,7 @@ export function GlobalSearchInput() {
           Search Pokemon cards...
         </div>
         <div className="items-center gap-1 hidden md:flex">
-          <CommandKeyBlock>{isMac ? "⌘" : "Ctrl"}</CommandKeyBlock>
+          <CommandKeyBlock>Ctrl</CommandKeyBlock>
           <CommandKeyBlock>K</CommandKeyBlock>
         </div>
       </Button>

@@ -52,7 +52,6 @@ class SKUBaseResponseSchema(ORMModel):
     condition: ConditionResponseSchema
     printing: PrintingResponseSchema
     language: LanguageResponseSchema
-    lowest_listing_price_total: Optional[float] = None
 
     @classmethod
     def get_load_options(cls) -> list[_AbstractLoad]:

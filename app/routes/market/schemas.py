@@ -106,3 +106,17 @@ class ProductSalesResponseSchema(BaseModel):
     """Response wrapper for product sales."""
 
     results: List[ProductSaleResponseSchema]
+
+
+# Schema for Product Market Prices endpoint
+class SKUMarketPriceSchema(BaseModel):
+    """SKU with its lowest listing price."""
+
+    sku_id: str
+    lowest_listing_price_total: Optional[float]
+
+
+class ProductMarketPricesResponseSchema(BaseModel):
+    """Response wrapper for product market prices."""
+
+    prices: List[SKUMarketPriceSchema]

@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export interface MetricCardProps {
   title: ReactNode;
-  value?: string | number | null | undefined; // Made value optional for loading state
+  value?: ReactNode;
   subtitle?: ReactNode;
   icon?: React.ElementType;
   valuePrefix?: string;
@@ -28,7 +28,6 @@ export function MetricCard({
   value,
   subtitle,
   icon: Icon,
-  valuePrefix = "",
   valueColorClass,
   isLoading,
 }: MetricCardProps) {
@@ -49,10 +48,6 @@ export function MetricCard({
     );
   }
 
-  // Render actual card content if not loading
-  const displayValue =
-    value === null || value === undefined ? "N/A" : `${valuePrefix}${value}`;
-
   return (
     <Card className="gap-2">
       <CardHeader className="pb-2">
@@ -61,7 +56,7 @@ export function MetricCard({
           {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
         </CardDescription>
         <CardTitle className={cn("text-2xl font-bold", valueColorClass)}>
-          {displayValue}
+          {value}
         </CardTitle>
       </CardHeader>
       {/* Conditionally render CardContent only if subtitle exists */}
