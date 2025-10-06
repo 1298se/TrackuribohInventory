@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import * as React from "react";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import {
@@ -11,7 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebouncedState } from "@tanstack/react-pacer/debouncer";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -22,11 +22,16 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { getProductSearchQuery } from "@/features/catalog/api";
+import { getProductSearchQuery, getProductQuery } from "@/features/catalog/api";
+import {
+  getMarketDepthQuery,
+  getProductListingsQuery,
+} from "@/features/market/api";
 import Link from "next/link";
 import Image from "next/image";
 import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
 import { CommandKeyBlock } from "@/shared/components/CommandKeyBlock";
+import { useKeyboardListener } from "@/shared/hooks/useKeyboardListener";
 
 const SEARCH_DEBOUNCE_TIME_MS = 200;
 const DEFAULT_QUERY = "pikachu";
@@ -34,18 +39,12 @@ const DEFAULT_QUERY = "pikachu";
 export function GlobalSearchInput() {
   const [open, setOpen] = React.useState(false);
 
-  // Add keyboard shortcut to open search
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        setOpen(true);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  useKeyboardListener(() => setOpen(true), {
+    key: "k",
+    metaKey: true,
+    ctrlKey: true,
+    preventDefault: true,
+  });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -114,7 +113,7 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
     overscan: 5,
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     setDebouncedQuery(query);
   }, [query, setDebouncedQuery]);
 
@@ -191,6 +190,8 @@ function SearchResultItem({
   query: string;
   onSelect: () => void;
 }) {
+  const queryClient = useQueryClient();
+
   function getImageSrc(product: ProductWithSetAndSKUsResponse) {
     return product.image_url || "/assets/placeholder-pokemon-back.png";
   }
@@ -198,6 +199,14 @@ function SearchResultItem({
   function handleImageError(event: React.SyntheticEvent<HTMLImageElement>) {
     const img = event.currentTarget;
     img.src = "/assets/placeholder-pokemon-back.png";
+  }
+
+  function handlePrefetch() {
+    queryClient.prefetchQuery(getProductQuery(product.id));
+    queryClient.prefetchQuery(
+      getMarketDepthQuery({ sku: product.id, salesLookbackDays: 7 })
+    );
+    queryClient.prefetchQuery(getProductListingsQuery(product.id));
   }
 
   // Utility function to highlight matching text
@@ -223,15 +232,20 @@ function SearchResultItem({
 
   return (
     <Link href={`/market/${product.id}`}>
-      <CommandItem value={product.name} onSelect={onSelect}>
+      <CommandItem
+        value={product.name}
+        onSelect={onSelect}
+        onMouseEnter={handlePrefetch}
+      >
         <div className="flex items-center gap-3 w-full">
           <Image
             src={getImageSrc(product)}
             alt={product.name}
             width={30}
-            height={30}
+            height={45}
             objectFit="contain"
             onError={handleImageError}
+            className="w-[30px] max-h-[45px]"
           />
           <div className="flex flex-col">
             <span className="font-medium">
