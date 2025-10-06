@@ -245,7 +245,7 @@ function SearchResultSkeleton() {
   return (
     <>
       {Array.from({ length: 10 }).map((_, index) => (
-        <div className="flex items-center gap-3 w-full p-1">
+        <div className="flex items-center gap-3 w-full p-1" key={index}>
           <div className="w-[30px] h-[45px] bg-muted rounded-sm animate-pulse" />
           <div className="flex flex-col gap-1">
             <div className="h-4 bg-muted rounded animate-pulse w-32" />
