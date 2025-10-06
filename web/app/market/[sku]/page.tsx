@@ -42,9 +42,7 @@ export default function ProductSKUDetailsPage() {
 
   assert(typeof sku === "string", "Invalid SKU");
 
-  const { data: product } = useSuspenseQuery(getProductQuery(sku));
-
-  assertNotNullable(product, "Product not found");
+  const { data: product } = useQuery(getProductQuery(sku));
 
   const nearMintSku =
     product && product.skus?.length > 0
