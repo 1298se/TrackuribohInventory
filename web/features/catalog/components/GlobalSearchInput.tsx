@@ -20,58 +20,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useDebouncedState } from "@tanstack/react-pacer/debouncer";
-import { EmptyState } from "@/shared/components/EmptyState";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { getProductSearchQuery } from "@/features/catalog/api";
 import Link from "next/link";
 import Image from "next/image";
+import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
 
 const SEARCH_DEBOUNCE_TIME_MS = 200;
 const DEFAULT_QUERY = "pikachu";
 
 export function GlobalSearchInput() {
   const [open, setOpen] = React.useState(false);
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useDebouncedState(
-    query,
-    {
-      wait: SEARCH_DEBOUNCE_TIME_MS,
-      leading: true,
-    },
-    (state) => ({
-      isPending: state.isPending,
-      executionCount: state.executionCount,
-    })
-  );
-
-  const debouncedQueryKey =
-    debouncedQuery.length > 0 ? debouncedQuery : DEFAULT_QUERY;
-
-  const {
-    data: searchResults,
-    isLoading,
-    isFetching,
-    isPending,
-  } = useQuery(
-    getProductSearchQuery({
-      query: debouncedQueryKey,
-      productType: "CARDS",
-    })
-  );
-
-  const shouldShowSkeleton = isLoading || isFetching || isPending;
-
-  useEffect(() => {
-    setDebouncedQuery(query);
-  }, [query, setDebouncedQuery]);
-
-  const handleImageError = (event: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = event.currentTarget;
-    img.src = "/assets/placeholder-pokemon-back.png";
-  };
-
-  const getImageSrc = (product: any) => {
-    return product.image_url || "/assets/placeholder-pokemon-back.png";
-  };
 
   // Add keyboard shortcut to open search
   useEffect(() => {
@@ -110,72 +77,206 @@ export function GlobalSearchInput() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="w-xl overflow-y-auto p-0">
-        <DialogTitle className="sr-only">Search Pokemon cards</DialogTitle>
-        <Command>
-          <CommandInput
-            placeholder="Search Pokemon cards..."
-            className="h-12 text-lg"
-            value={query}
-            onValueChange={setQuery}
-          />
-          <CommandList className="h-[500px]">
-            <CommandEmpty>
-              {shouldShowSkeleton ? (
-                <SearchResultSkeleton />
-              ) : (
-                <EmptyState
-                  title="No cards found"
-                  description="Try searching for a different Pokemon name or set"
-                  icon={Search}
-                  action={
-                    <div className="text-xs text-muted-foreground">
-                      Try &quot;Pikachu&quot;, &quot;Charizard&quot;, or
-                      &quot;Base Set&quot;
-                    </div>
-                  }
-                />
-              )}
-            </CommandEmpty>
-            <CommandGroup className="h-full">
-              {shouldShowSkeleton ? (
-                <SearchResultSkeleton />
-              ) : (
-                searchResults?.results.map((product) => (
-                  <Link href={`/market/${product.id}`} key={product.id}>
-                    <CommandItem
-                      key={product.id}
-                      value={product.name}
-                      onSelect={() => {
-                        setOpen(false);
-                      }}
-                    >
-                      <div className="flex items-center gap-3 w-full">
-                        <Image
-                          src={getImageSrc(product)}
-                          alt={product.name}
-                          width={35}
-                          height={56}
-                          className="rounded-sm"
-                          onError={handleImageError}
-                        />
-                        <div className="flex flex-col">
-                          <span className="font-medium">{product.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {product.set.name}{" "}
-                            {product.number && `#${product.number}`}
-                          </span>
-                        </div>
-                      </div>
-                    </CommandItem>
-                  </Link>
-                ))
-              )}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </DialogContent>
+      {open && <SearchDialogContent onClose={() => setOpen(false)} />}
     </Dialog>
+  );
+}
+
+function SearchDialogContent({ onClose }: { onClose: () => void }) {
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useDebouncedState(
+    query,
+    {
+      wait: SEARCH_DEBOUNCE_TIME_MS,
+      leading: true,
+    },
+    (state) => ({
+      isPending: state.isPending,
+      executionCount: state.executionCount,
+    })
+  );
+
+  const debouncedQueryKey =
+    debouncedQuery.length > 0 ? debouncedQuery : DEFAULT_QUERY;
+
+  const {
+    data: searchResults,
+    isLoading,
+    isFetching,
+    isRefetching,
+    isPending,
+  } = useQuery({
+    ...getProductSearchQuery({
+      query: debouncedQueryKey,
+      productType: "CARDS",
+    }),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const shouldShowSkeleton =
+    isLoading || isFetching || isPending || isRefetching;
+
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: searchResults?.results?.length || 0,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 48,
+    overscan: 5,
+  });
+
+  useEffect(() => {
+    setDebouncedQuery(query);
+  }, [query, setDebouncedQuery]);
+
+  return (
+    <DialogContent className="w-xl overflow-y-auto p-0">
+      <DialogTitle className="sr-only">Search Pokemon cards</DialogTitle>
+      <Command>
+        <CommandInput
+          placeholder="Search Pokemon cards..."
+          className="h-12 text-lg"
+          value={query}
+          onValueChange={setQuery}
+        />
+
+        <div ref={parentRef} className="h-[300px] overflow-auto px-1">
+          {renderSearchResults()}
+        </div>
+      </Command>
+    </DialogContent>
+  );
+
+  function renderSearchResults() {
+    if (shouldShowSkeleton) {
+      return <SearchResultSkeleton />;
+    }
+
+    if (searchResults?.results?.length === 0) {
+      return <SearchEmptyState />;
+    }
+
+    return (
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const product = searchResults?.results[virtualItem.index];
+          if (!product) return null;
+
+          return (
+            <div
+              key={virtualItem.key}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: `${virtualItem.size}px`,
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+            >
+              <SearchResultItem
+                product={product}
+                query={query}
+                onSelect={onClose}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+}
+
+function SearchResultItem({
+  product,
+  query,
+  onSelect,
+}: {
+  product: ProductWithSetAndSKUsResponse;
+  query: string;
+  onSelect: () => void;
+}) {
+  function getImageSrc(product: ProductWithSetAndSKUsResponse) {
+    return product.image_url || "/assets/placeholder-pokemon-back.png";
+  }
+
+  function handleImageError(event: React.SyntheticEvent<HTMLImageElement>) {
+    const img = event.currentTarget;
+    img.src = "/assets/placeholder-pokemon-back.png";
+  }
+
+  // Utility function to highlight matching text
+  function highlightText(text: string, query: string) {
+    if (!query.trim()) return text;
+
+    const regex = new RegExp(
+      `(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+      "gi"
+    );
+    const parts = text.split(regex);
+
+    return parts.map((part, index) =>
+      regex.test(part) ? (
+        <mark key={index} className="bg-blue-300/70 text-white px-0.5">
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  }
+
+  return (
+    <Link href={`/market/${product.id}`}>
+      <CommandItem value={product.name} onSelect={onSelect}>
+        <div className="flex items-center gap-3 w-full">
+          <Image
+            src={getImageSrc(product)}
+            alt={product.name}
+            width={35}
+            height={56}
+            onError={handleImageError}
+          />
+          <div className="flex flex-col">
+            <span className="font-medium">
+              {highlightText(product.name, query)}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {highlightText(product.set.name, query)}{" "}
+              {product.number && `#${product.number}`}
+            </span>
+          </div>
+        </div>
+      </CommandItem>
+    </Link>
+  );
+}
+
+function SearchEmptyState() {
+  return (
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Search />
+        </EmptyMedia>
+        <EmptyTitle>No cards found</EmptyTitle>
+        <EmptyDescription>
+          Try searching for a different Pokemon name or set
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <div className="text-xs text-muted-foreground">
+          Try &quot;Pikachu&quot;, &quot;Charizard&quot;, or &quot;Base
+          Set&quot;
+        </div>
+      </EmptyContent>
+    </Empty>
   );
 }
 
