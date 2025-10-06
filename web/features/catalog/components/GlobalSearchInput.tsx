@@ -3,7 +3,7 @@
 import { Search } from "lucide-react";
 import { useState } from "react";
 import * as React from "react";
-import { Command, CommandInput, CommandItem } from "@/components/ui/command";
+import { Command, CommandInput } from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -11,27 +11,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useDebouncedState } from "@tanstack/react-pacer/debouncer";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import { getProductSearchQuery, getProductQuery } from "@/features/catalog/api";
-import {
-  getMarketDepthQuery,
-  getProductListingsQuery,
-} from "@/features/market/api";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { getProductSearchQuery } from "@/features/catalog/api";
 import Link from "next/link";
 import Image from "next/image";
-import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
+import { ProductSearchResultItem } from "@/features/catalog/types";
 import { CommandKeyBlock } from "@/shared/components/CommandKeyBlock";
 import { useKeyboardListener } from "@/shared/hooks/useKeyboardListener";
+import { useRouter } from "next/navigation";
 
 const SEARCH_DEBOUNCE_TIME_MS = 200;
 const DEFAULT_QUERY = "pikachu";
@@ -72,7 +61,9 @@ export function GlobalSearchInput() {
 }
 
 function SearchDialogContent({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [debouncedQuery, setDebouncedQuery] = useDebouncedState(
     query,
     {
@@ -98,29 +89,38 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
     ...getProductSearchQuery({
       query: debouncedQueryKey,
     }),
-    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   const shouldShowSkeleton =
     isLoading || isFetching || isPending || isRefetching;
 
-  const parentRef = React.useRef<HTMLDivElement>(null);
-
-  const virtualizer = useVirtualizer({
-    count: searchResults?.results?.length || 0,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 54,
-    overscan: 5,
-  });
-
   React.useEffect(() => {
     setDebouncedQuery(query);
+    setSelectedIndex(0); // Reset selection when query changes
   }, [query, setDebouncedQuery]);
+
+  // Handle keyboard navigation
+  function handleKeyDown(e: React.KeyboardEvent) {
+    const results = searchResults?.results || [];
+    if (results.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev + 1) % results.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev - 1 + results.length) % results.length);
+    } else if (e.key === "Enter" && results[selectedIndex]) {
+      e.preventDefault();
+      router.push(`/market/${results[selectedIndex].id}`);
+      onClose();
+    }
+  }
 
   return (
     <DialogContent className="w-xl overflow-y-auto p-0">
       <DialogTitle className="sr-only">Search Pokemon cards</DialogTitle>
-      <Command>
+      <Command onKeyDown={handleKeyDown}>
         <CommandInput
           placeholder="Search Pokemon cards..."
           className="h-12 text-lg"
@@ -128,7 +128,7 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
           onValueChange={setQuery}
         />
 
-        <div ref={parentRef} className="h-[300px] overflow-auto px-1">
+        <div className="h-[300px] overflow-auto p-1 flex flex-col gap-1">
           {renderSearchResults()}
         </div>
       </Command>
@@ -145,38 +145,19 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
     }
 
     return (
-      <div
-        style={{
-          height: `${virtualizer.getTotalSize()}px`,
-          width: "100%",
-          position: "relative",
-        }}
-      >
-        {virtualizer.getVirtualItems().map((virtualItem) => {
-          const product = searchResults?.results[virtualItem.index];
-          if (!product) return null;
-
+      <>
+        {searchResults?.results.map((product, index) => {
           return (
-            <div
+            <SearchResultItem
+              product={product}
+              query={query}
+              onSelect={onClose}
               key={product.id}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: `${virtualItem.size}px`,
-                transform: `translateY(${virtualItem.start}px)`,
-              }}
-            >
-              <SearchResultItem
-                product={product}
-                query={query}
-                onSelect={onClose}
-              />
-            </div>
+              isSelected={index === selectedIndex}
+            />
           );
         })}
-      </div>
+      </>
     );
   }
 }
@@ -185,14 +166,14 @@ function SearchResultItem({
   product,
   query,
   onSelect,
+  isSelected,
 }: {
-  product: ProductWithSetAndSKUsResponse;
+  product: ProductSearchResultItem;
   query: string;
   onSelect: () => void;
+  isSelected: boolean;
 }) {
-  const queryClient = useQueryClient();
-
-  function getImageSrc(product: ProductWithSetAndSKUsResponse) {
+  function getImageSrc(product: ProductSearchResultItem) {
     return product.image_url || "/assets/placeholder-pokemon-back.png";
   }
 
@@ -201,43 +182,25 @@ function SearchResultItem({
     img.src = "/assets/placeholder-pokemon-back.png";
   }
 
+  // TODO: We should prefetch product types when we hover over the search result
+  // Doing this in development is reallyyyy slow, so will stop for now
   function handlePrefetch() {
-    queryClient.prefetchQuery(getProductQuery(product.id));
-    queryClient.prefetchQuery(
-      getMarketDepthQuery({ sku: product.id, salesLookbackDays: 7 })
-    );
-    queryClient.prefetchQuery(getProductListingsQuery(product.id));
-  }
-
-  // Utility function to highlight matching text
-  function highlightText(text: string, query: string) {
-    if (!query.trim()) return text;
-
-    const regex = new RegExp(
-      `(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-      "gi"
-    );
-    const parts = text.split(regex);
-
-    return parts.map((part, index) =>
-      regex.test(part) ? (
-        <mark key={index} className="bg-blue-300/70 text-white px-0.5">
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
+    // queryClient.prefetchQuery(getProductQuery(product.id));
   }
 
   return (
     <Link href={`/market/${product.id}`}>
-      <CommandItem
-        value={product.name}
-        onSelect={onSelect}
+      <button
+        value={product.id}
+        onClick={onSelect}
         onMouseEnter={handlePrefetch}
+        className="w-full"
       >
-        <div className="flex items-center gap-3 w-full">
+        <div
+          className={`flex items-center gap-3 rounded-sm justify-start text-left hover:bg-blue-500/10 p-2 w-full transition-colors ${
+            isSelected && "bg-muted"
+          }`}
+        >
           <Image
             src={getImageSrc(product)}
             alt={product.name}
@@ -248,7 +211,7 @@ function SearchResultItem({
             className="w-[30px] max-h-[45px]"
           />
           <div className="flex flex-col">
-            <span className="font-medium">
+            <span className="font-medium text-sm">
               {highlightText(product.name, query)}
             </span>
             <span className="text-xs text-muted-foreground">
@@ -257,30 +220,24 @@ function SearchResultItem({
             </span>
           </div>
         </div>
-      </CommandItem>
+      </button>
     </Link>
   );
 }
 
 function SearchEmptyState() {
   return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <Search />
-        </EmptyMedia>
-        <EmptyTitle>No cards found</EmptyTitle>
-        <EmptyDescription>
-          Try searching for a different Pokemon name or set
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
+    <EmptyState
+      icon={Search}
+      title="No cards found"
+      description="Try searching for a different Pokemon name or set"
+      action={
         <div className="text-xs text-muted-foreground">
           Try &quot;Pikachu&quot;, &quot;Charizard&quot;, or &quot;Base
           Set&quot;
         </div>
-      </EmptyContent>
-    </Empty>
+      }
+    />
   );
 }
 
@@ -288,16 +245,41 @@ function SearchResultSkeleton() {
   return (
     <>
       {Array.from({ length: 10 }).map((_, index) => (
-        <CommandItem key={`skeleton-${index}`} disabled>
-          <div className="flex items-center gap-3 w-full">
-            <div className="w-[35px] h-[56px] bg-muted rounded-sm animate-pulse" />
-            <div className="flex flex-col gap-1">
-              <div className="h-4 bg-muted rounded animate-pulse w-32" />
-              <div className="h-3 bg-muted rounded animate-pulse w-24" />
-            </div>
+        <div className="flex items-center gap-3 w-full p-1">
+          <div className="w-[30px] h-[45px] bg-muted rounded-sm animate-pulse" />
+          <div className="flex flex-col gap-1">
+            <div className="h-4 bg-muted rounded animate-pulse w-32" />
+            <div className="h-3 bg-muted rounded animate-pulse w-24" />
           </div>
-        </CommandItem>
+        </div>
       ))}
     </>
+  );
+}
+
+function highlightText(text: string, query: string) {
+  if (!query.trim()) return text;
+
+  // Split query into individual words and escape each for regex
+  const queryWords = query
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0)
+    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+
+  if (queryWords.length === 0) return text;
+
+  // Create regex that matches any of the query words
+  const regex = new RegExp(`(${queryWords.join("|")})`, "gi");
+  const parts = text.split(regex);
+
+  return parts.map((part, index) =>
+    regex.test(part) ? (
+      <mark key={index} className="bg-blue-400/70 text-white">
+        {part}
+      </mark>
+    ) : (
+      part
+    )
   );
 }

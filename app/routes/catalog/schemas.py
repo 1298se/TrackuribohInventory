@@ -99,8 +99,19 @@ class SKUWithProductResponseSchema(SKUBaseResponseSchema):
         ]
 
 
+class ProductSearchResultSchema(ProductBaseResponseSchema):
+    """Lightweight schema for search results - excludes SKUs for better performance"""
+    set: SetBaseResponseSchema
+
+    @classmethod
+    def get_load_options(cls) -> list[_AbstractLoad]:
+        return [
+            joinedload(Product.set),
+        ]
+
+
 class ProductSearchResponseSchema(BaseModel):
-    results: list[ProductWithSetAndSKUsResponseSchema]
+    results: list[ProductSearchResultSchema]
 
 
 class CatalogResponseSchema(ORMModel):

@@ -7,6 +7,7 @@ from app.routes.catalog.schemas import (
     ProductSearchRequestParams,
     ProductWithSetAndSKUsResponseSchema,
     ProductSearchResponseSchema,
+    ProductSearchResultSchema,
     ProductTypesResponseSchema,
 )
 from core.database import get_db_session
@@ -71,8 +72,9 @@ def search_products(
     catalog_id = search_params.catalog_id
     product_type = search_params.product_type
 
-    # Build search query (automatically joins Set, filters, and orders by rank)
-    base_search_query = build_product_search_query(query_text)
+    # Build fuzzy search query with OR logic for typo tolerance
+    # This makes search more forgiving and returns relevant results even with typos
+    base_search_query = build_product_search_query(query_text, fuzzy=True)
 
     # Add catalog filter if provided
     if catalog_id:
@@ -84,8 +86,10 @@ def search_products(
             Product.product_type == product_type
         )
 
+    # Use lightweight schema without SKUs for fast search results
+    # SKUs will be loaded on-demand when user views product detail
     results = session.scalars(
-        base_search_query.options(*ProductWithSetAndSKUsResponseSchema.get_load_options()).limit(30)
+        base_search_query.options(*ProductSearchResultSchema.get_load_options()).limit(20)
     ).all()
 
     return ProductSearchResponseSchema(results=results)
