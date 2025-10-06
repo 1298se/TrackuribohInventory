@@ -25,40 +25,15 @@ router = APIRouter(
 
 @router.get("/product/{product_id}", response_model=ProductWithSetAndSKUsResponseSchema | None)
 async def get_product(product_id: str, session: Session = Depends(get_db_session)):
-    # Use a single query with LEFT JOIN to get product, SKUs, and prices efficiently
-    result = session.execute(
-        select(Product, SKU, SKULatestPrice.lowest_listing_price_total)
-        .select_from(Product)
-        .join(Product.skus)
-        .outerjoin(
-            SKULatestPrice,
-            (SKULatestPrice.sku_id == SKU.id)
-            & (SKULatestPrice.marketplace == Marketplace.TCGPLAYER),
-        )
-        .options(
-            joinedload(Product.set),
-            joinedload(SKU.condition),
-            joinedload(SKU.printing),
-            joinedload(SKU.language),
-        )
+    # Fetch product with set and SKUs (without prices)
+    product = session.scalars(
+        select(Product)
         .where(Product.id == product_id)
-    ).all()
+        .options(*ProductWithSetAndSKUsResponseSchema.get_load_options())
+    ).first()
 
-    if not result:
+    if not product:
         return None
-
-    # Group results by product and build the response
-    product = result[0][0]  # First row, first column (Product)
-
-    # Create a mapping of sku_id to price
-    price_map = {}
-    for _, sku, price in result:
-        if price is not None:
-            price_map[sku.id] = float(price)
-
-    # Add price data to each SKU
-    for sku in product.skus:
-        sku.lowest_listing_price_total = price_map.get(sku.id)
 
     return product
 
