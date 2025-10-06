@@ -89,14 +89,7 @@ def search_products(
         base_search_query.options(*ProductWithSetAndSKUsResponseSchema.get_load_options())
     ).all()
 
-    return ProductSearchResponseSchema(
-        results=results,
-        total=len(results),
-        page=1,
-        limit=len(results),
-        has_next=False,
-        has_prev=False,
-    )
+    return ProductSearchResponseSchema(results=results)
 
 
 @router.get("/catalogs", response_model=CatalogsResponseSchema)
