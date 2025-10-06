@@ -1,8 +1,12 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useState } from "react";
-import * as React from "react";
+import {
+  useState,
+  useEffect,
+  type KeyboardEvent,
+  type SyntheticEvent,
+} from "react";
 import { Command, CommandInput } from "@/components/ui/command";
 import {
   Dialog,
@@ -26,7 +30,7 @@ const SEARCH_DEBOUNCE_TIME_MS = 200;
 const DEFAULT_QUERY = "pikachu";
 
 export function GlobalSearchInput() {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
 
   useKeyboardListener(() => setOpen(true), {
     key: "k",
@@ -94,23 +98,29 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
   const shouldShowSkeleton =
     isLoading || isFetching || isPending || isRefetching;
 
-  React.useEffect(() => {
+  useEffect(() => {
     setDebouncedQuery(query);
     setSelectedIndex(0); // Reset selection when query changes
   }, [query, setDebouncedQuery]);
 
   // Handle keyboard navigation
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function handleKeyDown(e: KeyboardEvent) {
     const results = searchResults?.results || [];
+
     if (results.length === 0) return;
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
+
       setSelectedIndex((prev) => (prev + 1) % results.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+
       setSelectedIndex((prev) => (prev - 1 + results.length) % results.length);
-    } else if (e.key === "Enter" && results[selectedIndex]) {
+    } else if (
+      (e.key === "Enter" || e.key === "Tab") &&
+      results[selectedIndex]
+    ) {
       e.preventDefault();
       router.push(`/market/${results[selectedIndex].id}`);
       onClose();
@@ -177,7 +187,7 @@ function SearchResultItem({
     return product.image_url || "/assets/placeholder-pokemon-back.png";
   }
 
-  function handleImageError(event: React.SyntheticEvent<HTMLImageElement>) {
+  function handleImageError(event: SyntheticEvent<HTMLImageElement>) {
     const img = event.currentTarget;
     img.src = "/assets/placeholder-pokemon-back.png";
   }
@@ -197,7 +207,7 @@ function SearchResultItem({
         className="w-full"
       >
         <div
-          className={`flex items-center gap-3 rounded-sm justify-start text-left hover:bg-blue-500/10 p-2 w-full transition-colors ${
+          className={`flex items-center gap-3 rounded-sm justify-start text-left hover:bg-secondary/50 p-2 w-full transition-colors ${
             isSelected && "bg-muted"
           }`}
         >
