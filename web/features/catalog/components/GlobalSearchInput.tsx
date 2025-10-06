@@ -5,16 +5,11 @@ import {
   useState,
   useEffect,
   useRef,
-  type KeyboardEvent,
   type SyntheticEvent,
+  KeyboardEvent,
 } from "react";
 import { Command } from "@/components/ui/command";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useDebouncedState } from "@tanstack/react-pacer/debouncer";
@@ -24,8 +19,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { ProductSearchResultItem } from "@/features/catalog/types";
 import { CommandKeyBlock } from "@/shared/components/CommandKeyBlock";
-import { useKeyboardListener } from "@/shared/hooks/useKeyboardListener";
 import { useRouter } from "next/navigation";
+import { useKeyboardListener } from "@/shared/hooks/useKeyboardListener";
 
 const SEARCH_DEBOUNCE_TIME_MS = 200;
 const DEFAULT_QUERY = "pikachu";
@@ -33,34 +28,45 @@ const DEFAULT_QUERY = "pikachu";
 export function GlobalSearchInput() {
   const [open, setOpen] = useState(false);
 
-  useKeyboardListener(() => setOpen((prev) => !prev), {
-    key: "k",
-    metaOrCtrl: true,
-    preventDefault: true,
-  });
+  useKeyboardListener(
+    () => {
+      setOpen((prev) => !prev);
+    },
+    {
+      key: "k",
+      metaOrCtrl: true,
+      preventDefault: true,
+    }
+  );
+
+  const isMac =
+    typeof window !== "undefined" &&
+    navigator.platform.toUpperCase().indexOf("MAC") >= 0;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          role="combobox"
-          aria-expanded={open}
-          variant="secondary"
-          className="w-full justify-between max-w-[500px]"
-        >
-          <div className="flex items-center gap-2">
-            <Search className="size-4" />
-            Search Pokemon cards...
-          </div>
-          <div className="items-center gap-1 hidden md:flex">
-            <CommandKeyBlock>⌘</CommandKeyBlock>
-            <CommandKeyBlock>K</CommandKeyBlock>
-          </div>
-        </Button>
-      </DialogTrigger>
-
-      <SearchDialogContent onClose={() => setOpen(false)} />
-    </Dialog>
+    <>
+      <Button
+        role="combobox"
+        aria-expanded={open}
+        variant="secondary"
+        onClick={() => setOpen(true)}
+        className="w-full justify-between max-w-[500px]"
+      >
+        <div className="flex items-center gap-2">
+          <Search className="size-4" />
+          Search Pokemon cards...
+        </div>
+        <div className="items-center gap-1 hidden md:flex">
+          <CommandKeyBlock>{isMac ? "⌘" : "Ctrl"}</CommandKeyBlock>
+          <CommandKeyBlock>K</CommandKeyBlock>
+        </div>
+      </Button>
+      {open && (
+        <Dialog open={open} onOpenChange={setOpen}>
+          <SearchDialogContent onClose={() => setOpen(false)} />
+        </Dialog>
+      )}
+    </>
   );
 }
 
