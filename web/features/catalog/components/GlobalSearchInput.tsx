@@ -3,14 +3,7 @@
 import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import * as React from "react";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +26,7 @@ import { getProductSearchQuery } from "@/features/catalog/api";
 import Link from "next/link";
 import Image from "next/image";
 import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
+import { CommandKeyBlock } from "@/shared/components/CommandKeyBlock";
 
 const SEARCH_DEBOUNCE_TIME_MS = 200;
 const DEFAULT_QUERY = "pikachu";
@@ -67,12 +61,8 @@ export function GlobalSearchInput() {
             Search Pokemon cards...
           </div>
           <div className="flex items-center gap-1">
-            <kbd className="bg-background text-muted-foreground pointer-events-none flex h-5 items-center justify-center gap-1 rounded border px-1 font-sans text-[0.7rem] font-medium select-none [&_svg:not([class*='size-'])]:size-3">
-              ⌘
-            </kbd>
-            <kbd className="bg-background text-muted-foreground pointer-events-none flex h-5 items-center justify-center gap-1 rounded border px-1 font-sans text-[0.7rem] font-medium select-none [&_svg:not([class*='size-'])]:size-3">
-              K
-            </kbd>
+            <CommandKeyBlock>⌘</CommandKeyBlock>
+            <CommandKeyBlock>K</CommandKeyBlock>
           </div>
         </Button>
       </DialogTrigger>
@@ -108,7 +98,6 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
   } = useQuery({
     ...getProductSearchQuery({
       query: debouncedQueryKey,
-      productType: "CARDS",
     }),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -121,7 +110,7 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
   const virtualizer = useVirtualizer({
     count: searchResults?.results?.length || 0,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 48,
+    estimateSize: () => 54,
     overscan: 5,
   });
 
@@ -239,8 +228,9 @@ function SearchResultItem({
           <Image
             src={getImageSrc(product)}
             alt={product.name}
-            width={35}
-            height={56}
+            width={30}
+            height={30}
+            objectFit="contain"
             onError={handleImageError}
           />
           <div className="flex flex-col">
