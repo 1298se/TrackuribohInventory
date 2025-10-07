@@ -8,11 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MarketLevelingChart } from "./MarketLevelingChart";
-import { formatCurrency } from "@/shared/utils";
 
 export function MarketLevelsChartCard({
   listingsCumulativeDepth,

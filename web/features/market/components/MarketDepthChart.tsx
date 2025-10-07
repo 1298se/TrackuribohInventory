@@ -76,6 +76,7 @@ export function MarketDepthChart({
           hide={true}
         />
         <ChartTooltip
+          shared
           content={
             <ChartTooltipContent
               labelFormatter={(_, payload) => {
@@ -87,6 +88,8 @@ export function MarketDepthChart({
                 )}`;
               }}
               formatter={(value: ValueType, name: NameType) => {
+                if (value === undefined) return null;
+
                 const isListings =
                   name === "listingCumulativeCount" || name === "Listings";
                 const color = isListings ? "rgb(59 130 246)" : "rgb(34 197 94)";
@@ -148,11 +151,24 @@ function mergeMarketDepthData(
     salesCumulativeDepth.map((d) => [d.price, d.cumulativeCount])
   );
 
-  return prices.map((price) => ({
-    price,
-    listingCumulativeCount: listingMap[price],
-    // Use undefined for missing sales points so Recharts doesn't draw them
-    salesCumulativeCount:
-      salesCumulativeDepth.length > 0 ? salesMap[price] : undefined,
-  }));
+  // Track last known values for step interpolation
+  let lastListingValue: number | undefined = undefined;
+  let lastSalesValue: number | undefined = undefined;
+
+  return prices.map((price) => {
+    // Update last known values if present at this price point
+    if (listingMap[price] !== undefined) {
+      lastListingValue = listingMap[price];
+    }
+    if (salesMap[price] !== undefined) {
+      lastSalesValue = salesMap[price];
+    }
+
+    return {
+      price,
+      listingCumulativeCount: lastListingValue,
+      salesCumulativeCount:
+        salesCumulativeDepth.length > 0 ? lastSalesValue : undefined,
+    };
+  });
 }
