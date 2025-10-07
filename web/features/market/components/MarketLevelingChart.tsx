@@ -40,6 +40,7 @@ export function MarketLevelingChart({
     }));
   }, [listingsCumulativeDepth]);
 
+  // Percentile-based distribution for better spread
   const priceLevels = useMemo(() => {
     if (chartData.length === 0)
       return {
@@ -48,38 +49,32 @@ export function MarketLevelingChart({
         high: { count: 0, price: 0 },
       };
 
-    const prices = chartData.map((d) => d.price);
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
-    const priceRange = maxPrice - minPrice;
+    const sortedData = [...chartData].sort((a, b) => a.price - b.price);
 
-    const lowPrice = minPrice + priceRange * 0.33;
-    const lowCount = getCopiesUntilPrice(lowPrice);
-    const highCount = Math.max(
-      ...chartData.map((d) => d.listingCumulativeCount)
-    );
-    const mediumCount = (lowCount + highCount) / 2; // Midpoint between low and high counts
+    // Indices at 33rd, 66th, and 100th percentiles
+    const lowIndex = Math.floor(sortedData.length * 0.33);
+    const mediumIndex = Math.floor(sortedData.length * 0.66);
+    const highIndex = sortedData.length - 1;
 
-    // Find the price that corresponds to the medium count
-    const mediumDataPoint = chartData.find(
-      (d) => d.listingCumulativeCount >= mediumCount
-    );
-    const mediumPrice = mediumDataPoint?.price || maxPrice;
+    const lowPoint = sortedData[lowIndex];
+    const mediumPoint = sortedData[mediumIndex];
+    const highPoint = sortedData[highIndex];
 
     return {
-      low: { count: Math.round(lowCount), price: lowPrice },
-      medium: { count: Math.round(mediumCount), price: mediumPrice },
+      low: {
+        count: Math.round(lowPoint.listingCumulativeCount),
+        price: lowPoint.price,
+      },
+      medium: {
+        count: Math.round(mediumPoint.listingCumulativeCount),
+        price: mediumPoint.price,
+      },
       high: {
-        count: Math.round(highCount),
-        price: maxPrice,
+        count: Math.round(highPoint.listingCumulativeCount),
+        price: highPoint.price,
       },
     };
   }, [chartData]);
-
-  function getCopiesUntilPrice(targetPrice: number) {
-    const dataPoint = chartData.find((d) => d.price >= targetPrice);
-    return dataPoint?.listingCumulativeCount || 0;
-  }
 
   const createReferenceLineProps = (
     count: number,
