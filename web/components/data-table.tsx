@@ -20,7 +20,6 @@ import {
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { SearchInput } from "./search-input";
 
 export type Column<TData, TValue> = ColumnDef<TData, TValue> & {
   loading?: React.ComponentType;
@@ -94,14 +93,23 @@ export function DataTable<TData, TValue>({
                       key={header.id}
                       className={cn(
                         align === "center" && "text-center",
-                        align === "right" && "text-right pr-4",
+                        align === "right" && "text-right pr-4"
                       )}
                       style={
                         (header.column.columnDef as Column<TData, any>).size
                           ? {
-                              width: `${(header.column.columnDef as Column<TData, any>).size}px`,
-                              minWidth: `${(header.column.columnDef as Column<TData, any>).size}px`,
-                              maxWidth: `${(header.column.columnDef as Column<TData, any>).size}px`,
+                              width: `${
+                                (header.column.columnDef as Column<TData, any>)
+                                  .size
+                              }px`,
+                              minWidth: `${
+                                (header.column.columnDef as Column<TData, any>)
+                                  .size
+                              }px`,
+                              maxWidth: `${
+                                (header.column.columnDef as Column<TData, any>)
+                                  .size
+                              }px`,
                             }
                           : undefined
                       }
@@ -110,7 +118,7 @@ export function DataTable<TData, TValue>({
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext(),
+                            header.getContext()
                           )}
                     </TableHead>
                   );
@@ -127,14 +135,18 @@ export function DataTable<TData, TValue>({
                       key={columnIndex}
                       className={cn(
                         column.align === "center" && "text-center",
-                        column.align === "right" && "text-right pr-4",
+                        column.align === "right" && "text-right pr-4"
                       )}
                       style={
                         (column as Column<TData, any>).size
                           ? {
                               width: `${(column as Column<TData, any>).size}px`,
-                              minWidth: `${(column as Column<TData, any>).size}px`,
-                              maxWidth: `${(column as Column<TData, any>).size}px`,
+                              minWidth: `${
+                                (column as Column<TData, any>).size
+                              }px`,
+                              maxWidth: `${
+                                (column as Column<TData, any>).size
+                              }px`,
                             }
                           : undefined
                       }
@@ -145,7 +157,7 @@ export function DataTable<TData, TValue>({
                         <div
                           className={cn(
                             column.align === "center" && "flex justify-center",
-                            column.align === "right" && "flex justify-end",
+                            column.align === "right" && "flex justify-end"
                           )}
                         >
                           <Skeleton className="h-4 w-24" />
@@ -174,21 +186,30 @@ export function DataTable<TData, TValue>({
                         key={cell.id}
                         className={cn(
                           align === "center" && "text-center",
-                          align === "right" && "text-right pr-4",
+                          align === "right" && "text-right pr-4"
                         )}
                         style={
                           (cell.column.columnDef as Column<TData, any>).size
                             ? {
-                                width: `${(cell.column.columnDef as Column<TData, any>).size}px`,
-                                minWidth: `${(cell.column.columnDef as Column<TData, any>).size}px`,
-                                maxWidth: `${(cell.column.columnDef as Column<TData, any>).size}px`,
+                                width: `${
+                                  (cell.column.columnDef as Column<TData, any>)
+                                    .size
+                                }px`,
+                                minWidth: `${
+                                  (cell.column.columnDef as Column<TData, any>)
+                                    .size
+                                }px`,
+                                maxWidth: `${
+                                  (cell.column.columnDef as Column<TData, any>)
+                                    .size
+                                }px`,
                               }
                             : undefined
                         }
                       >
                         {flexRender(
                           cell.column.columnDef.cell,
-                          cell.getContext(),
+                          cell.getContext()
                         )}
                       </TableCell>
                     );

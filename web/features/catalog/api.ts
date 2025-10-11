@@ -1,11 +1,10 @@
-import { API_URL } from "@/app/api/fetcher";
+import { API_URL } from "@/api/fetcher";
 import {
   ProductWithSetAndSKUsResponse,
   ProductMarketPricesResponse,
   SetsResponse,
   SetPriceSummaryResponse,
   HistoricalPriceComparisonResponse,
-  ProductSearchResponse,
 } from "./types";
 import { POKEMON_CATALOG_ID } from "@/shared/constants";
 import { queryOptions } from "@tanstack/react-query";

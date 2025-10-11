@@ -1,6 +1,6 @@
 "use client";
 
-import { API_URL } from "@/app/api/fetcher";
+import { API_URL } from "@/api/fetcher";
 import { createClient } from "@/lib/supabase/client";
 import { useCallback } from "react";
 
