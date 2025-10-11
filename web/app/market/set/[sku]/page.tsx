@@ -1,3 +1,5 @@
-export default function Page() {
-  return <div>Set</div>;
+import { SetList } from "@/features/catalog/components/SetList";
+
+export default async function Page({ params }: { params: { sku: string } }) {
+  return <SetList setId={params.sku} />;
 }
