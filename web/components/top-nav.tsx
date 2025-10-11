@@ -122,13 +122,13 @@ export function TopNav({
             </span>
           </Link>
           {isMdOrLarger && <GlobalSearchInput />}
-          <div className="flex items-center gap-2">
+          {/* <div className="flex items-center gap-2">
             <NavigationMenu>
               <NavigationMenuList>
                 {menu.map((item) => renderMenuItem(item))}
               </NavigationMenuList>
             </NavigationMenu>
-            {/* {isAuthenticated ? (
+            {isAuthenticated ? (
               <>
                 <Link href="/inventory">
                   <Button variant="ghost">Inventory</Button>
@@ -153,13 +153,8 @@ export function TopNav({
                   <Button>{auth.signup.title}</Button>
                 </Link>
               </>
-            )} */}
-            {logoutError && (
-              <span className="sr-only" role="alert">
-                {logoutError}
-              </span>
             )}
-          </div>
+          </div> */}
         </nav>
 
         {/* Mobile Menu */}
@@ -174,7 +169,7 @@ export function TopNav({
                   alt={logo.alt}
                 />
               </Link>
-              <Sheet>
+              {/* <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon">
                     <Menu className="size-4" />
@@ -201,8 +196,7 @@ export function TopNav({
                       {menu.map((item) => renderMobileMenuItem(item))}
                     </Accordion>
 
-                    {/* TBD */}
-                    {/* <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3">
                       {isAuthenticated ? (
                         <>
                           <Link href="/inventory">
@@ -238,12 +232,12 @@ export function TopNav({
                           </Link>
                         </>
                       )}
-                    </div> */}
+                    </div>
                   </div>
                 </SheetContent>
-              </Sheet>
+              </Sheet> */}
             </div>
-            {!isMdOrLarger && <GlobalSearchInput />}
+            <GlobalSearchInput />
           </div>
         </div>
       </div>
