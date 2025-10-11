@@ -1,4 +1,4 @@
-import { API_URL } from "@/app/api/fetcher";
+import { API_URL } from "@/api/fetcher";
 import {
   MarketDataResponse,
   BuyDecisionsResponse,
@@ -29,6 +29,7 @@ export function getCardDecisionsQuery() {
             id: decision.sku.product.set.id,
           },
           price: decision.buy_vwap.amount,
+          product_type: decision.sku.product.product_type,
         } satisfies DisplayCardProps;
       });
     },

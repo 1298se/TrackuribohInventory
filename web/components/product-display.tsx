@@ -1,5 +1,5 @@
+import { ProductWithSetAndSKUsResponse } from "@/features/catalog/types";
 import React from "react";
-import { ProductWithSetAndSKUsResponse } from "@/app/catalog/schemas";
 
 interface ProductDisplayProps {
   product: ProductWithSetAndSKUsResponse;

@@ -162,10 +162,10 @@ export default function SearchPage() {
                   name: product.set.name,
                   id: product.set.id,
                 },
-                price: product.skus[0]?.lowest_listing_price_total || 0, // Use first SKU's price or 0
+                product_type: product.product_type,
+                price: 0, // Use first SKU's price or 0
               })
             )}
-            isLoading={searchLoading}
           />
         )}
       </div>
