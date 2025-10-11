@@ -39,10 +39,6 @@ export function GlobalSearchInput() {
     }
   );
 
-  const isMac =
-    typeof window !== "undefined" &&
-    navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-
   return (
     <>
       <Button
@@ -98,6 +94,7 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
   } = useQuery({
     ...getProductSearchQuery({
       query: debouncedQueryKey,
+      limit: 30,
     }),
     placeholderData: (previousData) => previousData,
   });

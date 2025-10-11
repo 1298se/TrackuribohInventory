@@ -159,6 +159,7 @@ class ProductSearchRequestParams(BaseModel):
     catalog_id: Optional[uuid.UUID] = None
     product_type: Optional[ProductType] = None
     set_id: Optional[uuid.UUID] = None
+    limit: Optional[int] = None
 
     class Config:
         extra = "forbid"
