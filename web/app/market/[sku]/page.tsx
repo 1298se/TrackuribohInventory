@@ -109,6 +109,7 @@ export default function ProductSKUDetailsPage() {
               totalQuantity={parsedMarketDepth?.metrics?.total_quantity ?? null}
               lowestListingPriceTotal={nearMintSkuPrice ?? null}
               productURL={product?.tcgplayer_url ?? null}
+              isLoading={isMarketPricesLoading}
             />
           </div>
         </div>
@@ -280,10 +281,12 @@ function TCGMarketPlacePriceCard({
   totalQuantity,
   lowestListingPriceTotal,
   productURL,
+  isLoading,
 }: {
   totalQuantity: number | null;
   lowestListingPriceTotal: number | null;
   productURL: string | null;
+  isLoading: boolean;
 }) {
   return (
     <MetricCard
@@ -304,14 +307,14 @@ function TCGMarketPlacePriceCard({
         </div>
       }
       value={
-        lowestListingPriceTotal === null ? (
+        isLoading ? (
           <Skeleton className="h-8 w-3/4 mb-1" />
         ) : (
           formatCurrency(lowestListingPriceTotal)
         )
       }
       subtitle={
-        totalQuantity === null ? (
+        isLoading ? (
           <Skeleton className="h-4 w-32" />
         ) : (
           `From ${totalQuantity} units in the market`

@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/sheet";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useBreakpoint } from "@/shared/hooks/useBreakpoint";
 import { logout } from "@/features/auth/actions";
 import { GlobalSearchInput } from "@/features/catalog/components/GlobalSearchInput";
@@ -88,22 +88,22 @@ export function TopNav({
   const [isLoggingOut, startLogoutTransition] = useTransition();
   const isMdOrLarger = useBreakpoint("md");
 
-  const isAuthenticated = !!authState?.isAuthenticated;
+  // const isAuthenticated = !!authState?.isAuthenticated;
 
-  const handleLogout = () => {
-    setLogoutError(null);
+  // const handleLogout = () => {
+  //   setLogoutError(null);
 
-    startLogoutTransition(async () => {
-      try {
-        await logout();
-        router.replace("/login");
-        router.refresh();
-      } catch (error) {
-        console.error("Logout failed", error);
-        setLogoutError("Unable to log out. Please try again.");
-      }
-    });
-  };
+  //   startLogoutTransition(async () => {
+  //     try {
+  //       await logout();
+  //       router.replace("/login");
+  //       router.refresh();
+  //     } catch (error) {
+  //       console.error("Logout failed", error);
+  //       setLogoutError("Unable to log out. Please try again.");
+  //     }
+  //   });
+  // };
 
   return (
     <section className={`sticky top-0 z-50 bg-background shadow-sm border-b-2`}>
@@ -128,7 +128,7 @@ export function TopNav({
                 {menu.map((item) => renderMenuItem(item))}
               </NavigationMenuList>
             </NavigationMenu>
-            {isAuthenticated ? (
+            {/* {isAuthenticated ? (
               <>
                 <Link href="/inventory">
                   <Button variant="ghost">Inventory</Button>
@@ -153,7 +153,7 @@ export function TopNav({
                   <Button>{auth.signup.title}</Button>
                 </Link>
               </>
-            )}
+            )} */}
             {logoutError && (
               <span className="sr-only" role="alert">
                 {logoutError}
@@ -201,7 +201,8 @@ export function TopNav({
                       {menu.map((item) => renderMobileMenuItem(item))}
                     </Accordion>
 
-                    <div className="flex flex-col gap-3">
+                    {/* TBD */}
+                    {/* <div className="flex flex-col gap-3">
                       {isAuthenticated ? (
                         <>
                           <Link href="/inventory">
@@ -237,7 +238,7 @@ export function TopNav({
                           </Link>
                         </>
                       )}
-                    </div>
+                    </div> */}
                   </div>
                 </SheetContent>
               </Sheet>

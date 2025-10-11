@@ -46,6 +46,7 @@ def search_products(
     query_text = search_params.query
     catalog_id = search_params.catalog_id
     product_type = search_params.product_type
+    set_id = search_params.set_id
 
     # Build fuzzy search query with OR logic for typo tolerance
     # This makes search more forgiving and returns relevant results even with typos
@@ -55,16 +56,25 @@ def search_products(
     if catalog_id:
         base_search_query = base_search_query.where(Set.catalog_id == catalog_id)
 
+    # Add set filter if provided
+    if set_id:
+        base_search_query = base_search_query.where(Set.id == set_id)
+
     # Add product type filter if provided
     if product_type:
         base_search_query = base_search_query.where(
             Product.product_type == product_type
         )
 
+    # Filter out Code Cards
+    base_search_query = base_search_query.where(
+        (Product.rarity != "Code Card") | (Product.rarity.is_(None))
+    )
+
     # Use lightweight schema without SKUs for fast search results
     # SKUs will be loaded on-demand when user views product detail
     results = session.scalars(
-        base_search_query.options(*ProductSearchResultSchema.get_load_options()).limit(20)
+        base_search_query.options(*ProductSearchResultSchema.get_load_options())
     ).all()
 
     return ProductSearchResponseSchema(results=results)
