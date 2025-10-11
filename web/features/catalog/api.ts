@@ -44,10 +44,12 @@ async function fetchSearch({
   query,
   productType,
   setId,
+  limit,
 }: {
   query: string;
   productType?: string;
   setId?: string;
+  limit?: number;
 }) {
   const params = new URLSearchParams();
 
@@ -60,6 +62,10 @@ async function fetchSearch({
 
   if (setId) {
     params.set("set_id", setId);
+  }
+
+  if (limit !== undefined) {
+    params.set("limit", limit.toString());
   }
 
   const response = await fetch(
@@ -81,14 +87,16 @@ export function getProductSearchQuery({
   query,
   productType,
   setId,
+  limit,
 }: {
   query: string;
   productType?: string;
   setId?: string;
+  limit?: number;
 }) {
   return queryOptions<SearchResult>({
-    queryKey: ["search", query, productType, setId],
-    queryFn: () => fetchSearch({ query, productType, setId }),
+    queryKey: ["search", query, productType, setId, limit],
+    queryFn: () => fetchSearch({ query, productType, setId, limit }),
   });
 }
 

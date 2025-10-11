@@ -47,6 +47,7 @@ def search_products(
     catalog_id = search_params.catalog_id
     product_type = search_params.product_type
     set_id = search_params.set_id
+    limit = search_params.limit
 
     # Build fuzzy search query with OR logic for typo tolerance
     # This makes search more forgiving and returns relevant results even with typos
@@ -70,6 +71,10 @@ def search_products(
     base_search_query = base_search_query.where(
         (Product.rarity != "Code Card") | (Product.rarity.is_(None))
     )
+
+    # Apply limit if provided
+    if limit:
+        base_search_query = base_search_query.limit(limit)
 
     # Use lightweight schema without SKUs for fast search results
     # SKUs will be loaded on-demand when user views product detail
