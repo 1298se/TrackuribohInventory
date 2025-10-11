@@ -1,7 +1,7 @@
 """create sku_market_data_sync_state; create buy_decision; create sales_listing with dedupe unique index
 
 Revision ID: 3e58625477c4
-Revises: 61ef3d11077e
+Revises: bca083e8ed31
 Create Date: 2025-09-13 16:34:19.507392
 
 """
@@ -18,7 +18,7 @@ from core.models.decisions import Decision
 
 # revision identifiers, used by Alembic.
 revision: str = "3e58625477c4"
-down_revision: Union[str, None] = "61ef3d11077e"
+down_revision: Union[str, None] = "bca083e8ed31"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

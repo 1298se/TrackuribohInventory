@@ -15,6 +15,7 @@ from core.services.schemas.schema import ProductType
 catalog_tablename = "catalog"
 set_tablename = "set"
 product_tablename = "product"
+product_variant_tablename = "product_variant"
 sku_tablename = "sku"
 condition_tablename = "condition"
 printing_tablename = "printing"
@@ -64,6 +65,7 @@ class Product(Base):
     set_id: Mapped[int] = mapped_column(ForeignKey(f"{set_tablename}.id"))
     set: Mapped["Set"] = relationship(back_populates="products")
     skus: Mapped[List["SKU"]] = relationship(back_populates="product")
+    variants: Mapped[List["ProductVariant"]] = relationship(back_populates="product")
     product_type: Mapped[ProductType] = mapped_column(
         TextEnum(ProductType), nullable=False
     )
@@ -90,6 +92,51 @@ class Product(Base):
         return f"www.tcgplayer.com/product/{self.tcgplayer_id}"
 
 
+class ProductVariant(Base):
+    """
+    Represents a specific (printing, language) combination for a product.
+    Each product can have multiple variants based on different printing and language options.
+    """
+
+    __tablename__ = product_variant_tablename
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{product_tablename}.id"), nullable=False, index=True
+    )
+    printing_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{printing_tablename}.id"), nullable=False
+    )
+    language_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{language_tablename}.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    product: Mapped["Product"] = relationship(back_populates="variants")
+    printing: Mapped["Printing"] = relationship()
+    language: Mapped["Language"] = relationship()
+    skus: Mapped[List["SKU"]] = relationship(back_populates="variant")
+
+    __table_args__ = (
+        # Ensure each (product, printing, language) combination is unique
+        UniqueConstraint(
+            "product_id",
+            "printing_id",
+            "language_id",
+            name="uq_product_variant_product_printing_language",
+        ),
+        # Index for efficient lookups
+        Index("ix_product_variant_product_id", "product_id"),
+        Index("ix_product_variant_printing_language", "printing_id", "language_id"),
+    )
+
+
 class SKU(Base):
     __tablename__ = sku_tablename
 
@@ -103,6 +150,11 @@ class SKU(Base):
     condition: Mapped["Condition"] = relationship()
     language_id: Mapped[int] = mapped_column(ForeignKey(f"{language_tablename}.id"))
     language: Mapped["Language"] = relationship()
+    # Relationship to ProductVariant (will be populated in step 2)
+    variant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(f"{product_variant_tablename}.id"), nullable=True, index=True
+    )
+    variant: Mapped["ProductVariant | None"] = relationship(back_populates="skus")
 
 
 class Condition(Base):
