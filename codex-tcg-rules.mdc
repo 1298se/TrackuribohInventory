@@ -8,6 +8,7 @@ The project is organized into two main components:
 - `app/`: Backend FastAPI REST API with SQLAlchemy and Pydantic
 
 Supporting directories:
+
 - `core/`: Core functionality and shared services
 - `models/`: Database models
 - `alembic/`: Database migrations
@@ -27,6 +28,7 @@ Supporting directories:
 5. Always commit or rollback transactions explicitly before closing the session
 
 Example for scripts:
+
 ```python
 from core.database import SessionLocal
 
@@ -34,20 +36,21 @@ def my_function():
     with SessionLocal() as session:
         # Database operations
         items = session.query(MyModel).all()
-        
+
         # Make changes
         for item in items:
             item.some_field = new_value
-            
+
         # Commit changes
         session.commit()
 ```
 
 Example for API endpoints:
+
 ```python
 @router.post("/items/")
 def create_item(
-    item: ItemCreateSchema, 
+    item: ItemCreateSchema,
     session: Session = Depends(get_db_session)
 ):
     db_item = MyModel(**item.dict())
@@ -65,6 +68,7 @@ def create_item(
 5. Include type annotations for all parameters
 
 Example:
+
 ```python
 @router.get("/", response_model=InventoryResponseSchema)
 def get_inventory(
@@ -88,6 +92,7 @@ def get_inventory(
 6. Include type annotations for all fields
 
 Example:
+
 ```python
 class InventoryItemResponseSchema(BaseModel):
     sku: SKUWithProductResponseSchema
@@ -100,6 +105,29 @@ class InventoryResponseSchema(BaseModel):
 ```
 
 ### Frontend (TypeScript)
+
+#### General Preferences
+
+1. **Prefer `function` declarations over `const` arrow functions** when possible
+   - Use `function` for component definitions: `export function MyComponent() { ... }`
+   - Use `function` for standalone functions: `function formatCurrency(amount: number) { ... }`
+   - Arrow functions are acceptable for: callbacks, inline functions, and when you need to preserve `this` context
+
+Example:
+
+```typescript
+// Preferred
+export function ProductCard({ product }: Props) {
+  return <div>{product.name}</div>;
+}
+
+function calculateTotal(items: Item[]) {
+  return items.reduce((sum, item) => sum + item.price, 0);
+}
+
+// Acceptable for callbacks
+items.map((item) => item.price);
+```
 
 #### UI Components
 
@@ -116,10 +144,15 @@ class InventoryResponseSchema(BaseModel):
 5. Use proper TypeScript parameter typing
 
 Example:
+
 ```typescript
-export function useSearchProducts(query: string, catalog: string | null = null, productType: string | null = null) {
-  const params: { [key: string]: string } = { query }
-  
+export function useSearchProducts(
+  query: string,
+  catalog: string | null = null,
+  productType: string | null = null
+) {
+  const params: { [key: string]: string } = { query };
+
   if (catalog) {
     params.catalog_id = catalog;
   }
@@ -134,7 +167,7 @@ export function useSearchProducts(query: string, catalog: string | null = null, 
       params,
     },
     fetcher
-  )
+  );
 }
 ```
 
@@ -147,6 +180,7 @@ export function useSearchProducts(query: string, catalog: string | null = null, 
 5. Schema names should match their backend counterparts
 
 Example:
+
 ```typescript
 export const InventoryItemResponseSchema = z.object({
   sku: SKUWithProductResponseSchema,
@@ -159,8 +193,8 @@ export const InventoryResponseSchema = z.object({
   inventory_items: z.array(InventoryItemResponseSchema),
 });
 
-export type InventoryItemResponse = z.infer<typeof InventoryItemResponseSchema>
-export type InventoryResponse = z.infer<typeof InventoryResponseSchema>
+export type InventoryItemResponse = z.infer<typeof InventoryItemResponseSchema>;
+export type InventoryResponse = z.infer<typeof InventoryResponseSchema>;
 ```
 
 ## Schema Synchronization
@@ -267,13 +301,16 @@ aws ecs run-task \
   --launch-type FARGATE \
   --network-configuration "awsvpcConfiguration={subnets=[subnet-095f4b7e5c8eef77d,subnet-002b23ebe0247ec0c,subnet-04d6c95985fe61856],securityGroups=[sg-00ec8440724857d7d],assignPublicIp=ENABLED}" \
   --region us-east-2
-``` 
+```
 
 ### Prompts
+
 #### Implementing
+
 Let's start with the implementation. Please follow the outlined steps in {spec} very closely. Please do not make any assumptions, and ask clarifying questions when needed
 
 #### Spec + Implementation
+
 We are going to work on showing product price history to users. Please keep asking me questions to clearly define the feature and the implementation.
 
 Please write up a spec in the .tmp directory.

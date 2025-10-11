@@ -5,6 +5,7 @@ import {
   SetsResponse,
   SetPriceSummaryResponse,
   HistoricalPriceComparisonResponse,
+  ProductSearchResponse,
 } from "./types";
 import { POKEMON_CATALOG_ID } from "@/shared/constants";
 import { queryOptions } from "@tanstack/react-query";
@@ -26,7 +27,9 @@ export function getProductQuery(sku: string) {
 async function fetchProductMarketPrices(
   productId: string
 ): Promise<ProductMarketPricesResponse> {
-  const response = await fetch(`${API_URL}/market/product/${productId}/market-prices`);
+  const response = await fetch(
+    `${API_URL}/market/product/${productId}/market-prices`
+  );
   return response.json();
 }
 

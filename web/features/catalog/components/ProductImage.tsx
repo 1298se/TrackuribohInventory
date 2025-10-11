@@ -3,6 +3,8 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { ImageIcon } from "lucide-react";
+import { ProductType } from "@/features/catalog/types";
+import Image from "next/image";
 
 interface ProductImageProps extends React.HTMLAttributes<HTMLDivElement> {
   src: string;
@@ -10,6 +12,7 @@ interface ProductImageProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
   containerClassName?: string;
   fallbackClassName?: string;
+  productType?: ProductType;
 }
 
 /**
@@ -21,6 +24,7 @@ export function ProductImage({
   className,
   containerClassName,
   fallbackClassName,
+  productType,
   ...props
 }: ProductImageProps) {
   const [hasError, setHasError] = React.useState(false);
@@ -29,19 +33,30 @@ export function ProductImage({
     setHasError(true);
   };
 
+  const shouldUsePokemonBack = productType === "CARDS";
+
   return (
     <div className={cn("relative h-16 w-16", containerClassName)} {...props}>
       {!hasError ? (
+        // Needs to be dynamic bc pulling from TCGPlayer, will move to own bucket later
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
           alt={alt}
-          className={cn("h-full w-full object-contain rounded-md", className)}
+          className={cn("h-full w-full object-contain rounded-xs", className)}
           onError={handleError}
+        />
+      ) : shouldUsePokemonBack ? (
+        <Image
+          src="/assets/placeholder-pokemon-back.png"
+          alt="Pokemon card back"
+          fill
+          className={cn("object-contain rounded-xs", className)}
         />
       ) : (
         <div
           className={cn(
-            "h-full w-full flex items-center justify-center rounded-md bg-muted border",
+            "h-full w-full flex items-center justify-center rounded-xs bg-white border",
             fallbackClassName
           )}
         >
