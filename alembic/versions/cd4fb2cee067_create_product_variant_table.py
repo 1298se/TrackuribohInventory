@@ -1,7 +1,11 @@
 """create product variant table
 
 Revision ID: cd4fb2cee067
+<<<<<<< HEAD
 Revises: 87e49cd60f27
+=======
+Revises: f009ba678a41
+>>>>>>> a16413b5ea2c736c194dce6a693dd196a93863f3
 Create Date: 2025-10-11 15:43:38.493656
 
 """
@@ -14,7 +18,11 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "cd4fb2cee067"
+<<<<<<< HEAD
 down_revision: Union[str, None] = "87e49cd60f27"
+=======
+down_revision: Union[str, None] = "f009ba678a41"
+>>>>>>> a16413b5ea2c736c194dce6a693dd196a93863f3
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

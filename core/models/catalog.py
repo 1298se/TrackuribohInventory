@@ -114,6 +114,12 @@ class ProductVariant(Base):
     language_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(f"{language_tablename}.id"), nullable=False
     )
+<<<<<<< HEAD
+=======
+    ebay_product_id: Mapped[str | None] = mapped_column(
+        String, nullable=True, index=True
+    )
+>>>>>>> a16413b5ea2c736c194dce6a693dd196a93863f3
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow
     )

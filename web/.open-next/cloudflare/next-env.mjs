@@ -1,3 +1,0 @@
-export const production = {"NEXT_PUBLIC_SUPABASE_URL":"https://ukshfnbzubmugfbxbjip.supabase.co","NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrc2hmbmJ6dWJtdWdmYnhiamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5NjE3MTEsImV4cCI6MjA2ODUzNzcxMX0._L5d72ZquCmK4P5CP5RYaLT4bqFSL7ZaBqNy0cFvjSU"};
-export const development = {"NEXT_PUBLIC_SUPABASE_URL":"https://ukshfnbzubmugfbxbjip.supabase.co","NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrc2hmbmJ6dWJtdWdmYnhiamlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5NjE3MTEsImV4cCI6MjA2ODUzNzcxMX0._L5d72ZquCmK4P5CP5RYaLT4bqFSL7ZaBqNy0cFvjSU"};
-export const test = {};

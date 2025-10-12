@@ -21,6 +21,7 @@
 
 # Next.js
 **/.next/
+**/.open-next/
 /out/
 /build
 /dist
