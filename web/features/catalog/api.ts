@@ -5,12 +5,13 @@ import {
   SetsResponse,
   SetPriceSummaryResponse,
   HistoricalPriceComparisonResponse,
+  ProductVariantResponse,
 } from "./types";
 import { POKEMON_CATALOG_ID } from "@/shared/constants";
 import { queryOptions } from "@tanstack/react-query";
 
 async function fetchProduct(
-  sku: string,
+  sku: string
 ): Promise<ProductWithSetAndSKUsResponse | null> {
   const response = await fetch(`${API_URL}/catalog/product/${sku}`);
   return response.json();
@@ -24,10 +25,10 @@ export function getProductQuery(sku: string) {
 }
 
 async function fetchProductMarketPrices(
-  productId: string,
+  productId: string
 ): Promise<ProductMarketPricesResponse> {
   const response = await fetch(
-    `${API_URL}/market/product/${productId}/market-prices`,
+    `${API_URL}/market/product/${productId}/market-prices`
   );
   return response.json();
 }
@@ -68,14 +69,14 @@ async function fetchSearch({
   }
 
   const response = await fetch(
-    `${API_URL}/catalog/search?${params.toString()}`,
+    `${API_URL}/catalog/search?${params.toString()}`
   );
   const data = await response.json();
   return data;
 }
 
 interface SearchResult {
-  results: import("./types").ProductVariantResponse[];
+  results: ProductVariantResponse[];
   total?: number;
   page?: number;
   has_next?: boolean;
@@ -136,7 +137,7 @@ export function getProductTypesQuery() {
 }
 
 async function fetchSetPriceSummary(
-  setId: string,
+  setId: string
 ): Promise<SetPriceSummaryResponse> {
   const response = await fetch(`${API_URL}/market/set/${setId}/price-summary`);
   if (!response.ok) {
@@ -154,10 +155,10 @@ export function getSetPriceSummaryQuery(setId: string) {
 
 async function fetchSetPriceComparison(
   setId: string,
-  daysAgo: number = 30,
+  daysAgo: number = 30
 ): Promise<HistoricalPriceComparisonResponse> {
   const response = await fetch(
-    `${API_URL}/market/set/${setId}/price-comparison?days_ago=${daysAgo}`,
+    `${API_URL}/market/set/${setId}/price-comparison?days_ago=${daysAgo}`
   );
   if (!response.ok) {
     throw new Error("Failed to fetch set price comparison");
@@ -167,7 +168,7 @@ async function fetchSetPriceComparison(
 
 export function getSetPriceComparisonQuery(
   setId: string,
-  daysAgo: number = 30,
+  daysAgo: number = 30
 ) {
   return queryOptions<HistoricalPriceComparisonResponse>({
     queryKey: ["set-price-comparison", setId, daysAgo],

@@ -152,18 +152,18 @@ export default function SearchPage() {
         {searchResults && (
           <DisplayCardGrid
             cards={searchResults.results.map(
-              (product): DisplayCardProps => ({
-                decisionId: product.id, // Using product ID as decision ID
-                productId: product.id,
-                name: product.name,
-                number: product.number,
-                image_url: product.image_url,
+              (variant): DisplayCardProps => ({
+                decisionId: variant.id, // Using variant ID as decision ID
+                productId: variant.product.id,
+                name: variant.product.name,
+                number: variant.product.number,
+                image_url: variant.product.image_url,
                 set: {
-                  name: product.set.name,
-                  id: product.set.id,
+                  name: variant.set.name,
+                  id: variant.set.id,
                 },
-                product_type: product.product_type,
-                price: 0, // Use first SKU's price or 0
+                product_type: variant.product.product_type,
+                price: 0,
               })
             )}
           />

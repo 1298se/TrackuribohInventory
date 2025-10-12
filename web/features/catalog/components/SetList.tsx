@@ -8,7 +8,7 @@ import {
 } from "@/features/catalog/components/DisplayCardGrid";
 import { DisplayCardProps } from "@/features/catalog/components/DisplayCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProductSearchResultItem } from "@/features/catalog/types";
+import { ProductVariantResponse } from "@/features/catalog/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { assertNotNullable } from "@/lib/validation";
 import { EmptyState } from "@/shared/components/EmptyState";
@@ -74,14 +74,14 @@ export function SetList({ setId }: SetListProps) {
   assertNotNullable(setName, "Set name is required");
 
   const cardProducts = setList.results
-    .filter((p) => p.product_type === "CARDS")
+    .filter((v) => v.product.product_type === "CARDS")
     .sort((a, b) => {
-      const cardA = parseInt(a.number || "0", 10);
-      const cardB = parseInt(b.number || "0", 10);
+      const cardA = parseInt(a.product.number || "0", 10);
+      const cardB = parseInt(b.product.number || "0", 10);
       return cardB - cardA;
     });
   const sealedProducts = setList.results.filter(
-    (p) => p.product_type === "SEALED"
+    (v) => v.product.product_type === "SEALED"
   );
 
   return (
@@ -105,18 +105,18 @@ export function SetList({ setId }: SetListProps) {
   );
 }
 
-function mapToDisplayCard(product: ProductSearchResultItem): DisplayCardProps {
+function mapToDisplayCard(variant: ProductVariantResponse): DisplayCardProps {
   return {
-    decisionId: product.id,
-    productId: product.id,
-    name: product.name,
-    number: product.number,
-    image_url: product.image_url,
+    decisionId: variant.id,
+    productId: variant.product.id,
+    name: variant.product.name,
+    number: variant.product.number,
+    image_url: variant.product.image_url,
     set: {
-      name: product.set.name,
-      id: product.set.id,
+      name: variant.set.name,
+      id: variant.set.id,
     },
     price: 0,
-    product_type: product.product_type,
+    product_type: variant.product.product_type,
   };
 }
