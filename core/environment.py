@@ -45,12 +45,12 @@ class Environment(BaseSettings):
     supabase_url: str | None = None  # Required for API/auth paths
     supabase_anon_key: str | None = None  # Public anon key for auth flows
 
-    # Security configuration
-    cors_origins: list[str] = [
-        "http://localhost:3000", 
-        "https://localhost:3000",
-        "https://my-app.kaylalin888.workers.dev"
-    ]
+    @property
+    def cors_origins(self) -> list[str]:
+        """Return CORS origins based on environment"""
+        if self.env == Env.DEBUG:
+            return ["http://localhost:3000"]
+        return ["https://my-app.kaylalin888.workers.dev"]
 
     # We provide a fallback env_file so we can run the FastAPI app in Pycharm
     model_config = SettingsConfigDict(

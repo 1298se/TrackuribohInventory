@@ -6,7 +6,7 @@ RUN pip install --no-cache-dir uv
 WORKDIR /code
 
 # Copy dependency definition and lock file first to leverage Docker layer caching
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies using the lock file
 # This layer will be cached as long as the dependencies don't change
@@ -21,7 +21,9 @@ WORKDIR /code
 COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
-# Copy application code
+# Copy application code and metadata files
+COPY ./README.md /code/README.md
+COPY ./pyproject.toml /code/pyproject.toml
 COPY ./app /code/app
 COPY ./core /code/core
 
