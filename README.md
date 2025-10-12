@@ -140,16 +140,62 @@ The automated refresh job has been removed. Rotate the session cookie manually b
 
 ## Deployment
 
-The application deploys to AWS ECS using Docker containers:
+### Backend Deployment (Fly.io)
 
-```bash
-# Deploy both API and cron services
-make deploy-all
+The backend API is deployed to Fly.io:
 
-# Deploy individual services
-make deploy-api
-make deploy-cron
-```
+1. **Install Fly CLI:**
+
+   ```bash
+   curl -L https://fly.io/install.sh | sh
+   ```
+
+2. **Login to Fly.io:**
+
+   ```bash
+   fly auth login
+   ```
+
+   ```
+
+   ```
+
+3. **Deploy to Fly.io:**
+
+   ```bash
+   fly deploy
+   ```
+
+4. **Check deployment status:**
+   ```bash
+   fly status
+   fly logs
+   ```
+
+### Frontend Deployment (Cloudflare Workers)
+
+The frontend is deployed to Cloudflare Workers:
+
+1. **Install Wrangler CLI:**
+
+   ```bash
+   npm install -g wrangler
+   ```
+
+2. **Login to Cloudflare:**
+
+   ```bash
+   wrangler login
+   ```
+
+3. **Deploy to Cloudflare:**
+
+   ```bash
+   cd web
+   npm run deploy
+   # or
+   npx @opennextjs/cloudflare deploy
+   ```
 
 ## Lock File Strategy
 
