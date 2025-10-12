@@ -46,7 +46,11 @@ class Environment(BaseSettings):
     supabase_anon_key: str | None = None  # Public anon key for auth flows
 
     # Security configuration
-    cors_origins: list[str] = ["http://localhost:3000", "https://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000", 
+        "https://localhost:3000",
+        "https://my-app.kaylalin888.workers.dev"
+    ]
 
     # We provide a fallback env_file so we can run the FastAPI app in Pycharm
     model_config = SettingsConfigDict(
