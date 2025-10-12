@@ -156,10 +156,6 @@ The backend API is deployed to Fly.io:
    fly auth login
    ```
 
-   ```
-
-   ```
-
 3. **Deploy to Fly.io:**
 
    ```bash
