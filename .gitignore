@@ -69,3 +69,6 @@ terraform/.terraform/
 
 
 /venv
+
+# Cloudflare
+.dev.vars

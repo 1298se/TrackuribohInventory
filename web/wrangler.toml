@@ -5,3 +5,6 @@
   [assets]
   directory = ".open-next/assets"
   binding = "ASSETS"
+
+  [vars]
+  NEXT_PUBLIC_API_BASE_URL = "https://trackuribohinventory-fragrant-bird-5215.fly.dev"
