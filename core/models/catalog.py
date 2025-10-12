@@ -5,6 +5,7 @@ from typing import List, Any
 from sqlalchemy import ForeignKey, UniqueConstraint, DateTime, String, Computed, Index
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import relationship, mapped_column, Mapped
+from sqlalchemy.ext.associationproxy import association_proxy
 from typing_extensions import Optional
 from uuid_extensions import uuid7
 
@@ -125,6 +126,7 @@ class ProductVariant(Base):
     printing: Mapped["Printing"] = relationship()
     language: Mapped["Language"] = relationship()
     skus: Mapped[List["SKU"]] = relationship(back_populates="variant")
+    set = association_proxy("product", "set")
 
     __table_args__ = (
         # Ensure each (product, printing, language) combination is unique

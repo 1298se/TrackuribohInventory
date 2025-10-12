@@ -1,20 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
-from sqlalchemy.orm import Session, joinedload
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.routes.catalog.schemas import (
     CatalogsResponseSchema,
     ProductSearchRequestParams,
     ProductWithSetAndSKUsResponseSchema,
     ProductSearchResponseSchema,
-    ProductSearchResultSchema,
+    ProductVariantResponseSchema,
     ProductTypesResponseSchema,
 )
 from core.database import get_db_session
-from core.models.catalog import Product, SKU
+from core.models.catalog import Product, ProductVariant, SKU
 from core.models.catalog import Catalog
 from core.models.catalog import Set
-from core.models.price import SKULatestPrice, Marketplace
 from core.services.schemas.schema import ProductType
 from core.dao.catalog import build_product_search_query
 
@@ -23,7 +22,9 @@ router = APIRouter(
 )
 
 
-@router.get("/product/{product_id}", response_model=ProductWithSetAndSKUsResponseSchema | None)
+@router.get(
+    "/product/{product_id}", response_model=ProductWithSetAndSKUsResponseSchema | None
+)
 async def get_product(product_id: str, session: Session = Depends(get_db_session)):
     # Fetch product with set and SKUs (without prices)
     product = session.scalars(
@@ -76,13 +77,16 @@ def search_products(
     if limit:
         base_search_query = base_search_query.limit(limit)
 
-    # Use lightweight schema without SKUs for fast search results
-    # SKUs will be loaded on-demand when user views product detail
-    results = session.scalars(
-        base_search_query.options(*ProductSearchResultSchema.get_load_options())
-    ).all()
+    # Use variant response with SKUs
+    variants = (
+        session.execute(
+            base_search_query.options(*ProductVariantResponseSchema.get_load_options())
+        )
+        .scalars()
+        .all()
+    )
 
-    return ProductSearchResponseSchema(results=results)
+    return ProductSearchResponseSchema(results=variants)
 
 
 @router.get("/catalogs", response_model=CatalogsResponseSchema)

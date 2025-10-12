@@ -3,7 +3,7 @@ from typing import List
 from sqlalchemy import func, String, select, Sequence
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import ColumnElement
-from core.models.catalog import Product, Set, SKU
+from core.models.catalog import Product, ProductVariant, Set, SKU
 from core.services.sku_selection import ProcessingSKU
 
 
@@ -46,7 +46,9 @@ def create_ts_query(query_text: str) -> ColumnElement:
     return func.plainto_tsquery("english", " & ".join(terms))
 
 
-def build_product_search_query(query_text: str, prefix: bool = False, fuzzy: bool = True):
+def build_product_search_query(
+    query_text: str, prefix: bool = False, fuzzy: bool = True
+):
     """
     Builds a complete SQLAlchemy select for Product text search,
     including the join to Set, a filter by full-text match,
@@ -61,7 +63,11 @@ def build_product_search_query(query_text: str, prefix: bool = False, fuzzy: boo
 
     # Handle empty query - return all products without search filter
     if not query_text or not query_text.strip():
-        return select(Product).join(Product.set)
+        return (
+            select(ProductVariant)
+            .join(Product, Product.id == ProductVariant.product_id)
+            .join(Set, Set.id == Product.set_id)
+        )
 
     if prefix and query_text:
         # Prefix search: "pika" matches "pikachu"
@@ -79,14 +85,19 @@ def build_product_search_query(query_text: str, prefix: bool = False, fuzzy: boo
             ts_query = func.to_tsquery("english", terms[0] + ":*")
         else:
             # Empty after split (whitespace only)
-            return select(Product).join(Product.set)
+            return (
+                select(ProductVariant)
+                .join(Product, Product.id == ProductVariant.product_id)
+                .join(Set, Set.id == Product.set_id)
+            )
     else:
         # Strict AND search (original behavior)
         ts_query = create_ts_query(query_text)
 
     stmt = (
-        select(Product)
-        .join(Product.set)
+        select(ProductVariant)
+        .join(Product, Product.id == ProductVariant.product_id)
+        .join(Set, Set.id == Product.set_id)
         .where(vector.op("@@")(ts_query))
         .order_by(func.ts_rank(vector, ts_query).desc())
     )

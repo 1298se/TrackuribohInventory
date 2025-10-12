@@ -17,7 +17,10 @@ import { EmptyState } from "@/shared/components/EmptyState";
 import { getProductSearchQuery } from "@/features/catalog/api";
 import Link from "next/link";
 import Image from "next/image";
-import { ProductSearchResultItem } from "@/features/catalog/types";
+import {
+  ProductSearchResultItem,
+  ProductVariantResponse,
+} from "@/features/catalog/types";
 import { CommandKeyBlock } from "@/shared/components/CommandKeyBlock";
 import { useRouter } from "next/navigation";
 import { useKeyboardListener } from "@/shared/hooks/useKeyboardListener";
@@ -36,7 +39,7 @@ export function GlobalSearchInput() {
       key: "k",
       metaOrCtrl: true,
       preventDefault: true,
-    }
+    },
   );
 
   return (
@@ -80,7 +83,7 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
     (state) => ({
       isPending: state.isPending,
       executionCount: state.executionCount,
-    })
+    }),
   );
 
   const debouncedQueryKey =
@@ -106,7 +109,7 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
       setDebouncedQuery(query);
       setSelectedIndex(0);
     },
-    [query, setDebouncedQuery]
+    [query, setDebouncedQuery],
   );
 
   useEffect(
@@ -119,7 +122,7 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
         });
       }
     },
-    [selectedIndex]
+    [selectedIndex],
   );
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -138,7 +141,7 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
       results[selectedIndex]
     ) {
       e.preventDefault();
-      router.push(`/market/${results[selectedIndex].id}`);
+      router.push(`/market/${results[selectedIndex].product.id}`);
       onClose();
     }
   }
@@ -181,16 +184,16 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
 
     return (
       <>
-        {sortedResults.map((product, index) => {
+        {sortedResults.map((variant, index) => {
           return (
             <div
-              key={product.id}
+              key={variant.id}
               ref={(el) => {
                 itemRefs.current[index] = el;
               }}
             >
               <SearchResultItem
-                product={product}
+                variant={variant}
                 query={query}
                 onSelect={onClose}
                 isSelected={index === selectedIndex}
@@ -203,8 +206,8 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
   }
 
   function calculateMatchScore(
-    product: ProductSearchResultItem,
-    query: string
+    variant: ProductVariantResponse,
+    query: string,
   ): number {
     if (!query.trim()) return 0;
 
@@ -216,8 +219,8 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
 
     if (queryWords.length === 0) return 0;
 
-    const productText = `${product.name} ${product.set.name} ${
-      product.number || ""
+    const productText = `${variant.product.name} ${variant.set.name} ${
+      variant.product.number || ""
     }`.toLowerCase();
 
     // Count how many query words are found in the product text
@@ -232,9 +235,9 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
   }
 
   function sortResultsByRelevance(
-    results: ProductSearchResultItem[] | undefined,
-    query: string
-  ): ProductSearchResultItem[] {
+    results: ProductVariantResponse[] | undefined,
+    query: string,
+  ): ProductVariantResponse[] {
     if (!results) return [];
 
     return [...results].sort((a, b) => {
@@ -246,18 +249,18 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
 }
 
 function SearchResultItem({
-  product,
+  variant,
   query,
   onSelect,
   isSelected,
 }: {
-  product: ProductSearchResultItem;
+  variant: ProductVariantResponse;
   query: string;
   onSelect: () => void;
   isSelected: boolean;
 }) {
-  function getImageSrc(product: ProductSearchResultItem) {
-    return product.image_url || "/assets/placeholder-pokemon-back.png";
+  function getImageSrc(variant: ProductVariantResponse) {
+    return variant.product.image_url || "/assets/placeholder-pokemon-back.png";
   }
 
   function handleImageError(event: SyntheticEvent<HTMLImageElement>) {
@@ -268,13 +271,13 @@ function SearchResultItem({
   function handlePrefetch() {
     // TODO: We should prefetch product types when we hover over the search result
     // Doing this in development is reallyyyy slow, so will stop for now
-    // queryClient.prefetchQuery(getProductQuery(product.id));
+    // queryClient.prefetchQuery(getProductQuery(variant.product.id));
   }
 
   return (
-    <Link href={`/market/${product.id}`}>
+    <Link href={`/market/${variant.product.id}`}>
       <button
-        value={product.id}
+        value={variant.product.id}
         onClick={onSelect}
         onMouseEnter={handlePrefetch}
         className="w-full"
@@ -285,8 +288,8 @@ function SearchResultItem({
           }`}
         >
           <Image
-            src={getImageSrc(product)}
-            alt={product.name}
+            src={getImageSrc(variant)}
+            alt={variant.product.name}
             width={30}
             height={45}
             objectFit="contain"
@@ -295,11 +298,14 @@ function SearchResultItem({
           />
           <div className="flex flex-col">
             <span className="font-medium text-sm">
-              {highlightText(product.name, query)}
+              {highlightText(variant.product.name, query)}
             </span>
             <span className="text-xs text-muted-foreground">
-              {highlightText(product.set.name, query)}{" "}
-              {product.number && `#${product.number}`}
+              {highlightText(variant.set.name, query)}{" "}
+              {variant.product.number && `#${variant.product.number}`}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {variant.printing.name} · {variant.language.abbreviation}
             </span>
           </div>
         </div>
@@ -363,6 +369,6 @@ function highlightText(text: string, query: string) {
       </mark>
     ) : (
       part
-    )
+    ),
   );
 }
