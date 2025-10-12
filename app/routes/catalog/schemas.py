@@ -2,13 +2,12 @@ from typing import Optional, List, Dict
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from app.routes.utils import ORMModel
-from core.models.catalog import Product
-from core.models.catalog import SKU
+from core.models.catalog import Product, SKU, ProductVariant
 from core.services.schemas.schema import ProductType
 
 
@@ -62,6 +61,24 @@ class SKUBaseResponseSchema(ORMModel):
         ]
 
 
+class ProductVariantResponseSchema(ORMModel):
+    id: uuid.UUID
+    product: ProductBaseResponseSchema
+    set: SetBaseResponseSchema
+    printing: PrintingResponseSchema
+    language: LanguageResponseSchema
+
+    @classmethod
+    def get_load_options(cls) -> list[_AbstractLoad]:
+        return [
+            joinedload(ProductVariant.product).options(
+                joinedload(Product.set),
+            ),
+            joinedload(ProductVariant.printing),
+            joinedload(ProductVariant.language),
+        ]
+
+
 class ProductWithSetAndSKUsResponseSchema(ProductBaseResponseSchema):
     set: SetBaseResponseSchema
     skus: list[SKUBaseResponseSchema]
@@ -99,18 +116,23 @@ class SKUWithProductResponseSchema(SKUBaseResponseSchema):
 
 
 class ProductSearchResultSchema(ProductBaseResponseSchema):
-    """Lightweight schema for search results - excludes SKUs for better performance"""
+    """Deprecated: use ProductVariantResponseSchema results instead."""
+
     set: SetBaseResponseSchema
+    variants: list[ProductVariantResponseSchema]
 
     @classmethod
     def get_load_options(cls) -> list[_AbstractLoad]:
         return [
             joinedload(Product.set),
+            selectinload(Product.variants).options(
+                *ProductVariantResponseSchema.get_load_options()
+            ),
         ]
 
 
 class ProductSearchResponseSchema(BaseModel):
-    results: list[ProductSearchResultSchema]
+    results: list[ProductVariantResponseSchema]
 
 
 class CatalogResponseSchema(ORMModel):
@@ -128,7 +150,8 @@ class ProductTypesResponseSchema(BaseModel):
 
 class SetsResponseSchema(BaseModel):
     sets: list[SetBaseResponseSchema]
-    
+
+
 class TopPricedCardSchema(BaseModel):
     sku_id: uuid.UUID
     product_name: str
@@ -137,13 +160,6 @@ class TopPricedCardSchema(BaseModel):
     language: str
     price: float
 
-class HistoricalPriceComparisonSchema(BaseModel):
-    current_total_market_value: float
-    historical_total_market_value: float | None
-    growth_percentage: float | None
-    current_top_priced_card: TopPricedCardSchema | None
-    historical_top_priced_card: TopPricedCardSchema | None
-    top_card_growth_percentage: float | None
 
 class HistoricalPriceComparisonSchema(BaseModel):
     current_total_market_value: float

@@ -82,12 +82,21 @@ export interface SKUWithProductResponse extends SKUBase {
   product: ProductWithSetAndSKUsResponse;
 }
 
+export interface ProductVariantResponse {
+  id: UUID;
+  product: ProductBaseResponse;
+  set: SetBaseResponse;
+  printing: PrintingResponse;
+  language: LanguageResponse;
+  skus: SKUBase[];
+}
+
 export interface ProductSearchResultItem extends ProductBaseResponse {
   set: SetBaseResponse;
 }
 
 export interface ProductSearchResponse {
-  results: ProductSearchResultItem[];
+  results: ProductVariantResponse[];
 }
 
 /* -----------------------------------------------------

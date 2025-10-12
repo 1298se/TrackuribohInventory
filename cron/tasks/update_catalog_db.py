@@ -4,7 +4,8 @@ import uuid
 from dataclasses import dataclass
 from datetime import timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from core.database import SessionLocal, upsert
 from core.models.catalog import (
@@ -13,6 +14,7 @@ from core.models.catalog import (
     Language,
     Printing,
     Product,
+    ProductVariant,
     SKU,
     Set,
 )
@@ -163,25 +165,107 @@ async def update_set(
                     row.tcgplayer_id: row.id for row in result.all()
                 }
 
-                sku_values = [
-                    {
-                        "tcgplayer_id": sku.tcgplayer_id,
-                        "product_id": product_tcgplayer_id_to_id_mapping[
-                            sku.tcgplayer_product_id
-                        ],
-                        "printing_id": printing_tcgplayer_id_to_id_mapping[
+                sku_records = []
+                variant_keys = set()
+
+                for product in sets_response.results:
+                    product_id = product_tcgplayer_id_to_id_mapping[
+                        product.tcgplayer_id
+                    ]
+                    for sku in product.skus:
+                        printing_id = printing_tcgplayer_id_to_id_mapping[
                             sku.tcgplayer_printing_id
-                        ],
-                        "condition_id": condition_tcgplayer_id_to_id_mapping[
+                        ]
+                        condition_id = condition_tcgplayer_id_to_id_mapping[
                             sku.tcgplayer_condition_id
-                        ],
-                        "language_id": language_tcgplayer_id_to_id_mapping[
+                        ]
+                        language_id = language_tcgplayer_id_to_id_mapping[
                             sku.tcgplayer_language_id
-                        ],
-                    }
-                    for product in sets_response.results
-                    for sku in product.skus
-                ]
+                        ]
+                        sku_records.append(
+                            {
+                                "tcgplayer_id": sku.tcgplayer_id,
+                                "product_id": product_id,
+                                "printing_id": printing_id,
+                                "condition_id": condition_id,
+                                "language_id": language_id,
+                            }
+                        )
+                        variant_keys.add((product_id, printing_id, language_id))
+
+                variant_lookup = {}
+                if variant_keys:
+                    variant_key_list = list(variant_keys)
+                    existing_variants = session.execute(
+                        select(
+                            ProductVariant.product_id,
+                            ProductVariant.printing_id,
+                            ProductVariant.language_id,
+                            ProductVariant.id,
+                        ).where(
+                            tuple_(
+                                ProductVariant.product_id,
+                                ProductVariant.printing_id,
+                                ProductVariant.language_id,
+                            ).in_(variant_key_list)
+                        )
+                    ).all()
+                    for row in existing_variants:
+                        variant_lookup[
+                            (row.product_id, row.printing_id, row.language_id)
+                        ] = row.id
+
+                    missing_keys = [
+                        key for key in variant_key_list if key not in variant_lookup
+                    ]
+                    if missing_keys:
+                        variant_insert_values = [
+                            {
+                                "product_id": product_id,
+                                "printing_id": printing_id,
+                                "language_id": language_id,
+                            }
+                            for product_id, printing_id, language_id in missing_keys
+                        ]
+                        insert_stmt = pg_insert(ProductVariant).values(
+                            variant_insert_values
+                        )
+                        insert_stmt = insert_stmt.on_conflict_do_nothing(
+                            index_elements=[
+                                ProductVariant.product_id,
+                                ProductVariant.printing_id,
+                                ProductVariant.language_id,
+                            ]
+                        )
+                        inserted_variants = session.execute(
+                            insert_stmt.returning(
+                                ProductVariant.product_id,
+                                ProductVariant.printing_id,
+                                ProductVariant.language_id,
+                                ProductVariant.id,
+                            )
+                        ).all()
+                        for row in inserted_variants:
+                            variant_lookup[
+                                (row.product_id, row.printing_id, row.language_id)
+                            ] = row.id
+
+                sku_values = []
+                for record in sku_records:
+                    key = (
+                        record["product_id"],
+                        record["printing_id"],
+                        record["language_id"],
+                    )
+                    variant_id = variant_lookup.get(key)
+                    if variant_id is None:
+                        raise RuntimeError(
+                            "Missing ProductVariant for SKU ingest "
+                            f"(product_id={key[0]}, printing_id={key[1]}, language_id={key[2]})"
+                        )
+                    sku_entry = record.copy()
+                    sku_entry["variant_id"] = variant_id
+                    sku_values.append(sku_entry)
 
                 if sku_values:
                     session.execute(
