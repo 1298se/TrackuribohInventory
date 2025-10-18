@@ -58,9 +58,6 @@ class Product(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tcgplayer_id: Mapped[int] = mapped_column(unique=True)
-    ebay_product_id: Mapped[str | None] = mapped_column(
-        String, nullable=True, index=True
-    )
     # Blue-Eyes White Dragon
     name: Mapped[str] = mapped_column(index=True)
     # name but without hyphens, semicolons, etc
@@ -113,6 +110,9 @@ class ProductVariant(Base):
     )
     language_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(f"{language_tablename}.id"), nullable=False
+    )
+    ebay_product_id: Mapped[str | None] = mapped_column(
+        String, nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow
