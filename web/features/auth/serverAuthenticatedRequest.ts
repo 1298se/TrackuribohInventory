@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
 
 export async function createAuthenticatedRequest() {
   const supabase = await createClient();
@@ -32,29 +33,14 @@ export async function createAuthenticatedRequest() {
       credentials: "include",
     });
 
-    // Handle 401 responses by refreshing the session
+    // Handle 401 responses - session expired
     if (response.status === 401) {
-      const {
-        data: { session: refreshedSession },
-        error: refreshError,
-      } = await supabase.auth.refreshSession();
+      throw new Error("Session expired. Please log in again.");
+    }
 
-      if (refreshError || !refreshedSession?.access_token) {
-        throw new Error("Session expired. Please log in again.");
-      }
-
-      // Retry the request with the new token
-      const retryHeaders = {
-        ...options.headers,
-        Authorization: `Bearer ${refreshedSession.access_token}`,
-        "Content-Type": "application/json",
-      };
-
-      return fetch(url, {
-        ...options,
-        headers: retryHeaders,
-        credentials: "include",
-      });
+    // Handle 404 responses
+    if (response.status === 404) {
+      notFound();
     }
 
     return response;

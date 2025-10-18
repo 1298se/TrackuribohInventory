@@ -1,6 +1,5 @@
 "use client";
 
-import { API_URL } from "@/api/fetcher";
 import { createClient } from "@/lib/supabase/client";
 import { useCallback } from "react";
 
@@ -37,29 +36,9 @@ export function useAuthenticatedRequest() {
         credentials: "include",
       });
 
-      // Handle 401 responses by refreshing the session
+      // Handle 401 responses - session expired
       if (response.status === 401) {
-        const {
-          data: { session: refreshedSession },
-          error: refreshError,
-        } = await supabase.auth.refreshSession();
-
-        if (refreshError || !refreshedSession?.access_token) {
-          throw new Error("Session expired. Please log in again.");
-        }
-
-        // Retry the request with the new token
-        const retryHeaders = {
-          ...options.headers,
-          Authorization: `Bearer ${refreshedSession.access_token}`,
-          "Content-Type": "application/json",
-        };
-
-        return fetch(`${API_URL}${url}`, {
-          ...options,
-          headers: retryHeaders,
-          credentials: "include",
-        });
+        throw new Error("Session expired. Please log in again.");
       }
 
       return response;
