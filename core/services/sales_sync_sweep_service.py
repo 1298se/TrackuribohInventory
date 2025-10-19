@@ -29,7 +29,7 @@ from core.dao.sync_state import (
     get_sales_refresh_timestamps,
     SyncStateRow,
 )
-from core.utils.request_pacer import RequestPacer
+from core.utils.request_pacer import BurstRequestPacer
 from core.services.sku_selection import ProcessingSKU
 from core.dao.catalog import get_all_skus_by_product_ids
 from core.database import SessionLocal
@@ -257,7 +257,7 @@ async def run_sales_sync_sweep(
     total_sku_count = len(all_processing_skus)
     logger.debug(f"Fetched {total_sku_count} SKUs for {product_count} products")
 
-    request_pacer = RequestPacer()
+    request_pacer = BurstRequestPacer()
 
     # Accumulators
     successfully_synced_skus: List[uuid.UUID] = []

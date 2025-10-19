@@ -16,7 +16,7 @@ class RequestException(Exception):
         self.result = result  # attach original result for debugging
 
 
-class RequestPacer:
+class BurstRequestPacer:
     """Burst-mode request pacer with jitter and explicit cooldown handling.
 
     Provides paced bursts and adaptive cooldowns on rate limits.
@@ -200,3 +200,46 @@ class RequestPacer:
             f"Cooling down for {duration_seconds:.1f} seconds (base={base:.1f}, jitter={jitter_factor:.2f})"
         )
         await asyncio.sleep(duration_seconds)
+
+
+class ConstantRatePacer:
+    """Simple constant-rate request pacer.
+
+    Paces requests at a fixed rate with no bursting or pauses.
+    """
+
+    def __init__(self, requests_per_second: float = 1.0):
+        """Initialize the pacer.
+
+        Args:
+            requests_per_second: Target rate for requests (default: 1.0)
+        """
+        self.requests_per_second = requests_per_second
+        self.seconds_per_request = 1.0 / requests_per_second
+        self.last_request_time = 0.0
+
+    async def create_schedule(self, total_requests: int):
+        """Generate a schedule for requests at a constant rate.
+
+        Args:
+            total_requests: Total number of requests to schedule
+
+        Yields:
+            Nothing - just indicates when it's safe to make a request
+        """
+        logger.info(
+            f"Constant rate mode: {total_requests} requests at {self.requests_per_second} req/s"
+        )
+
+        for _ in range(total_requests):
+            current_time = asyncio.get_event_loop().time()
+
+            if self.last_request_time > 0:
+                elapsed = current_time - self.last_request_time
+                sleep_time = self.seconds_per_request - elapsed
+
+                if sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
+
+            self.last_request_time = asyncio.get_event_loop().time()
+            yield

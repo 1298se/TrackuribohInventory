@@ -75,8 +75,55 @@ class ItemSummarySchema(EbayResponseModel):
     epid: Optional[str] = None
 
 
+class ConditionDistributionSchema(EbayResponseModel):
+    condition: Optional[str] = None
+    condition_id: Optional[str] = None
+    match_count: Optional[int] = None
+    refinement_href: Optional[str] = None
+
+
+class AspectValueDistributionSchema(EbayResponseModel):
+    localized_aspect_value: Optional[str] = None
+    match_count: Optional[int] = None
+    refinement_href: Optional[str] = None
+
+
+class AspectDistributionSchema(EbayResponseModel):
+    localized_aspect_name: Optional[str] = None
+    aspect_value_distributions: list[AspectValueDistributionSchema] = Field(
+        default_factory=list
+    )
+
+
+class BuyingOptionDistributionSchema(EbayResponseModel):
+    buying_option: Optional[str] = None
+    match_count: Optional[int] = None
+    refinement_href: Optional[str] = None
+
+
+class CategoryDistributionSchema(EbayResponseModel):
+    category_id: Optional[str] = None
+    category_name: Optional[str] = None
+    match_count: Optional[int] = None
+    refinement_href: Optional[str] = None
+
+
+class RefinementSchema(EbayResponseModel):
+    condition_distributions: list[ConditionDistributionSchema] = Field(
+        default_factory=list
+    )
+    aspect_distributions: list[AspectDistributionSchema] = Field(default_factory=list)
+    buying_option_distributions: list[BuyingOptionDistributionSchema] = Field(
+        default_factory=list
+    )
+    category_distributions: list[CategoryDistributionSchema] = Field(
+        default_factory=list
+    )
+
+
 class BrowseSearchResponseSchema(EbayResponseModel):
     total: Optional[int] = None
     limit: Optional[int] = None
     offset: Optional[int] = None
     item_summaries: list[ItemSummarySchema] = Field(default_factory=list)
+    refinement: Optional[RefinementSchema] = None

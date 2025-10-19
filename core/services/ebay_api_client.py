@@ -3,22 +3,62 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from collections.abc import Mapping
 from typing import Any, Optional, TypedDict
 
 import aiohttp
+from aiohttp import TraceConfig, TraceRequestEndParams
 
 from core.environment import get_environment
 from core.services.schemas.ebay import BrowseSearchResponseSchema
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+
+async def _on_request_end(
+    session: aiohttp.ClientSession,
+    trace_config_ctx: Any,
+    params: TraceRequestEndParams,
+) -> None:
+    """Log HTTP responses captured during execution."""
+    trace_metadata = getattr(trace_config_ctx, "trace_request_ctx", None) or {}
+
+    payload = trace_metadata.get("payload")
+    operation = trace_metadata.get("operation")
+
+    request_info = getattr(params.response, "request_info", None)
+    method = getattr(request_info, "method", None) if request_info else None
+    url = str(getattr(request_info, "url", "")) if request_info else None
+    status = getattr(params.response, "status", None)
+
+    message_parts = []
+    if method and url:
+        message_parts.append(f"{method} {url}")
+    if status is not None:
+        message_parts.append(f"status={status}")
+    if operation:
+        message_parts.append(f"operation={operation}")
+
+    context = " | ".join(message_parts) if message_parts else None
+
+    if payload is not None:
+        logger.info(
+            "eBay API response%s: %s",
+            f" ({context})" if context else "",
+            json.dumps(payload, indent=2),
+        )
+    elif context:
+        logger.info("eBay API response (%s)", context)
 
 
 EBAY_API_BASE_URL = "https://api.ebay.com"
 EBAY_OAUTH_TOKEN_URL = f"{EBAY_API_BASE_URL}/identity/v1/oauth2/token"
 EBAY_BROWSE_SEARCH_URL = f"{EBAY_API_BASE_URL}/buy/browse/v1/item_summary/search"
+EBAY_BROWSE_ITEM_URL = f"{EBAY_API_BASE_URL}/buy/browse/v1/item"
 EBAY_DEFAULT_SCOPE = "https://api.ebay.com/oauth/api_scope"
 EBAY_US_MARKETPLACE_ID = "EBAY_US"
 
@@ -34,6 +74,33 @@ class EbayBrowseSearchRequest(TypedDict, total=False):
     sort: str
     aspect_filter: str
     epid: str
+    fieldgroups: str
+
+
+class AspectEntry(BaseModel):
+    localizedName: str | None = None
+    localizedValues: list[str] | None = None
+
+
+class AspectGroup(BaseModel):
+    localizedGroupName: str | None = None
+    aspects: list[AspectEntry] | None = None
+
+
+class ProductInfo(BaseModel):
+    title: str | None = None
+    aspectGroups: list[AspectGroup] | None = None
+
+
+class LocalizedAspect(BaseModel):
+    type: str | None = None
+    name: str | None = None
+    value: str | list[str] | None = None
+
+
+class EbayItemResponse(BaseModel):
+    product: ProductInfo | None = None
+    localizedAspects: list[LocalizedAspect] | None = None
 
 
 class EbayAPIClient:
@@ -92,13 +159,57 @@ class EbayAPIClient:
             params["sort"] = sort
         if epid := request.get("epid"):
             params["epid"] = epid
+        if fieldgroups := request.get("fieldgroups"):
+            params["fieldgroups"] = fieldgroups
+
+        trace_request_ctx: dict[str, Any] = {"operation": "browse_item_summary_search"}
 
         async with session.get(
-            EBAY_BROWSE_SEARCH_URL, params=params, headers=headers
+            EBAY_BROWSE_SEARCH_URL,
+            params=params,
+            headers=headers,
+            trace_request_ctx=trace_request_ctx,
         ) as resp:
             resp.raise_for_status()
             payload = await resp.json()
+            trace_request_ctx["payload"] = payload
             return BrowseSearchResponseSchema.model_validate(payload)
+
+    async def get_item(
+        self, item_id: str, fieldgroups: Optional[str] = None
+    ) -> EbayItemResponse:
+        """Call the Browse API to retrieve item details by item ID.
+
+        Args:
+            item_id: eBay item ID (RESTful format: v1|#|#)
+            fieldgroups: Optional fieldgroups parameter (e.g., "PRODUCT")
+
+        Returns:
+            Raw JSON response as dict
+
+        Raises:
+            aiohttp.ClientResponseError: If the API request fails
+        """
+        session = await self._get_session()
+        headers = await self._get_authorization_headers()
+
+        url = f"{EBAY_BROWSE_ITEM_URL}/{item_id}"
+        params: dict[str, str] = {}
+        if fieldgroups:
+            params["fieldgroups"] = fieldgroups
+
+        trace_request_ctx: dict[str, Any] = {"operation": "get_item"}
+
+        async with session.get(
+            url,
+            params=params,
+            headers=headers,
+            trace_request_ctx=trace_request_ctx,
+        ) as resp:
+            resp.raise_for_status()
+            raw_payload: dict[str, Any] = await resp.json()
+            trace_request_ctx["payload"] = raw_payload
+            return EbayItemResponse.model_validate(raw_payload)
 
     @staticmethod
     def _serialize_filters(filters: Mapping[str, str]) -> str:
@@ -109,11 +220,17 @@ class EbayAPIClient:
 
             parts.append(f"{key}:{raw_value}")
 
-        return " AND ".join(parts)
+        return ",".join(parts)
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(timeout=self._timeout)
+            # Set up tracing to log all HTTP requests
+            trace_config = TraceConfig()
+            trace_config.on_request_end.append(_on_request_end)
+
+            self._session = aiohttp.ClientSession(
+                timeout=self._timeout, trace_configs=[trace_config]
+            )
         return self._session
 
     async def _get_authorization_headers(self) -> dict[str, str]:

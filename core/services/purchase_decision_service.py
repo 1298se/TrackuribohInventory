@@ -18,7 +18,7 @@ from core.services.schemas.tcgplayer import TCGPlayerListingSchema
 from core.dao.sales import get_recent_sales_for_skus
 from core.dao.buy_decision import insert_buy_decisions, BuyDecisionData
 from core.models.listings import SaleRecord
-from core.utils.request_pacer import RequestPacer
+from core.utils.request_pacer import BurstRequestPacer
 from core.services.sku_selection import ProcessingSKU
 from core.services.sales_sync_sweep_service import ProductProcessingGroup
 from aiohttp import ClientResponseError
@@ -502,7 +502,7 @@ async def run_purchase_decision_sweep(
     len(processing_list)
 
     # Configure request pacer with defaults (burst-only)
-    request_pacer = RequestPacer()
+    request_pacer = BurstRequestPacer()
     logger.debug("Using default burst pacing")
 
     served_skus = set()

@@ -29,6 +29,7 @@ class SnapshotSource(enum.Enum):
 
 class Marketplace(enum.StrEnum):
     TCGPLAYER = "tcgplayer"
+    EBAY = "ebay"
 
 
 class SKULatestPrice(Base):
