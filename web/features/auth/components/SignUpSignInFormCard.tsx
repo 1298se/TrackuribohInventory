@@ -1,15 +1,15 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shadcn/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { FormRootError } from "@/components/FormFieldError";
-import { FormFieldInputContainer } from "@/components/FormFieldInputContainer";
+} from "@/shadcn/ui/card";
+import { FormRootError } from "@/shared/components/FormFieldError";
+import { FormFieldInputContainer } from "@/shared/components/FormFieldInputContainer";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useHookFormAction } from "@next-safe-action/adapter-react-hook-form/hooks";

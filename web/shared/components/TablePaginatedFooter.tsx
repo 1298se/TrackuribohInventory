@@ -8,15 +8,15 @@ import {
   ChevronsRight,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/shadcn/ui/button";
+import { Label } from "@/shadcn/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/shadcn/ui/select";
 
 interface TablePaginatedFooterProps<TData> {
   table: Table<TData>;

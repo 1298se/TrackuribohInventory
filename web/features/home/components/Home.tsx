@@ -5,7 +5,7 @@ import {
   SetName,
   SET_ERA_MAP,
 } from "@/features/catalog/constants";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/shadcn/ui/card";
 import placeholderImage from "@/public/assets/placeholder-pokemon-back.png";
 
 const SET_THUMBNAILS: {

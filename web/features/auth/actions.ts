@@ -1,6 +1,6 @@
 "use server";
 
-import { API_URL } from "@/api/fetcher";
+import { API_URL } from "@/shared/fetcher";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 

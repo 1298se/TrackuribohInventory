@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/shadcn/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shadcn/ui/tabs";
 import { MarketAnalysisTable } from "./MarketAnalysisTable";
 import { SealedVsSingleOverviewChart } from "./SealedVsSingleOverviewChart";
-import { ClientOnly } from "@/components/ui/client-only";
+import { ClientOnly } from "@/shadcn/ui/client-only";
 import { MonitorDot } from "@/shared/components/MonitorDot";
 import { MarketPlaceTopStatCardsSection } from "./MarketPlaceTopStatCardsSection";
 

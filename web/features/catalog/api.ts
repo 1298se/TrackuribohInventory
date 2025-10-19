@@ -1,4 +1,4 @@
-import { API_URL } from "@/api/fetcher";
+import { API_URL } from "@/shared/fetcher";
 import {
   ProductWithSetAndSKUsResponse,
   ProductMarketPricesResponse,

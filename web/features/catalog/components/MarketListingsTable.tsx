@@ -19,8 +19,8 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/shadcn/ui/badge";
+import { Button } from "@/shadcn/ui/button";
 import {
   Table,
   TableBody,
@@ -28,7 +28,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shadcn/ui/table";
 import { formatCurrency } from "@/shared/utils";
 import { ProductListingResponse } from "@/features/market/types";
 import {

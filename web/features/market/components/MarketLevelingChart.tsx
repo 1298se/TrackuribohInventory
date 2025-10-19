@@ -7,7 +7,7 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from "@/components/ui/chart";
+} from "@/shadcn/ui/chart";
 
 import { formatCurrency } from "@/shared/utils";
 

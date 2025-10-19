@@ -19,10 +19,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { MetricCard } from "@/components/ui/metric-card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+} from "@/shadcn/ui/card";
+import { MetricCard } from "@/shadcn/ui/metric-card";
+import { Skeleton } from "@/shadcn/ui/skeleton";
+import { Separator } from "@/shadcn/ui/separator";
 import { MarketDepthChart } from "@/features/market/components/MarketDepthChart";
 import { MarketLevelsChartCard } from "@/features/market/components/MarketLevelsChartCard";
 import Link from "next/link";

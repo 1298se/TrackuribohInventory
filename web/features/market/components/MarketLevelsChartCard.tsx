@@ -5,9 +5,9 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+} from "@/shadcn/ui/card";
+import { Skeleton } from "@/shadcn/ui/skeleton";
+import { Separator } from "@/shadcn/ui/separator";
 import { MarketLevelingChart } from "./MarketLevelingChart";
 
 export function MarketLevelsChartCard({

@@ -43,7 +43,7 @@ export function ProductImage({
         <img
           src={src}
           alt={alt}
-          className={cn("h-full w-full object-contain rounded-xs", className)}
+          className={cn("h-full w-full object-contain rounded-sm", className)}
           onError={handleError}
         />
       ) : shouldUsePokemonBack ? (
@@ -51,7 +51,7 @@ export function ProductImage({
           src="/assets/placeholder-pokemon-back.png"
           alt="Pokemon card back"
           fill
-          className={cn("object-contain rounded-xs", className)}
+          className={cn("object-contain rounded-sm", className)}
         />
       ) : (
         <div

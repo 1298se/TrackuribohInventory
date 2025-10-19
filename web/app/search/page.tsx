@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
+import { Separator } from "@/shadcn/ui/separator";
+import { Input } from "@/shadcn/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import {
   getSetsQuery,

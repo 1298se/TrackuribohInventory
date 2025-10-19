@@ -8,9 +8,9 @@ import {
   type SyntheticEvent,
   KeyboardEvent,
 } from "react";
-import { Command } from "@/components/ui/command";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Command } from "@/shadcn/ui/command";
+import { Dialog, DialogContent, DialogTitle } from "@/shadcn/ui/dialog";
+import { Button } from "@/shadcn/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useDebouncedState } from "@tanstack/react-pacer/debouncer";
 import { EmptyState } from "@/shared/components/EmptyState";

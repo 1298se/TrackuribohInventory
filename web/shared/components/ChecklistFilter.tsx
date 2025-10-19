@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shadcn/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -11,14 +11,14 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
+} from "@/shadcn/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+} from "@/shadcn/ui/popover";
+import { Checkbox } from "@/shadcn/ui/checkbox";
+import { Badge } from "@/shadcn/ui/badge";
 
 interface BaseFilterOption {
   id: string;

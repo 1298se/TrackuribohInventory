@@ -7,9 +7,9 @@ import {
   DisplayCardGridSkeleton,
 } from "@/features/catalog/components/DisplayCardGrid";
 import { DisplayCardProps } from "@/features/catalog/components/DisplayCard";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shadcn/ui/tabs";
 import { ProductVariantResponse } from "@/features/catalog/types";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/shadcn/ui/skeleton";
 import { assertNotNullable } from "@/lib/validation";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { Search } from "lucide-react";

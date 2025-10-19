@@ -1,6 +1,6 @@
 "use client";
 
-import { CardFooter } from "@/components/ui/card";
+import { CardFooter } from "@/shadcn/ui/card";
 import { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -10,8 +10,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@/shadcn/ui/card";
+import { Skeleton } from "@/shadcn/ui/skeleton";
 import { getSetPriceComparisonQuery } from "@/features/catalog/api";
 import { formatCurrency, formatPercentage } from "@/shared/utils";
 

@@ -9,8 +9,8 @@ import {
   getConditionDisplayName,
   CONDITION_TYPES,
 } from "../utils";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/shadcn/ui/tabs";
+import { Badge } from "@/shadcn/ui/badge";
 
 interface MarketListingsTableConditionsProps {
   listings: ProductListingResponse[];

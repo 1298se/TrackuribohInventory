@@ -4,7 +4,7 @@ import { SWRConfig } from "swr";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import NextTopLoader from "nextjs-toploader";
 import Providers from "@/shared/Providers";
-import { TopNav } from "@/components/top-nav";
+import { TopNav } from "@/shared/components/TopNav";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
