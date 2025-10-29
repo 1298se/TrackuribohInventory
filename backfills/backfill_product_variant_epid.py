@@ -57,7 +57,6 @@ def get_pokemon_card_variants_without_epid(session) -> list[ProductVariant]:
         .options(
             joinedload(ProductVariant.product).joinedload(Product.set),
             joinedload(ProductVariant.printing),
-            joinedload(ProductVariant.language),
         )
         .filter(
             Product.product_type == ProductType.CARDS,
@@ -124,7 +123,6 @@ async def backfill_product_variant_epid():
                 number=variant.product.number,
                 set_code=variant.product.set.code,
                 printing_name=variant.printing.name,
-                language_name=variant.language.name,
             )
 
             try:

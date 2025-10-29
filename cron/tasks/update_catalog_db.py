@@ -191,7 +191,7 @@ async def update_set(
                                 "language_id": language_id,
                             }
                         )
-                        variant_keys.add((product_id, printing_id, language_id))
+                        variant_keys.add((product_id, printing_id))
 
                 variant_lookup = {}
                 if variant_keys:
@@ -200,20 +200,16 @@ async def update_set(
                         select(
                             ProductVariant.product_id,
                             ProductVariant.printing_id,
-                            ProductVariant.language_id,
                             ProductVariant.id,
                         ).where(
                             tuple_(
                                 ProductVariant.product_id,
                                 ProductVariant.printing_id,
-                                ProductVariant.language_id,
                             ).in_(variant_key_list)
                         )
                     ).all()
                     for row in existing_variants:
-                        variant_lookup[
-                            (row.product_id, row.printing_id, row.language_id)
-                        ] = row.id
+                        variant_lookup[(row.product_id, row.printing_id)] = row.id
 
                     missing_keys = [
                         key for key in variant_key_list if key not in variant_lookup
@@ -223,9 +219,8 @@ async def update_set(
                             {
                                 "product_id": product_id,
                                 "printing_id": printing_id,
-                                "language_id": language_id,
                             }
-                            for product_id, printing_id, language_id in missing_keys
+                            for product_id, printing_id in missing_keys
                         ]
                         insert_stmt = pg_insert(ProductVariant).values(
                             variant_insert_values
@@ -234,34 +229,29 @@ async def update_set(
                             index_elements=[
                                 ProductVariant.product_id,
                                 ProductVariant.printing_id,
-                                ProductVariant.language_id,
                             ]
                         )
                         inserted_variants = session.execute(
                             insert_stmt.returning(
                                 ProductVariant.product_id,
                                 ProductVariant.printing_id,
-                                ProductVariant.language_id,
                                 ProductVariant.id,
                             )
                         ).all()
                         for row in inserted_variants:
-                            variant_lookup[
-                                (row.product_id, row.printing_id, row.language_id)
-                            ] = row.id
+                            variant_lookup[(row.product_id, row.printing_id)] = row.id
 
                 sku_values = []
                 for record in sku_records:
                     key = (
                         record["product_id"],
                         record["printing_id"],
-                        record["language_id"],
                     )
                     variant_id = variant_lookup.get(key)
                     if variant_id is None:
                         raise RuntimeError(
                             "Missing ProductVariant for SKU ingest "
-                            f"(product_id={key[0]}, printing_id={key[1]}, language_id={key[2]})"
+                            f"(product_id={key[0]}, printing_id={key[1]})"
                         )
                     sku_entry = record.copy()
                     sku_entry["variant_id"] = variant_id

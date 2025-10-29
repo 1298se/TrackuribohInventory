@@ -305,7 +305,7 @@ function SearchResultItem({
               {variant.product.number && `#${variant.product.number}`}
             </span>
             <span className="text-xs text-muted-foreground">
-              {variant.printing.name} · {variant.language.abbreviation}
+              {variant.printing.name}
             </span>
           </div>
         </div>

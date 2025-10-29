@@ -63,7 +63,6 @@ async def test_get_item_product_features() -> None:
                     .options(
                         joinedload(ProductVariant.product),
                         joinedload(ProductVariant.printing),
-                        joinedload(ProductVariant.language),
                     )
                     .filter(ProductVariant.id == uuid.UUID(variant_id))
                     .one_or_none()
@@ -74,7 +73,6 @@ async def test_get_item_product_features() -> None:
                     logger.info(f"Product: {variant.product.name}")
                     logger.info(f"Product Number: {variant.product.number}")
                     logger.info(f"Printing: {variant.printing.name}")
-                    logger.info(f"Language: {variant.language.name}")
                     logger.info("------------------------------------\n")
                 else:
                     logger.warning(f"ProductVariant {variant_id} not found in database")
@@ -94,7 +92,6 @@ async def test_get_item_product_features() -> None:
                         "product_name": variant.product.name if variant else None,
                         "product_number": variant.product.number if variant else None,
                         "printing_name": variant.printing.name if variant else None,
-                        "language_name": variant.language.name if variant else None,
                     }
                     if variant
                     else None,
@@ -140,7 +137,6 @@ async def test_get_item_product_features() -> None:
                         "product_name": variant.product.name if variant else None,
                         "product_number": variant.product.number if variant else None,
                         "printing_name": variant.printing.name if variant else None,
-                        "language_name": variant.language.name if variant else None,
                     }
                     if variant
                     else None,

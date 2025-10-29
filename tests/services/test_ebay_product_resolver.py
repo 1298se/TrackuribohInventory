@@ -77,7 +77,6 @@ async def test_epid_resolver() -> None:
                 .options(
                     joinedload(ProductVariant.product).joinedload(Product.set),
                     joinedload(ProductVariant.printing),
-                    joinedload(ProductVariant.language),
                 )
                 .filter(ProductVariant.id == uuid.UUID(variant_id))
                 .one_or_none()
@@ -89,7 +88,6 @@ async def test_epid_resolver() -> None:
                 number=variant.product.number,
                 set_code=variant.product.set.code,
                 printing_name=variant.printing.name,
-                language_name=variant.language.name,
             )
             logger.info(f"Product Input: {product_input}")
 

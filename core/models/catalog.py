@@ -95,8 +95,8 @@ class Product(Base):
 
 class ProductVariant(Base):
     """
-    Represents a specific (printing, language) combination for a product.
-    Each product can have multiple variants based on different printing and language options.
+    Represents a specific printing for a product.
+    Each product can have multiple variants based on different printing options.
     """
 
     __tablename__ = product_variant_tablename
@@ -107,9 +107,6 @@ class ProductVariant(Base):
     )
     printing_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(f"{printing_tablename}.id"), nullable=False
-    )
-    language_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey(f"{language_tablename}.id"), nullable=False
     )
     ebay_product_id: Mapped[str | None] = mapped_column(
         String, nullable=True, index=True
@@ -124,21 +121,19 @@ class ProductVariant(Base):
     # Relationships
     product: Mapped["Product"] = relationship(back_populates="variants")
     printing: Mapped["Printing"] = relationship()
-    language: Mapped["Language"] = relationship()
     skus: Mapped[List["SKU"]] = relationship(back_populates="variant")
     set = association_proxy("product", "set")
 
     __table_args__ = (
-        # Ensure each (product, printing, language) combination is unique
+        # Ensure each (product, printing) combination is unique
         UniqueConstraint(
             "product_id",
             "printing_id",
-            "language_id",
-            name="uq_product_variant_product_printing_language",
+            name="uq_product_variant_product_printing",
         ),
         # Index for efficient lookups
         Index("ix_product_variant_product_id", "product_id"),
-        Index("ix_product_variant_printing_language", "printing_id", "language_id"),
+        Index("ix_product_variant_printing_id", "printing_id"),
     )
 
 

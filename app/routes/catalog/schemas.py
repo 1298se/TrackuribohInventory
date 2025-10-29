@@ -66,7 +66,6 @@ class ProductVariantResponseSchema(ORMModel):
     product: ProductBaseResponseSchema
     set: SetBaseResponseSchema
     printing: PrintingResponseSchema
-    language: LanguageResponseSchema
 
     @classmethod
     def get_load_options(cls) -> list[_AbstractLoad]:
@@ -75,7 +74,6 @@ class ProductVariantResponseSchema(ORMModel):
                 joinedload(Product.set),
             ),
             joinedload(ProductVariant.printing),
-            joinedload(ProductVariant.language),
         ]
 
 

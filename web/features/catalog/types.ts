@@ -87,8 +87,6 @@ export interface ProductVariantResponse {
   product: ProductBaseResponse;
   set: SetBaseResponse;
   printing: PrintingResponse;
-  language: LanguageResponse;
-  skus: SKUBase[];
 }
 
 export interface ProductSearchResultItem extends ProductBaseResponse {
