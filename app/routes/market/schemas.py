@@ -1,4 +1,5 @@
-from typing import Optional, List, Annotated
+from typing import Optional, List, Annotated, Union
+from typing_extensions import Literal
 from datetime import datetime
 from pydantic import BaseModel, Field, AfterValidator
 
@@ -60,21 +61,48 @@ class MarketDataResponseSchema(BaseModel):
 class ProductListingsRequestParams(BaseModel):
     """Query parameters for product listings endpoint."""
 
-    marketplace: Marketplace = Field(
-        default=Marketplace.TCGPLAYER, description="Marketplace to fetch listings from"
+    marketplace: Optional[List[Marketplace]] = Field(
+        default=None,
+        description="Marketplaces to fetch listings from; omit or empty for all",
     )
 
 
-class ProductListingResponseSchema(BaseModel):
-    """Individual listing response."""
+class ProductListingBaseResponseSchema(BaseModel):
+    """Shared fields across all marketplace listing responses."""
 
     listing_id: str
+    marketplace: Marketplace
     sku: SKUWithProductResponseSchema
     price: MoneyAmountSchema
-    quantity: int
-    shipping_price: Optional[MoneyAmountSchema]
-    seller_name: Optional[str]
-    seller_id: Optional[str]
+    quantity: int = 1
+    shipping_price: Optional[MoneyAmountSchema] = None
+    condition: Optional[str] = None
+    seller_name: Optional[str] = None
+    seller_rating: Optional[float] = None
+    listing_url: str
+
+
+class TCGPlayerProductListingResponseSchema(ProductListingBaseResponseSchema):
+    """Listing response for TCGPlayer marketplace."""
+
+    marketplace: Literal[Marketplace.TCGPLAYER]
+    seller_id: Optional[str] = None
+
+
+class EbayProductListingResponseSchema(ProductListingBaseResponseSchema):
+    """Listing response for eBay marketplace."""
+
+    marketplace: Literal[Marketplace.EBAY]
+    image_url: Optional[str] = None
+
+
+ProductListingResponseSchema = Annotated[
+    Union[
+        TCGPlayerProductListingResponseSchema,
+        EbayProductListingResponseSchema,
+    ],
+    Field(discriminator="marketplace"),
+]
 
 
 class ProductListingsResponseSchema(BaseModel):

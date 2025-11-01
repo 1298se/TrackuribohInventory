@@ -44,3 +44,10 @@ def build_sku_name_lookup_from_skus(
     return {
         (sku.condition.name, sku.printing.name, sku.language.name): sku for sku in skus
     }
+
+
+def build_sku_variant_condition_lookup(
+    skus: Sequence[SKU],
+) -> Dict[tuple[uuid.UUID, uuid.UUID, uuid.UUID], SKU]:
+    """Build lookup of (printing_id, language_id, condition_id) -> SKU."""
+    return {(sku.printing_id, sku.language_id, sku.condition_id): sku for sku in skus}

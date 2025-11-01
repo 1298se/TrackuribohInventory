@@ -1,13 +1,12 @@
+from datetime import timedelta
+from typing import Dict, List
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
-from typing import Dict, List
-from datetime import timedelta
-import uuid
 
 from app.routes.catalog.schemas import (
-    ProductWithSetAndSKUsResponseSchema,
-    ProductSearchResponseSchema,
     SKUWithProductResponseSchema,
     TopPricedCardSchema,
     HistoricalPriceComparisonSchema,
@@ -30,7 +29,6 @@ from app.routes.market.schemas import (
 from app.routes.catalog.schemas import SKUBaseResponseSchema
 from core.database import get_db_session
 from core.models.catalog import Product, SKU
-from core.models.catalog import Catalog
 from core.models.catalog import Set
 from core.models.price import Marketplace, SKULatestPrice
 from core.models.catalog import Condition, Printing, Language
@@ -42,19 +40,24 @@ from core.services.market_data_service import (
     SkuNotFoundError,
 )
 from core.services.tcgplayer_listing_service import (
-    CardListingRequestData,
     CardSaleRequestData,
     get_tcgplayer_listing_service,
     TCGPlayerListingService,
 )
-from core.services.sku_lookup import (
-    build_sku_tcg_id_lookup_from_skus,
-    build_sku_name_lookup_from_skus,
+from core.services.ebay_listing_service import (
+    EbayListingService,
+    get_ebay_listing_service,
+)
+from core.services.sku_lookup import build_sku_name_lookup_from_skus
+from app.routes.market.service import (
+    get_tcgplayer_product_listings,
+    get_ebay_product_listings,
 )
 
 router = APIRouter(
     prefix="/market",
 )
+
 
 def _convert_service_data_to_response(
     service_data: Dict[Marketplace, List[market_data_service.SKUMarketData]],
@@ -126,6 +129,7 @@ def _convert_service_data_to_response(
 
     return MarketDataResponseSchema(market_data_items=market_data_items)
 
+
 @router.get(
     "/products/{product_id}",
     response_model=MarketDataResponseSchema,
@@ -192,56 +196,47 @@ async def get_product_listings(
     tcgplayer_listing_service: TCGPlayerListingService = Depends(
         get_tcgplayer_listing_service
     ),
+    ebay_listing_service: EbayListingService = Depends(get_ebay_listing_service),
 ):
     """
     Fetch active marketplace listings for a product.
     """
-    # Verify product exists
     product = session.get(Product, product_id)
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Get product's TCGPlayer ID directly from model
-    tcgplayer_product_id = product.tcgplayer_id
-    if tcgplayer_product_id is None:
-        return ProductListingsResponseSchema(results=[])
-
-    # Fetch listings from TCGPlayer
-    tcgplayer_request = CardListingRequestData(product_id=int(tcgplayer_product_id))
-    tcgplayer_listings = await tcgplayer_listing_service.get_product_active_listings(
-        tcgplayer_request
+    requested_marketplaces = (
+        list(dict.fromkeys(request_params.marketplace))
+        if request_params.marketplace
+        else list(Marketplace)
     )
 
-    # Get product SKUs for matching (eager-load product for nested serialization)
-    product_skus = session.scalars(
-        select(SKU)
-        .where(SKU.product_id == product_id)
-        .options(*SKUWithProductResponseSchema.get_load_options())
-    ).all()
+    combined_results: List[ProductListingResponseSchema] = []
 
-    # Create SKU lookup by TCGPlayer SKU id (productConditionId)
-    sku_by_tcg_id = build_sku_tcg_id_lookup_from_skus(product_skus)
-
-    # Transform TCGPlayer listings to normalized format
-    results = []
-    for listing in tcgplayer_listings:
-        # Find matching SKU by productConditionId
-        sku = sku_by_tcg_id.get(listing.product_condition_id)
-
-        if sku:  # Only include listings for SKUs we have in our database
-            results.append(
-                ProductListingResponseSchema(
-                    listing_id=str(listing.listing_id),
-                    sku=sku,
-                    price=listing.price,
-                    quantity=listing.quantity,
-                    shipping_price=listing.shipping_price,
-                    seller_name=listing.seller_name,
-                    seller_id=listing.seller_id,
-                )
+    if Marketplace.TCGPLAYER in requested_marketplaces:
+        combined_results.extend(
+            await get_tcgplayer_product_listings(
+                product_id=product_id,
+                session=session,
+                tcgplayer_listing_service=tcgplayer_listing_service,
             )
+        )
 
-    return ProductListingsResponseSchema(results=results)
+    if Marketplace.EBAY in requested_marketplaces:
+        combined_results.extend(
+            await get_ebay_product_listings(
+                product_id=product_id,
+                session=session,
+                ebay_listing_service=ebay_listing_service,
+            )
+        )
+
+    # Sort by total price (price + shipping, treating null shipping as 0)
+    combined_results.sort(
+        key=lambda listing: listing.price + (listing.shipping_price or 0)
+    )
+
+    return ProductListingsResponseSchema(results=combined_results)
 
 
 @router.get(
@@ -308,6 +303,7 @@ async def get_product_sales(
 
     return ProductSalesResponseSchema(results=results)
 
+
 @router.get(
     "/set/{set_id}/price-comparison",
     response_model=HistoricalPriceComparisonSchema,
@@ -324,18 +320,25 @@ def get_set_price_comparison(
     """
     from datetime import datetime, timedelta
     from core.models.price import SKUPriceDataSnapshot
-    
+
     # Verify set exists
     set_obj = session.get(Set, set_id)
     if set_obj is None:
         raise HTTPException(status_code=404, detail="Set not found")
-    
+
     # Calculate historical date
     historical_date = datetime.now() - timedelta(days=days_ago)
-    
+
     # Get current prices (latest)
     current_result = session.execute(
-        select(SKU, SKULatestPrice.lowest_listing_price_total, Product.name, Condition.name, Printing.name, Language.name)
+        select(
+            SKU,
+            SKULatestPrice.lowest_listing_price_total,
+            Product.name,
+            Condition.name,
+            Printing.name,
+            Language.name,
+        )
         .select_from(SKU)
         .join(Product, SKU.product_id == Product.id)
         .join(Set, Product.set_id == Set.id)
@@ -350,13 +353,15 @@ def get_set_price_comparison(
         .where(Set.id == set_id)
         .where(Product.product_type == ProductType.CARDS)
     ).all()
-    
+
     # Get historical prices from the closest snapshot to historical_date
     # We need to get the latest snapshot for each SKU that was taken on or before historical_date
     historical_subquery = (
         select(
             SKUPriceDataSnapshot.sku_id,
-            func.max(SKUPriceDataSnapshot.snapshot_datetime).label('latest_snapshot_date')
+            func.max(SKUPriceDataSnapshot.snapshot_datetime).label(
+                "latest_snapshot_date"
+            ),
         )
         .where(
             (SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER)
@@ -365,39 +370,53 @@ def get_set_price_comparison(
         .group_by(SKUPriceDataSnapshot.sku_id)
         .subquery()
     )
-    
+
     historical_result = session.execute(
-        select(SKU, SKUPriceDataSnapshot.lowest_listing_price_total, Product.name, Condition.name, Printing.name, Language.name)
+        select(
+            SKU,
+            SKUPriceDataSnapshot.lowest_listing_price_total,
+            Product.name,
+            Condition.name,
+            Printing.name,
+            Language.name,
+        )
         .select_from(SKU)
         .join(Product, SKU.product_id == Product.id)
         .join(Set, Product.set_id == Set.id)
         .join(Condition, SKU.condition_id == Condition.id)
         .join(Printing, SKU.printing_id == Printing.id)
         .join(Language, SKU.language_id == Language.id)
-        .join(
-            historical_subquery,
-            historical_subquery.c.sku_id == SKU.id
-        )
+        .join(historical_subquery, historical_subquery.c.sku_id == SKU.id)
         .join(
             SKUPriceDataSnapshot,
             (SKUPriceDataSnapshot.sku_id == SKU.id)
             & (SKUPriceDataSnapshot.marketplace == Marketplace.TCGPLAYER)
-            & (SKUPriceDataSnapshot.snapshot_datetime == historical_subquery.c.latest_snapshot_date)
+            & (
+                SKUPriceDataSnapshot.snapshot_datetime
+                == historical_subquery.c.latest_snapshot_date
+            ),
         )
         .where(Set.id == set_id)
         .where(Product.product_type == ProductType.CARDS)
     ).all()
-    
+
     # Calculate current totals
     current_total_market_value = 0.0
     current_top_priced_card = None
     current_highest_price = 0.0
-    
-    for sku, price, product_name, condition_name, printing_name, language_name in current_result:
+
+    for (
+        sku,
+        price,
+        product_name,
+        condition_name,
+        printing_name,
+        language_name,
+    ) in current_result:
         if price is not None:
             price_float = float(price)
             current_total_market_value += price_float
-            
+
             # Only consider Near Mint cards for top priced card
             if price_float > current_highest_price and condition_name == "Near Mint":
                 current_highest_price = price_float
@@ -409,17 +428,24 @@ def get_set_price_comparison(
                     language=language_name,
                     price=price_float,
                 )
-    
+
     # Calculate historical totals
     historical_total_market_value = 0.0
     historical_top_priced_card = None
     historical_highest_price = 0.0
-    
-    for sku, price, product_name, condition_name, printing_name, language_name in historical_result:
+
+    for (
+        sku,
+        price,
+        product_name,
+        condition_name,
+        printing_name,
+        language_name,
+    ) in historical_result:
         if price is not None:
             price_float = float(price)
             historical_total_market_value += price_float
-            
+
             # Only consider Near Mint cards for top priced card
             if price_float > historical_highest_price and condition_name == "Near Mint":
                 historical_highest_price = price_float
@@ -431,14 +457,19 @@ def get_set_price_comparison(
                     language=language_name,
                     price=price_float,
                 )
-    
+
     # Calculate growth percentages
     growth_percentage = None
     if historical_total_market_value > 0:
         growth_percentage = round(
-            ((current_total_market_value - historical_total_market_value) / historical_total_market_value) * 100, 2
+            (
+                (current_total_market_value - historical_total_market_value)
+                / historical_total_market_value
+            )
+            * 100,
+            2,
         )
-    
+
     # Calculate top card growth percentage
     # Since we're always comparing Near Mint cards, we can directly compare if they're the same SKU
     top_card_growth_percentage = None
@@ -446,12 +477,22 @@ def get_set_price_comparison(
         if historical_top_priced_card.sku_id == current_top_priced_card.sku_id:
             if historical_top_priced_card.price > 0:
                 top_card_growth_percentage = round(
-                    ((current_top_priced_card.price - historical_top_priced_card.price) / historical_top_priced_card.price) * 100, 2
+                    (
+                        (
+                            current_top_priced_card.price
+                            - historical_top_priced_card.price
+                        )
+                        / historical_top_priced_card.price
+                    )
+                    * 100,
+                    2,
                 )
-    
+
     return HistoricalPriceComparisonSchema(
         current_total_market_value=round(current_total_market_value, 2),
-        historical_total_market_value=round(historical_total_market_value, 2) if historical_total_market_value > 0 else None,
+        historical_total_market_value=round(historical_total_market_value, 2)
+        if historical_total_market_value > 0
+        else None,
         growth_percentage=growth_percentage,
         current_top_priced_card=current_top_priced_card,
         historical_top_priced_card=historical_top_priced_card,
