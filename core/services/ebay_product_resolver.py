@@ -13,20 +13,10 @@ from core.services.ebay_api_client import (
     EbayItemResponse,
 )
 from core.services.schemas.ebay import BrowseSearchResponseSchema
+from core.services.ebay_listing_service import PRINTING_TO_EBAY_ASPECT_MAPPING
 
 
 logger = logging.getLogger(__name__)
-
-# Canonical printing normalization (finish, feature) keyed by DB printing names
-_PRINTING_NORMALIZATION: dict[str, tuple[str | None, str | None]] = {
-    "1st Edition Holofoil": ("Holo", "1st Edition"),
-    "Holofoil": ("Holo", None),
-    "Reverse Holofoil": ("Reverse Holo", None),
-    "Unlimited Holofoil": ("Holo", "Unlimited|Unlimited Edition"),
-    "Normal": ("Regular", None),
-    "1st Edition": ("Regular", "1st Edition"),
-    "Unlimited": ("Regular", "Unlimited|Unlimited Edition"),
-}
 
 # Pokemon printing priority for backfill ordering (rarest to most common)
 POKEMON_PRINTING_PRIORITY: dict[str, int] = {
@@ -93,7 +83,7 @@ class EbayProductResolver:
         if not printing_name:
             return None
 
-        finish_feature = _PRINTING_NORMALIZATION.get(printing_name)
+        finish_feature = PRINTING_TO_EBAY_ASPECT_MAPPING.get(printing_name)
         if finish_feature:
             finish, _ = finish_feature
             return finish
@@ -114,7 +104,7 @@ class EbayProductResolver:
         if not printing_name:
             return None
 
-        finish_feature = _PRINTING_NORMALIZATION.get(printing_name)
+        finish_feature = PRINTING_TO_EBAY_ASPECT_MAPPING.get(printing_name)
         if finish_feature:
             _, feature = finish_feature
             return feature
@@ -255,8 +245,8 @@ class EbayProductResolver:
         if not product.printing_name:
             return None
 
-        # Look up printing in canonical map
-        finish_feature = _PRINTING_NORMALIZATION.get(product.printing_name)
+        # Look up printing in canonical map shared with listing service
+        finish_feature = PRINTING_TO_EBAY_ASPECT_MAPPING.get(product.printing_name)
         if not finish_feature:
             return None
 

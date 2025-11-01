@@ -118,7 +118,7 @@ export interface InventorySkuMarketplacesResponse {
 /* -----------------------------------------------------
  * Buy Decision Types
  * ----------------------------------------------------- */
-export type Marketplace = "tcgplayer";
+export type Marketplace = "tcgplayer" | "ebay";
 
 export type Decision = "BUY" | "PASS";
 
@@ -145,14 +145,33 @@ export interface BuyDecisionsResponse {
  * Product Listings and Sales Types
  * ----------------------------------------------------- */
 
-export interface ProductListingResponse {
+export interface ProductListingBaseResponse {
   listing_id: string;
+  marketplace: Marketplace;
   sku: SKUWithProductResponse;
   price: number;
-  shipping_price: number;
+  quantity: number;
+  shipping_price: number | null;
+  condition: string | null;
   seller_name: string | null;
-  seller_id?: string;
+  seller_rating: number | null;
+  listing_url: string;
 }
+
+export interface TCGPlayerProductListingResponse
+  extends ProductListingBaseResponse {
+  marketplace: "tcgplayer";
+  seller_id: string | null;
+}
+
+export interface EbayProductListingResponse extends ProductListingBaseResponse {
+  marketplace: "ebay";
+  image_url: string | null;
+}
+
+export type ProductListingResponse =
+  | TCGPlayerProductListingResponse
+  | EbayProductListingResponse;
 
 export interface ProductListingsResponse {
   results: ProductListingResponse[];

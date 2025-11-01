@@ -41,6 +41,7 @@ import { TablePaginatedFooter } from "@/shared/components/TablePaginatedFooter";
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 40, 50];
 
 const TABLE_HEADERS = [
+  { key: "marketplace", label: "Marketplace" },
   { key: "price", label: "Price (USD)" },
   { key: "condition", label: "Condition" },
   { key: "seller", label: "Seller" },
@@ -48,6 +49,20 @@ const TABLE_HEADERS = [
 ];
 
 const COLUMNS: ColumnDef<ProductListingResponse>[] = [
+  {
+    accessorKey: "marketplace",
+    header: "Marketplace",
+    cell: ({ row }) => {
+      const marketplace = row.original.marketplace;
+      const displayName = marketplace === "tcgplayer" ? "TCGPlayer" : "eBay";
+      return (
+        <Badge variant="outline" className="text-xs font-normal">
+          {displayName}
+        </Badge>
+      );
+    },
+    enableSorting: false,
+  },
   {
     accessorKey: "price",
     header: "Price (USD)",
@@ -57,12 +72,10 @@ const COLUMNS: ColumnDef<ProductListingResponse>[] = [
         <div className="flex flex-col">
           <div className="font-medium">{formatCurrency(listing.price)}</div>
           <div className="text-xs text-muted-foreground font-normal">
-            {listing.shipping_price
-              ? (() => {
-                  return listing.shipping_price === 0
-                    ? "Free shipping"
-                    : `+${formatCurrency(listing.shipping_price)} shipping`;
-                })()
+            {listing.shipping_price !== null
+              ? listing.shipping_price === 0
+                ? "Free shipping"
+                : `+${formatCurrency(listing.shipping_price)} shipping`
               : "Free shipping"}
           </div>
         </div>
@@ -86,7 +99,7 @@ const COLUMNS: ColumnDef<ProductListingResponse>[] = [
           >
             <div
               className={`w-2 h-2 rounded-full ${getConditionColor(
-                condition
+                condition,
               )} mr-2`}
             />
             {getConditionDisplayName(condition)}
@@ -194,7 +207,7 @@ export function MarketListingsTable({
                         <div className="flex items-center gap-2">
                           {flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
                           {header.column.getCanSort() && (
                             <span className="text-xs text-muted-foreground">
@@ -240,7 +253,7 @@ export function MarketListingsTable({
                         >
                           {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext()
+                            cell.getContext(),
                           )}
                         </TableCell>
                       );
@@ -331,11 +344,5 @@ function TableContainer({ children }: { children: React.ReactNode }) {
 }
 
 function generatePurchaseUrl(listing: ProductListingResponse): string {
-  let baseUrl = listing.sku.product.tcgplayer_url;
-  // Ensure the URL has the proper protocol
-  if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
-    baseUrl = `https://${baseUrl}`;
-  }
-  const sellerId = listing.seller_id || listing.listing_id;
-  return `${baseUrl}?seller=${sellerId}&page=1&Language=English`;
+  return listing.listing_url;
 }

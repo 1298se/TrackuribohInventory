@@ -46,14 +46,14 @@ function parseMarketData(marketDepth: MarketDataResponse | undefined) {
     new Set(
       data
         .filter((i) => i.sku.condition.abbreviation !== "NM")
-        .map((i) => i.marketplace)
-    )
+        .map((i) => i.marketplace),
+    ),
   );
 
   // For now, let's use the first marketplace (you can add marketplace selection later)
   const selectedMarketplace = marketplaces[0] || "";
   const itemsForMarketplace = data.filter(
-    (i) => i.marketplace === selectedMarketplace
+    (i) => i.marketplace === selectedMarketplace,
   );
 
   // Get SKUs for the selected marketplace
@@ -86,7 +86,7 @@ function parseMarketData(marketDepth: MarketDataResponse | undefined) {
             const delta = cumulative_count - prev;
             rawMap.set(price, (rawMap.get(price) || 0) + delta);
             prev = cumulative_count;
-          }
+          },
         );
       });
       const sorted = Array.from(rawMap.keys()).sort((a, b) => a - b);
@@ -117,7 +117,7 @@ function parseMarketData(marketDepth: MarketDataResponse | undefined) {
             const delta = cumulative_count - prev;
             rawMap.set(price, (rawMap.get(price) || 0) + delta);
             prev = cumulative_count;
-          }
+          },
         );
       });
       const sorted = Array.from(rawMap.keys()).sort((a, b) => a - b);
@@ -139,7 +139,7 @@ function parseMarketData(marketDepth: MarketDataResponse | undefined) {
     ({ price, cumulative_count }) => ({
       price,
       cumulativeCount: cumulative_count,
-    })
+    }),
   );
 
   const salesChartData = (() => {
@@ -147,7 +147,7 @@ function parseMarketData(marketDepth: MarketDataResponse | undefined) {
 
     // Find the maximum cumulative count to reverse the sales data
     const maxCount = Math.max(
-      ...salesDepthLevels.map((d) => d.cumulative_count)
+      ...salesDepthLevels.map((d) => d.cumulative_count),
     );
 
     return salesDepthLevels.map(({ price, cumulative_count }) => ({
@@ -165,15 +165,15 @@ function parseMarketData(marketDepth: MarketDataResponse | undefined) {
     if (isAggregated) {
       const totalListings = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_listings,
-        0
+        0,
       );
       const totalQuantity = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_quantity,
-        0
+        0,
       );
       const totalSales = itemsForMarketplace.reduce(
         (s, i) => s + i.market_data.total_sales,
-        0
+        0,
       );
 
       // Calculate true sales velocity: total sales / lookback days
@@ -203,10 +203,10 @@ function parseMarketData(marketDepth: MarketDataResponse | undefined) {
 
 async function fetchMarketData(
   sku: string,
-  salesLookbackDays: number = 7
+  salesLookbackDays: number = 7,
 ): Promise<MarketDataResponse> {
   const response = await fetch(
-    `${API_URL}/market/products/${sku}?sales_lookback_days=${salesLookbackDays}`
+    `${API_URL}/market/products/${sku}?sales_lookback_days=${salesLookbackDays}`,
   );
   return response.json();
 }
@@ -230,10 +230,10 @@ export function getMarketDepthQuery({
 }
 
 async function fetchProductListings(
-  productId: string
+  productId: string,
 ): Promise<ProductListingsResponse> {
   const response = await fetch(
-    `${API_URL}/market/product/${productId}/listings`
+    `${API_URL}/market/product/${productId}/listings`,
   );
   return response.json();
 }
@@ -247,7 +247,10 @@ export function getProductListingsQuery(productId: string) {
       results: data.results.map((listing) => ({
         ...listing,
         price: Number(listing.price) || 0,
-        shipping_price: Number(listing.shipping_price) || 0,
+        shipping_price:
+          listing.shipping_price !== null
+            ? Number(listing.shipping_price)
+            : null,
       })),
     }),
   });
