@@ -174,6 +174,28 @@ class SKUPricingResponseSchema(BaseModel):
     results: List[SKUPricingSchema]
 
 
+class ProductMarketPriceResultSchema(BaseModel):
+    """Schema for a single product variant's market price from TCGPlayer."""
+
+    product_id: int = Field(alias="productId")
+    low_price: Optional[float] = Field(alias="lowPrice")
+    mid_price: Optional[float] = Field(alias="midPrice")
+    high_price: Optional[float] = Field(alias="highPrice")
+    market_price: Optional[float] = Field(alias="marketPrice")
+    direct_low_price: Optional[float] = Field(alias="directLowPrice")
+    sub_type_name: str = Field(alias="subTypeName", comment="The product's Printing")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ProductMarketPriceResponseSchema(BaseModel):
+    """Response schema for TCGPlayer product market prices endpoint."""
+
+    success: bool
+    errors: List[str]
+    results: List[ProductMarketPriceResultSchema]
+
+
 class ProductType(StrEnum):
     CARDS = "CARDS"
     SEALED = "SEALED"

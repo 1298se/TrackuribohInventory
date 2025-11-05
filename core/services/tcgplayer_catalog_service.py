@@ -16,6 +16,7 @@ from core.services.schemas.schema import (
     CatalogSetResponseSchema,
     ProductResponseSchema,
     SKUPricingResponseSchema,
+    ProductMarketPriceResponseSchema,
     RefreshTokenRequestSchema,
     TCGPlayerProductType,
 )
@@ -192,6 +193,30 @@ class TCGPlayerCatalogService:
         async with self.session.get(url, headers=headers) as response:
             response.raise_for_status()
             return SKUPricingResponseSchema.model_validate(await response.json())
+
+    async def get_product_market_prices(
+        self, product_id: int
+    ) -> ProductMarketPriceResponseSchema:
+        """
+        Fetch market prices for all variants of a TCGPlayer product.
+
+        Args:
+            product_id: TCGPlayer product ID
+
+        Returns:
+            ProductMarketPriceResponseSchema with prices for each variant (subTypeName)
+        """
+        if self.session is None or self.session.closed:
+            await self.init()
+
+        url = f"{TCGPLAYER_PRICING_URL}/product/{product_id}"
+        headers = await self.get_authorization_headers()
+
+        async with self.session.get(url, headers=headers) as response:
+            response.raise_for_status()
+            return ProductMarketPriceResponseSchema.model_validate(
+                await response.json()
+            )
 
     async def _check_and_refresh_access_token(self) -> bool:
         if access_token_expired(self.access_token_expiry):

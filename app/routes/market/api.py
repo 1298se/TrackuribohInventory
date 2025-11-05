@@ -44,6 +44,10 @@ from core.services.tcgplayer_listing_service import (
     get_tcgplayer_listing_service,
     TCGPlayerListingService,
 )
+from core.services.tcgplayer_catalog_service import (
+    TCGPlayerCatalogService,
+    get_tcgplayer_catalog_service,
+)
 from core.services.ebay_listing_service import (
     EbayListingService,
     get_ebay_listing_service,
@@ -504,15 +508,18 @@ def get_set_price_comparison(
     response_model=ProductVariantPriceSummaryResponseSchema,
     summary="Get Near Mint market prices for a product variant across all marketplaces",
 )
-def get_product_variant_price_summary(
+async def get_product_variant_price_summary(
     product_variant_id: uuid.UUID,
     session: Session = Depends(get_db_session),
+    tcgplayer_catalog_service: TCGPlayerCatalogService = Depends(
+        get_tcgplayer_catalog_service
+    ),
 ):
     """
     Fetch the Near Mint price for a product variant from all available marketplaces.
 
-    Returns prices from TCGPlayer, eBay, and any other configured marketplaces.
-    Returns an empty list if no Near Mint SKU exists for this variant.
+    Uses TCGPlayer's market price API for TCGPlayer pricing (more accurate than lowest listing).
+    Uses cached prices from SKULatestPrice for eBay.
 
     Args:
         product_variant_id: The UUID of the product variant
@@ -520,7 +527,53 @@ def get_product_variant_price_summary(
     Returns:
         ProductVariantPriceSummaryResponseSchema with prices per marketplace
     """
-    # Step 1: Find the Near Mint SKU for this variant
+    # Step 1: Query the variant with product and printing relationships
+    from sqlalchemy.orm import joinedload
+
+    variant = session.scalars(
+        select(ProductVariant)
+        .where(ProductVariant.id == product_variant_id)
+        .options(
+            joinedload(ProductVariant.product), joinedload(ProductVariant.printing)
+        )
+    ).first()
+
+    if not variant:
+        return ProductVariantPriceSummaryResponseSchema(prices=[])
+
+    prices: List[MarketplacePriceSchema] = []
+
+    # Step 2: Fetch TCGPlayer market price from their API
+    if variant.product.tcgplayer_id:
+        try:
+            market_price_response = (
+                await tcgplayer_catalog_service.get_product_market_prices(
+                    variant.product.tcgplayer_id
+                )
+            )
+
+            if market_price_response.success:
+                # Find the matching variant by subTypeName
+                printing_name = variant.printing.name if variant.printing else None
+                if printing_name:
+                    for result in market_price_response.results:
+                        if result.sub_type_name == printing_name:
+                            prices.append(
+                                MarketplacePriceSchema(
+                                    marketplace=Marketplace.TCGPLAYER,
+                                    market_price=result.market_price,
+                                )
+                            )
+                            break
+        except Exception as e:
+            # Log error but continue to fetch eBay price
+            import logging
+
+            logging.warning(
+                f"Failed to fetch TCGPlayer market price for variant {product_variant_id}: {e}"
+            )
+
+    # Step 3: Fetch eBay price from SKULatestPrice (fallback to cached data)
     near_mint_sku_id = session.scalars(
         select(SKU.id)
         .join(Condition)
@@ -528,24 +581,20 @@ def get_product_variant_price_summary(
         .where(Condition.abbreviation == "NM")
     ).first()
 
-    # If no Near Mint SKU exists, return empty list
-    if not near_mint_sku_id:
-        return ProductVariantPriceSummaryResponseSchema(prices=[])
+    if near_mint_sku_id:
+        ebay_price = session.scalars(
+            select(SKULatestPrice.lowest_listing_price_total).where(
+                SKULatestPrice.sku_id == near_mint_sku_id,
+                SKULatestPrice.marketplace == Marketplace.EBAY,
+            )
+        ).first()
 
-    # Step 2: Get prices from ALL marketplaces for that SKU
-    result = session.execute(
-        select(
-            SKULatestPrice.marketplace, SKULatestPrice.lowest_listing_price_total
-        ).where(SKULatestPrice.sku_id == near_mint_sku_id)
-    ).all()
-
-    # Step 3: Build response with prices from each marketplace
-    prices = [
-        MarketplacePriceSchema(
-            marketplace=marketplace,
-            market_price=float(price) if price is not None else None,
-        )
-        for marketplace, price in result
-    ]
+        if ebay_price is not None:
+            prices.append(
+                MarketplacePriceSchema(
+                    marketplace=Marketplace.EBAY,
+                    market_price=float(ebay_price),
+                )
+            )
 
     return ProductVariantPriceSummaryResponseSchema(prices=prices)
