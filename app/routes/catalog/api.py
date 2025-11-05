@@ -5,13 +5,12 @@ from sqlalchemy.orm import Session
 from app.routes.catalog.schemas import (
     CatalogsResponseSchema,
     ProductSearchRequestParams,
-    ProductWithSetAndSKUsResponseSchema,
     ProductSearchResponseSchema,
     ProductVariantResponseSchema,
     ProductTypesResponseSchema,
 )
 from core.database import get_db_session
-from core.models.catalog import Product, ProductVariant, SKU
+from core.models.catalog import Product, ProductVariant
 from core.models.catalog import Catalog
 from core.models.catalog import Set
 from core.services.schemas.schema import ProductType
@@ -23,20 +22,22 @@ router = APIRouter(
 
 
 @router.get(
-    "/product/{product_id}", response_model=ProductWithSetAndSKUsResponseSchema | None
+    "/product-variant/{product_variant_id}",
+    response_model=ProductVariantResponseSchema | None,
 )
-async def get_product(product_id: str, session: Session = Depends(get_db_session)):
-    # Fetch product with set and SKUs (without prices)
-    product = session.scalars(
-        select(Product)
-        .where(Product.id == product_id)
-        .options(*ProductWithSetAndSKUsResponseSchema.get_load_options())
+async def get_product_variant(
+    product_variant_id: str, session: Session = Depends(get_db_session)
+):
+    variant = session.scalars(
+        select(ProductVariant)
+        .where(ProductVariant.id == product_variant_id)
+        .options(*ProductVariantResponseSchema.get_load_options())
     ).first()
 
-    if not product:
+    if not variant:
         return None
 
-    return product
+    return variant
 
 
 @router.get("/search", response_model=ProductSearchResponseSchema)

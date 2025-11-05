@@ -502,7 +502,7 @@ class EbayListingService(BaseMarketplaceListingService):
         )
 
     async def get_product_active_listings(
-        self, request: EbayListingRequestData, bypass_cache: bool = False
+        self, request: EbayListingRequestData
     ) -> List[MarketplaceListing]:
         """Fetch all active listings for an EPID with condition enrichment.
 
@@ -511,7 +511,6 @@ class EbayListingService(BaseMarketplaceListingService):
 
         Args:
             request: Request data with epid and optional condition filter
-            bypass_cache: If True, skip Redis cache and fetch fresh data from API
 
         Returns:
             List of unified marketplace listings with enriched conditions
@@ -532,18 +531,60 @@ class EbayListingService(BaseMarketplaceListingService):
             ]
         )
 
-        # Try cache if no filters and cache bypass not requested
-        if not has_filters and not bypass_cache:
-            cache_key = self._get_cache_key("marketplace_listings", epid)
-            cached_listings = await self._get_from_cache(
-                cache_key, EbayMarketplaceListing
+        if has_filters:
+            tagged_items = await self._enrich_with_conditions(
+                epid,
+                condition_filter,
+                language,
+                card_number,
+                printing,
             )
-            if cached_listings:
-                logger.debug("Cache hit for listings epid=%s", epid)
-                return cached_listings
+            marketplace_listings = [
+                self._adapt_to_marketplace_listing(item, condition)
+                for item, condition in tagged_items
+            ]
+            return marketplace_listings
+
+        cache_key = self._get_cache_key("marketplace_listings", epid)
+        cached_listings = await self._get_from_cache(cache_key, EbayMarketplaceListing)
+        if cached_listings:
+            logger.debug("Cache hit for listings epid=%s", epid)
+            return cached_listings
+
+        async with self._cache_fetch_lock(cache_key) as have_lock:
+            if have_lock:
+                cached_listings = await self._get_from_cache(
+                    cache_key, EbayMarketplaceListing
+                )
+                if cached_listings:
+                    logger.debug(
+                        "Cache filled while acquiring lock for listings epid=%s", epid
+                    )
+                    return cached_listings
+
+                tagged_items = await self._enrich_with_conditions(
+                    epid,
+                    condition_filter,
+                    language,
+                    card_number,
+                    printing,
+                )
+                marketplace_listings = [
+                    self._adapt_to_marketplace_listing(item, condition)
+                    for item, condition in tagged_items
+                ]
+                if marketplace_listings:
+                    await self._set_cache(cache_key, marketplace_listings)
+                return marketplace_listings
+
+        cached_listings = await self._wait_for_cache_population(
+            cache_key, EbayMarketplaceListing
+        )
+        if cached_listings is not None:
+            logger.debug("Cache populated during wait for listings epid=%s", epid)
+            return cached_listings
 
         logger.debug("Cache miss for listings epid=%s, fetching from API", epid)
-
         tagged_items = await self._enrich_with_conditions(
             epid,
             condition_filter,
@@ -551,18 +592,12 @@ class EbayListingService(BaseMarketplaceListingService):
             card_number,
             printing,
         )
-
-        # Convert to unified marketplace listings
         marketplace_listings = [
             self._adapt_to_marketplace_listing(item, condition)
             for item, condition in tagged_items
         ]
-
-        # Cache if no filters and results exist
-        if not has_filters and marketplace_listings:
-            cache_key = self._get_cache_key("marketplace_listings", epid)
+        if marketplace_listings:
             await self._set_cache(cache_key, marketplace_listings)
-
         return marketplace_listings
 
     async def _fetch_listings_from_api(

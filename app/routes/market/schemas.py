@@ -148,3 +148,17 @@ class ProductMarketPricesResponseSchema(BaseModel):
     """Response wrapper for product market prices."""
 
     prices: List[SKUMarketPriceSchema]
+
+
+# Schema for Product Variant Price Summary endpoint
+class MarketplacePriceSchema(BaseModel):
+    """Price for a specific marketplace."""
+
+    marketplace: Marketplace
+    market_price: Optional[float]
+
+
+class ProductVariantPriceSummaryResponseSchema(BaseModel):
+    """Price summary for a product variant across all marketplaces."""
+
+    prices: List[MarketplacePriceSchema]

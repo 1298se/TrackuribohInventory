@@ -161,9 +161,7 @@ async def test_browse_get_item(epid: str) -> None:
 
         # First, get listings to find an item_id
         logger.info("Fetching listings to get an item_id...")
-        listings = await service.get_product_active_listings(
-            {"epid": epid}, bypass_cache=True
-        )
+        listings = await service.get_product_active_listings({"epid": epid})
 
         if not listings:
             logger.error("No listings found for EPID: %s", epid)

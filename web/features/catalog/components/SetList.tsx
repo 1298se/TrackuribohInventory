@@ -81,7 +81,7 @@ export function SetList({ setId }: SetListProps) {
       return cardB - cardA;
     });
   const sealedProducts = setList.results.filter(
-    (v) => v.product.product_type === "SEALED"
+    (v) => v.product.product_type === "SEALED",
   );
 
   return (
@@ -108,7 +108,7 @@ export function SetList({ setId }: SetListProps) {
 function mapToDisplayCard(variant: ProductVariantResponse): DisplayCardProps {
   return {
     decisionId: variant.id,
-    productId: variant.product.id,
+    productVariantId: variant.id,
     name: variant.product.name,
     number: variant.product.number,
     image_url: variant.product.image_url,

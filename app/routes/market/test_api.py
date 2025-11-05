@@ -1,9 +1,11 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.services.test_ebay_listing_service import TEST_ITEMS
 
 
 PRISMATIC_EVOLUTIONS_BB_PRODUCT_ID = "067859c3-a6e2-77f2-8000-271ddf8762d3"
+MEGA_GARDEVOIR_EX_VARIANT_ID = TEST_ITEMS["MEGA_GARDEVOIR_EX_178_132"]["variant_id"]
 
 
 def test_get_product_market_data():
@@ -28,11 +30,11 @@ def test_get_product_market_data_with_params():
         )
 
 
-def test_get_product_listings():
+def test_get_product_variant_listings():
     with TestClient(app) as client:
         response = client.get(
-            url=f"/market/product/{PRISMATIC_EVOLUTIONS_BB_PRODUCT_ID}/listings",
-            params={"marketplace": "tcgplayer"},
+            url=f"/market/product-variants/{MEGA_GARDEVOIR_EX_VARIANT_ID}/listings",
+            params={"marketplace": "ebay"},
         )
         assert response.status_code in [200, 404], response.json()
         data = response.json()

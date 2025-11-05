@@ -44,6 +44,7 @@ export interface SetBaseResponse {
 
 export interface SKUBase {
   id: UUID;
+  variant_id: UUID;
   condition: ConditionResponse;
   printing: PrintingResponse;
   language: LanguageResponse;
@@ -115,6 +116,7 @@ export interface SetsResponse {
 
 export interface TopPricedCard {
   sku_id: UUID;
+  product_variant_id?: UUID | null;
   product_name: string;
   condition: string;
   printing: string;
@@ -134,4 +136,13 @@ export interface HistoricalPriceComparisonResponse {
   current_top_priced_card: TopPricedCard | null;
   historical_top_priced_card: TopPricedCard | null;
   top_card_growth_percentage: number | null;
+}
+
+export interface MarketplacePrice {
+  marketplace: "tcgplayer" | "ebay";
+  market_price: number | null;
+}
+
+export interface ProductVariantPriceSummaryResponse {
+  prices: MarketplacePrice[];
 }

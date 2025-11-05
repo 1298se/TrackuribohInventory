@@ -23,12 +23,12 @@ from app.routes.market.schemas import (
     ProductSalesRequestParams,
     ProductSaleResponseSchema,
     ProductSalesResponseSchema,
-    SKUMarketPriceSchema,
-    ProductMarketPricesResponseSchema,
+    MarketplacePriceSchema,
+    ProductVariantPriceSummaryResponseSchema,
 )
 from app.routes.catalog.schemas import SKUBaseResponseSchema
 from core.database import get_db_session
-from core.models.catalog import Product, SKU
+from core.models.catalog import Product, ProductVariant, SKU
 from core.models.catalog import Set
 from core.models.price import Marketplace, SKULatestPrice
 from core.models.catalog import Condition, Printing, Language
@@ -50,8 +50,8 @@ from core.services.ebay_listing_service import (
 )
 from core.services.sku_lookup import build_sku_name_lookup_from_skus
 from app.routes.market.service import (
-    get_tcgplayer_product_listings,
-    get_ebay_product_listings,
+    get_tcgplayer_product_variant_listings,
+    get_ebay_product_variant_listings,
 )
 
 router = APIRouter(
@@ -131,26 +131,26 @@ def _convert_service_data_to_response(
 
 
 @router.get(
-    "/products/{product_id}",
+    "/product-variants/{product_variant_id}/market-data",
     response_model=MarketDataResponseSchema,
-    summary="Get market data for all Near Mint/Unopened SKUs of a Product",
+    summary="Get market data for Near Mint/Unopened SKUs of a product variant",
 )
-async def get_product_data(
-    product_id: uuid.UUID,
+async def get_product_variant_market_data(
+    product_variant_id: uuid.UUID,
     sales_lookback_days: int = 30,
     session: Session = Depends(get_db_session),
     market_data_service: MarketDataService = Depends(get_market_data_service),
 ):
     """
-    Return market data for each **Near Mint or Unopened** SKU
-    associated with the product.
-    Includes aggregated metrics like total listings, total quantity,
-    sales velocity, and estimated days of inventory.
+    Return cumulative depth data, summary stats, and historical sales for all Near Mint / Unopened SKUs
+    for a specific product variant (specific printing like "Holofoil").
+
+    This endpoint provides market depth charts, listing/sales velocity, and inventory metrics
+    scoped to a single variant rather than the entire product.
     """
-    # Call the refactored service function from the new service module
-    service_data = await market_data_service.get_market_data_for_product(
+    service_data = await market_data_service.get_market_data_for_product_variant(
         session=session,
-        product_id=product_id,
+        product_variant_id=product_variant_id,
         sales_lookback_days=sales_lookback_days,
     )
 
@@ -185,12 +185,12 @@ async def get_sku_data(
 
 
 @router.get(
-    "/product/{product_id}/listings",
+    "/product-variants/{product_variant_id}/listings",
     response_model=ProductListingsResponseSchema,
-    summary="Get marketplace listings for a product",
+    summary="Get marketplace listings for a product variant",
 )
-async def get_product_listings(
-    product_id: uuid.UUID,
+async def get_product_variant_listings(
+    product_variant_id: uuid.UUID,
     request_params: ProductListingsRequestParams = Depends(),
     session: Session = Depends(get_db_session),
     tcgplayer_listing_service: TCGPlayerListingService = Depends(
@@ -199,11 +199,11 @@ async def get_product_listings(
     ebay_listing_service: EbayListingService = Depends(get_ebay_listing_service),
 ):
     """
-    Fetch active marketplace listings for a product.
+    Fetch active marketplace listings for a specific product variant.
     """
-    product = session.get(Product, product_id)
-    if product is None:
-        raise HTTPException(status_code=404, detail="Product not found")
+    product_variant = session.get(ProductVariant, product_variant_id)
+    if product_variant is None:
+        raise HTTPException(status_code=404, detail="Product variant not found")
 
     requested_marketplaces = (
         list(dict.fromkeys(request_params.marketplace))
@@ -215,8 +215,8 @@ async def get_product_listings(
 
     if Marketplace.TCGPLAYER in requested_marketplaces:
         combined_results.extend(
-            await get_tcgplayer_product_listings(
-                product_id=product_id,
+            await get_tcgplayer_product_variant_listings(
+                product_variant_id=product_variant_id,
                 session=session,
                 tcgplayer_listing_service=tcgplayer_listing_service,
             )
@@ -224,14 +224,13 @@ async def get_product_listings(
 
     if Marketplace.EBAY in requested_marketplaces:
         combined_results.extend(
-            await get_ebay_product_listings(
-                product_id=product_id,
+            await get_ebay_product_variant_listings(
+                product_variant_id=product_variant_id,
                 session=session,
                 ebay_listing_service=ebay_listing_service,
             )
         )
 
-    # Sort by total price (price + shipping, treating null shipping as 0)
     combined_results.sort(
         key=lambda listing: listing.price + (listing.shipping_price or 0)
     )
@@ -501,36 +500,52 @@ def get_set_price_comparison(
 
 
 @router.get(
-    "/product/{product_id}/market-prices",
-    response_model=ProductMarketPricesResponseSchema,
-    summary="Get market prices for all SKUs of a product",
+    "/product-variant/{product_variant_id}/price-summary",
+    response_model=ProductVariantPriceSummaryResponseSchema,
+    summary="Get Near Mint market prices for a product variant across all marketplaces",
 )
-def get_product_market_prices(
-    product_id: uuid.UUID,
+def get_product_variant_price_summary(
+    product_variant_id: uuid.UUID,
     session: Session = Depends(get_db_session),
 ):
     """
-    Fetch the lowest listing price for each SKU of a product.
+    Fetch the Near Mint price for a product variant from all available marketplaces.
+
+    Returns prices from TCGPlayer, eBay, and any other configured marketplaces.
+    Returns an empty list if no Near Mint SKU exists for this variant.
+
+    Args:
+        product_variant_id: The UUID of the product variant
+
+    Returns:
+        ProductVariantPriceSummaryResponseSchema with prices per marketplace
     """
-    # Query to get SKU IDs and their prices
+    # Step 1: Find the Near Mint SKU for this variant
+    near_mint_sku_id = session.scalars(
+        select(SKU.id)
+        .join(Condition)
+        .where(SKU.variant_id == product_variant_id)
+        .where(Condition.abbreviation == "NM")
+    ).first()
+
+    # If no Near Mint SKU exists, return empty list
+    if not near_mint_sku_id:
+        return ProductVariantPriceSummaryResponseSchema(prices=[])
+
+    # Step 2: Get prices from ALL marketplaces for that SKU
     result = session.execute(
-        select(SKU.id, SKULatestPrice.lowest_listing_price_total)
-        .select_from(SKU)
-        .outerjoin(
-            SKULatestPrice,
-            (SKULatestPrice.sku_id == SKU.id)
-            & (SKULatestPrice.marketplace == Marketplace.TCGPLAYER),
-        )
-        .where(SKU.product_id == product_id)
+        select(
+            SKULatestPrice.marketplace, SKULatestPrice.lowest_listing_price_total
+        ).where(SKULatestPrice.sku_id == near_mint_sku_id)
     ).all()
 
-    # Build response
+    # Step 3: Build response with prices from each marketplace
     prices = [
-        SKUMarketPriceSchema(
-            sku_id=str(sku_id),
-            lowest_listing_price_total=float(price) if price is not None else None,
+        MarketplacePriceSchema(
+            marketplace=marketplace,
+            market_price=float(price) if price is not None else None,
         )
-        for sku_id, price in result
+        for marketplace, price in result
     ]
 
-    return ProductMarketPricesResponseSchema(prices=prices)
+    return ProductVariantPriceSummaryResponseSchema(prices=prices)

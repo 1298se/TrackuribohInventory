@@ -48,6 +48,7 @@ class SetBaseResponseSchema(ORMModel):
 
 class SKUBaseResponseSchema(ORMModel):
     id: uuid.UUID
+    variant_id: uuid.UUID
     condition: ConditionResponseSchema
     printing: PrintingResponseSchema
     language: LanguageResponseSchema

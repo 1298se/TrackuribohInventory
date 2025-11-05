@@ -68,24 +68,46 @@ class TCGPlayerListingService(BaseMarketplaceListingService[TCGPlayerListingSche
             or request.get("languages")
         )
 
-        if not has_filters:
-            cache_key = self._get_cache_key("listings", product_id)
-            cached_listings = await self._get_from_cache(
-                cache_key, TCGPlayerListingSchema
-            )
-            if cached_listings:
-                logger.debug("Cache hit for listings product_id=%d", product_id)
-                return cached_listings
+        if has_filters:
+            return await self._fetch_product_active_listings_from_api(request)
 
-        logger.debug(
-            "Cache miss for listings product_id=%d, fetching from API", product_id
+        cache_key = self._get_cache_key("listings", product_id)
+        cached_listings = await self._get_from_cache(cache_key, TCGPlayerListingSchema)
+        if cached_listings:
+            logger.debug("Cache hit for listings product_id=%d", product_id)
+            return cached_listings
+
+        async with self._cache_fetch_lock(cache_key) as have_lock:
+            if have_lock:
+                cached_listings = await self._get_from_cache(
+                    cache_key, TCGPlayerListingSchema
+                )
+                if cached_listings:
+                    logger.debug(
+                        "Cache filled while acquiring lock for listings product_id=%d",
+                        product_id,
+                    )
+                    return cached_listings
+
+                listings = await self._fetch_product_active_listings_from_api(request)
+                if listings:
+                    await self._set_cache(cache_key, listings)
+                return listings
+
+        # No lock acquired (another request is fetching); wait briefly for cache
+        cached_listings = await self._wait_for_cache_population(
+            cache_key, TCGPlayerListingSchema
         )
+        if cached_listings is not None:
+            logger.debug(
+                "Cache populated during wait for listings product_id=%d", product_id
+            )
+            return cached_listings
+
+        # Fallback: fetch to ensure we return data even if cache population failed
         listings = await self._fetch_product_active_listings_from_api(request)
-
-        if not has_filters and listings:
-            cache_key = self._get_cache_key("listings", product_id)
+        if listings:
             await self._set_cache(cache_key, listings)
-
         return listings
 
     async def _fetch_product_active_listings_from_api(
@@ -137,22 +159,44 @@ class TCGPlayerListingService(BaseMarketplaceListingService[TCGPlayerListingSche
             or request.get("languages")
         )
 
-        if not has_filters:
-            cache_key = self._get_cache_key("sales", product_id)
-            cached_sales = await self._get_from_cache(cache_key, TCGPlayerSaleSchema)
-            if cached_sales:
-                logger.debug("Cache hit for sales product_id=%d", product_id)
-                return cached_sales
+        if has_filters:
+            return await self._fetch_sales_from_api(request, time_delta)
 
-        logger.debug(
-            "Cache miss for sales product_id=%d, fetching from API", product_id
+        cache_key = self._get_cache_key("sales", product_id)
+        cached_sales = await self._get_from_cache(cache_key, TCGPlayerSaleSchema)
+        if cached_sales:
+            logger.debug("Cache hit for sales product_id=%d", product_id)
+            return cached_sales
+
+        async with self._cache_fetch_lock(cache_key) as have_lock:
+            if have_lock:
+                cached_sales = await self._get_from_cache(
+                    cache_key, TCGPlayerSaleSchema
+                )
+                if cached_sales:
+                    logger.debug(
+                        "Cache filled while acquiring lock for sales product_id=%d",
+                        product_id,
+                    )
+                    return cached_sales
+
+                sales = await self._fetch_sales_from_api(request, time_delta)
+                if sales:
+                    await self._set_cache(cache_key, sales)
+                return sales
+
+        cached_sales = await self._wait_for_cache_population(
+            cache_key, TCGPlayerSaleSchema
         )
+        if cached_sales is not None:
+            logger.debug(
+                "Cache populated during wait for sales product_id=%d", product_id
+            )
+            return cached_sales
+
         sales = await self._fetch_sales_from_api(request, time_delta)
-
-        if not has_filters and sales:
-            cache_key = self._get_cache_key("sales", product_id)
+        if sales:
             await self._set_cache(cache_key, sales)
-
         return sales
 
     async def _fetch_sales_from_api(

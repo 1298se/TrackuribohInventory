@@ -6,37 +6,40 @@ import {
   SetPriceSummaryResponse,
   HistoricalPriceComparisonResponse,
   ProductVariantResponse,
+  ProductVariantPriceSummaryResponse,
 } from "./types";
 import { POKEMON_CATALOG_ID } from "@/shared/constants";
 import { queryOptions } from "@tanstack/react-query";
 
-async function fetchProduct(
-  sku: string
-): Promise<ProductWithSetAndSKUsResponse | null> {
-  const response = await fetch(`${API_URL}/catalog/product/${sku}`);
-  return response.json();
-}
-
-export function getProductQuery(sku: string) {
-  return queryOptions<ProductWithSetAndSKUsResponse | null>({
-    queryKey: ["product", sku],
-    queryFn: () => fetchProduct(sku),
-  });
-}
-
-async function fetchProductMarketPrices(
-  productId: string
-): Promise<ProductMarketPricesResponse> {
+async function fetchProductVariant(
+  productVariantId: string,
+): Promise<ProductVariantResponse | null> {
   const response = await fetch(
-    `${API_URL}/market/product/${productId}/market-prices`
+    `${API_URL}/catalog/product-variant/${productVariantId}`,
   );
   return response.json();
 }
 
-export function getProductMarketPricesQuery(productId: string) {
-  return queryOptions<ProductMarketPricesResponse>({
-    queryKey: ["product-market-prices", productId],
-    queryFn: () => fetchProductMarketPrices(productId),
+export function getProductVariantQuery(productVariantId: string) {
+  return queryOptions<ProductVariantResponse | null>({
+    queryKey: ["product-variant", productVariantId],
+    queryFn: () => fetchProductVariant(productVariantId),
+  });
+}
+
+async function fetchProductVariantPriceSummary(
+  productVariantId: string,
+): Promise<ProductVariantPriceSummaryResponse> {
+  const response = await fetch(
+    `${API_URL}/market/product-variant/${productVariantId}/price-summary`,
+  );
+  return response.json();
+}
+
+export function getProductVariantPriceSummaryQuery(productVariantId: string) {
+  return queryOptions<ProductVariantPriceSummaryResponse>({
+    queryKey: ["product-variant-price-summary", productVariantId],
+    queryFn: () => fetchProductVariantPriceSummary(productVariantId),
   });
 }
 
@@ -69,7 +72,7 @@ async function fetchSearch({
   }
 
   const response = await fetch(
-    `${API_URL}/catalog/search?${params.toString()}`
+    `${API_URL}/catalog/search?${params.toString()}`,
   );
   const data = await response.json();
   return data;
@@ -137,7 +140,7 @@ export function getProductTypesQuery() {
 }
 
 async function fetchSetPriceSummary(
-  setId: string
+  setId: string,
 ): Promise<SetPriceSummaryResponse> {
   const response = await fetch(`${API_URL}/market/set/${setId}/price-summary`);
   if (!response.ok) {
@@ -155,10 +158,10 @@ export function getSetPriceSummaryQuery(setId: string) {
 
 async function fetchSetPriceComparison(
   setId: string,
-  daysAgo: number = 30
+  daysAgo: number = 30,
 ): Promise<HistoricalPriceComparisonResponse> {
   const response = await fetch(
-    `${API_URL}/market/set/${setId}/price-comparison?days_ago=${daysAgo}`
+    `${API_URL}/market/set/${setId}/price-comparison?days_ago=${daysAgo}`,
   );
   if (!response.ok) {
     throw new Error("Failed to fetch set price comparison");
@@ -168,7 +171,7 @@ async function fetchSetPriceComparison(
 
 export function getSetPriceComparisonQuery(
   setId: string,
-  daysAgo: number = 30
+  daysAgo: number = 30,
 ) {
   return queryOptions<HistoricalPriceComparisonResponse>({
     queryKey: ["set-price-comparison", setId, daysAgo],

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import uuid
 
 from app.routes.catalog.schemas import SKUWithProductResponseSchema
@@ -8,7 +7,7 @@ from app.routes.market.schemas import (
     TCGPlayerProductListingResponseSchema,
     EbayProductListingResponseSchema,
 )
-from core.models.catalog import Product, SKU, ProductVariant
+from core.models.catalog import SKU, ProductVariant
 from core.models.price import Marketplace
 from core.services.ebay_listing_service import (
     EbayListingService,
@@ -17,40 +16,46 @@ from core.services.ebay_listing_service import (
 from core.services.schemas.marketplace import ListingLanguage, Printing
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload, joinedload
-from core.services.sku_lookup import (
-    build_sku_tcg_id_lookup_from_skus,
-    build_sku_variant_condition_lookup,
-)
+from core.services.sku_lookup import build_sku_tcg_id_lookup_from_skus
 from core.services.tcgplayer_listing_service import (
     CardListingRequestData,
     TCGPlayerListingService,
 )
 
 
-async def get_tcgplayer_product_listings(
-    product_id: uuid.UUID,
+async def get_tcgplayer_product_variant_listings(
+    product_variant_id: uuid.UUID,
     session: Session,
     tcgplayer_listing_service: TCGPlayerListingService,
 ) -> list[TCGPlayerProductListingResponseSchema]:
-    """Fetch and map TCGPlayer listings to API response DTOs."""
+    """Fetch and map TCGPlayer listings for a specific product variant."""
 
-    product = session.get(Product, product_id)
+    product_variant = session.get(ProductVariant, product_variant_id)
+    if product_variant is None:
+        return []
+
+    product = product_variant.product
     if product is None or product.tcgplayer_id is None:
         return []
 
-    product_skus = session.scalars(
+    variant_skus = session.scalars(
         select(SKU)
-        .where(SKU.product_id == product_id)
+        .where(SKU.variant_id == product_variant_id)
         .options(*SKUWithProductResponseSchema.get_load_options())
     ).all()
 
-    if not product_skus:
+    if not variant_skus:
         return []
 
-    request = CardListingRequestData(product_id=int(product.tcgplayer_id))
+    request: CardListingRequestData = {
+        "product_id": int(product.tcgplayer_id),
+    }
+    if product_variant.printing and product_variant.printing.name:
+        request["printings"] = [product_variant.printing.name]
+
     listings = await tcgplayer_listing_service.get_product_active_listings(request)
 
-    sku_by_tcg_id = build_sku_tcg_id_lookup_from_skus(product_skus)
+    sku_by_tcg_id = build_sku_tcg_id_lookup_from_skus(variant_skus)
 
     results: list[TCGPlayerProductListingResponseSchema] = []
     for listing in listings:
@@ -62,7 +67,6 @@ async def get_tcgplayer_product_listings(
         if sku is None:
             continue
 
-        # Generate TCGPlayer listing URL
         tcgplayer_url = sku.product.tcgplayer_url
         if not tcgplayer_url.startswith("http://") and not tcgplayer_url.startswith(
             "https://"
@@ -91,20 +95,24 @@ async def get_tcgplayer_product_listings(
     return results
 
 
-async def get_ebay_product_listings(
-    product_id: uuid.UUID,
+async def get_ebay_product_variant_listings(
+    product_variant_id: uuid.UUID,
     session: Session,
     ebay_listing_service: EbayListingService,
 ) -> list[EbayProductListingResponseSchema]:
-    """Fetch eBay listings for the product and map them to API response DTOs."""
+    """Fetch eBay listings for the product variant and map them to API response DTOs."""
 
-    product = session.get(Product, product_id)
+    product_variant = session.get(ProductVariant, product_variant_id)
+    if product_variant is None:
+        return []
+
+    product = product_variant.product
     if product is None:
         return []
 
     product_skus = session.scalars(
         select(SKU)
-        .where(SKU.product_id == product_id)
+        .where(SKU.variant_id == product_variant_id)
         .options(
             *SKUWithProductResponseSchema.get_load_options(),
             joinedload(SKU.language),
@@ -117,91 +125,68 @@ async def get_ebay_product_listings(
     if not product_skus:
         return []
 
-    variant_epids: dict[tuple[uuid.UUID, uuid.UUID], dict[str, str | None]] = {}
-    condition_name_to_id: dict[str, uuid.UUID] = {}
-
-    for sku in product_skus:
-        condition_name_to_id.setdefault(sku.condition.name, sku.condition_id)
-        variant = sku.variant
-        if variant and variant.ebay_product_id:
-            variant_epids.setdefault(
-                (variant.printing_id, sku.language_id),
-                {
-                    "epid": variant.ebay_product_id,
-                    "printing": variant.printing.name,
-                    "language": sku.language.name,
-                },
-            )
-
-    if not variant_epids:
+    variant = product_variant
+    if not variant.ebay_product_id:
         return []
 
-    fetch_tasks = {}
-    for key, metadata in variant_epids.items():
-        epid = metadata["epid"]
-        printing_name = metadata.get("printing")
-        language_name = metadata.get("language")
+    english_skus = [
+        sku
+        for sku in product_skus
+        if sku.language and sku.language.name == ListingLanguage.ENGLISH.value
+    ]
+    if not english_skus:
+        return []
 
-        language_enum = ListingLanguage(language_name or ListingLanguage.ENGLISH.value)
-        printing_enum: Printing | None = (
-            Printing(printing_name) if printing_name else None
-        )
+    condition_name_to_sku = {sku.condition.name: sku for sku in english_skus}
 
-        request_data = EbayListingRequestData(
-            epid=epid,
-            language=language_enum,
-            printing=printing_enum,
-            card_number=product.number,
-        )
+    printing_enum: Printing | None = None
+    if variant.printing and variant.printing.name:
+        try:
+            printing_enum = Printing(variant.printing.name)
+        except ValueError:
+            printing_enum = None
 
-        fetch_tasks[key] = asyncio.create_task(
-            ebay_listing_service.get_product_active_listings(request_data)
-        )
+    request_data: EbayListingRequestData = {
+        "epid": variant.ebay_product_id,
+        "language": ListingLanguage.ENGLISH,
+        "card_number": product.number,
+    }
+    if printing_enum:
+        request_data["printing"] = printing_enum
 
-    variant_items = list(fetch_tasks.items())
-    fetch_results = await asyncio.gather(*[task for _, task in variant_items])
+    marketplace_listings = await ebay_listing_service.get_product_active_listings(
+        request_data
+    )
 
-    sku_lookup = build_sku_variant_condition_lookup(product_skus)
     results: list[EbayProductListingResponseSchema] = []
 
-    for (variant_key, _), marketplace_listings in zip(variant_items, fetch_results):
-        printing_id, language_id = variant_key
+    for listing in marketplace_listings:
+        condition_name = (
+            listing.condition.value if listing.condition else "Not Specified"
+        )
+        if condition_name == "Not Specified":
+            continue
 
-        for listing in marketplace_listings:
-            condition_name = (
-                listing.condition.value if listing.condition else "Not Specified"
+        sku = condition_name_to_sku.get(condition_name)
+        if sku is None:
+            continue
+
+        ebay_listing_url = listing.listing_url or ""
+
+        results.append(
+            EbayProductListingResponseSchema(
+                listing_id=listing.listing_id,
+                marketplace=Marketplace.EBAY,
+                sku=SKUWithProductResponseSchema.model_validate(sku),
+                price=listing.price,
+                quantity=listing.quantity or 1,
+                shipping_price=listing.shipping_price,
+                condition=condition_name,
+                seller_name=listing.seller_name,
+                seller_rating=listing.seller_rating,
+                image_url=listing.image_url,
+                listing_url=ebay_listing_url,
             )
-
-            if condition_name == "Not Specified":
-                # TODO: record metric for ambiguous listings
-                continue
-
-            condition_id = condition_name_to_id.get(condition_name)
-            if not condition_id:
-                # Unknown condition for this product; skip but log in metrics
-                continue
-
-            sku = sku_lookup.get((printing_id, language_id, condition_id))
-            if sku is None:
-                continue
-
-            # Ensure listing_url is available, fallback to empty string if not
-            ebay_listing_url = listing.listing_url or ""
-
-            results.append(
-                EbayProductListingResponseSchema(
-                    listing_id=listing.listing_id,
-                    marketplace=Marketplace.EBAY,
-                    sku=SKUWithProductResponseSchema.model_validate(sku),
-                    price=listing.price,
-                    quantity=listing.quantity or 1,
-                    shipping_price=listing.shipping_price,
-                    condition=condition_name,
-                    seller_name=listing.seller_name,
-                    seller_rating=listing.seller_rating,
-                    image_url=listing.image_url,
-                    listing_url=ebay_listing_url,
-                )
-            )
+        )
 
     return results

@@ -18,7 +18,7 @@ export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSets, setSelectedSets] = useState<string[]>([]);
   const [selectedProductTypes, setSelectedProductTypes] = useState<string[]>(
-    []
+    [],
   );
 
   const {
@@ -153,8 +153,8 @@ export default function SearchPage() {
           <DisplayCardGrid
             cards={searchResults.results.map(
               (variant): DisplayCardProps => ({
-                decisionId: variant.id, // Using variant ID as decision ID
-                productId: variant.product.id,
+                decisionId: variant.id,
+                productVariantId: variant.id,
                 name: variant.product.name,
                 number: variant.product.number,
                 image_url: variant.product.image_url,
@@ -164,7 +164,7 @@ export default function SearchPage() {
                 },
                 product_type: variant.product.product_type,
                 price: 0,
-              })
+              }),
             )}
           />
         )}

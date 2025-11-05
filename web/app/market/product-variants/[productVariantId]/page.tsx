@@ -1,18 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { getLargeTCGPlayerImage } from "@/features/market/utils";
-import {
-  getMarketDepthQuery,
-  getProductListingsQuery,
-} from "@/features/market/api";
-import {
-  getProductQuery,
-  getProductMarketPricesQuery,
-} from "@/features/catalog/api";
-import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -23,14 +14,20 @@ import {
 import { MetricCard } from "@/shadcn/ui/metric-card";
 import { Skeleton } from "@/shadcn/ui/skeleton";
 import { Separator } from "@/shadcn/ui/separator";
+import { Loader2, PackageX } from "lucide-react";
+
+import { getLargeTCGPlayerImage } from "@/features/market/utils";
+import {
+  getProductVariantMarketDepthQuery,
+  getProductVariantListingsQuery,
+} from "@/features/market/api";
+import {
+  getProductVariantQuery,
+  getProductVariantPriceSummaryQuery,
+} from "@/features/catalog/api";
 import { MarketDepthChart } from "@/features/market/components/MarketDepthChart";
 import { MarketLevelsChartCard } from "@/features/market/components/MarketLevelsChartCard";
-import Link from "next/link";
-import { findFirstNearMintSku, formatCurrency } from "@/shared/utils";
-import { assertNotNullable, assert } from "@/lib/validation";
-import { Loader2 } from "lucide-react";
 import { ProductImage } from "@/features/catalog/components/ProductImage";
-import { MonitorDot } from "@/shared/components/MonitorDot";
 import {
   MarketListingsTable,
   MarketListingsTableLoading,
@@ -40,51 +37,55 @@ import {
   type ConditionFilter,
   isValidCondition,
 } from "@/features/catalog/utils";
+import { MonitorDot } from "@/shared/components/MonitorDot";
 import { EmptyState } from "@/shared/components/EmptyState";
-import { PackageX } from "lucide-react";
+import { formatCurrency } from "@/shared/utils";
+import { assert, assertNotNullable } from "@/lib/validation";
 
-export default function ProductSKUDetailsPage() {
-  const { sku } = useParams();
+export default function ProductVariantDetailsPage() {
+  const { productVariantId } = useParams();
 
-  assert(typeof sku === "string", "Invalid SKU");
-
-  const { data: product, isLoading: isProductLoading } = useQuery(
-    getProductQuery(sku)
+  assert(
+    typeof productVariantId === "string",
+    "Invalid product variant identifier",
   );
 
-  const { data: marketPrices, isLoading: isMarketPricesLoading } = useQuery({
-    ...getProductMarketPricesQuery(sku),
-    enabled: !!product,
+  const { data: productVariant, isLoading: isProductVariantLoading } = useQuery(
+    getProductVariantQuery(productVariantId),
+  );
+
+  const { data: priceSummary, isLoading: isPriceSummaryLoading } = useQuery({
+    ...getProductVariantPriceSummaryQuery(productVariantId),
+    enabled: !!productVariant,
   });
 
-  // Create a map of sku_id to price
-  const priceMap = useMemo(() => {
-    if (!marketPrices) return new Map<string, number | null>();
-    return new Map(
-      marketPrices.prices.map((p) => [p.sku_id, p.lowest_listing_price_total])
-    );
-  }, [marketPrices]);
-
-  const nearMintSku =
-    product && product.skus?.length > 0
-      ? findFirstNearMintSku(product.skus)
-      : null;
-
-  const nearMintSkuPrice = nearMintSku ? priceMap.get(nearMintSku.id) : null;
-
-  const { data: parsedMarketDepth } = useQuery(
-    getMarketDepthQuery({ sku, salesLookbackDays: 7 })
+  const { data: parsedMarketDepth, isLoading: isMarketDepthLoading } = useQuery(
+    {
+      ...getProductVariantMarketDepthQuery({
+        productVariantId: productVariantId,
+        salesLookbackDays: 7,
+      }),
+      enabled: !!productVariant,
+    },
   );
 
-  const isProductNotFound = !isProductLoading && !product;
+  const effectiveProduct = productVariant?.product ?? null;
+  const effectiveSet = productVariant?.set ?? null;
+  const isLoading = isProductVariantLoading || isPriceSummaryLoading;
 
-  if (isProductNotFound) {
+  const tcgPlayerPrice =
+    priceSummary?.prices.find((p) => p.marketplace === "tcgplayer")
+      ?.market_price ?? null;
+
+  const isVariantNotFound = !isProductVariantLoading && !productVariant;
+
+  if (isVariantNotFound) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-62px)]">
         <EmptyState
           icon={PackageX}
-          title="Product not found"
-          description="The product you're looking for doesn't exist or has been removed."
+          title="Product variant not found"
+          description="The variant you're looking for doesn't exist or has been removed."
         />
       </div>
     );
@@ -92,29 +93,27 @@ export default function ProductSKUDetailsPage() {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
-      {/* Desktop: Sidebar + Main content */}
       <div className="md:flex w-full">
-        {/* Persistent Sidebar */}
         <div className="md:w-80 md:flex-shrink-0 p-6 md:border-r md:bg-background/50 md:sticky md:top-[62px] md:h-[calc(100vh-62px)] md:overflow-y-auto ">
           <div className="space-y-6">
             <ProductTitleInsightsCard
-              productName={product?.name}
-              productSetName={product?.set?.name}
-              productSetID={product?.set?.id}
-              imageUrl={product?.image_url}
-              isLoading={isProductLoading}
+              productName={effectiveProduct?.name}
+              productSetName={effectiveSet?.name}
+              productSetID={effectiveSet?.id}
+              imageUrl={effectiveProduct?.image_url}
+              isLoading={isLoading}
+              variantPrinting={productVariant?.printing.name}
             />
 
             <TCGMarketPlacePriceCard
               totalQuantity={parsedMarketDepth?.metrics?.total_quantity ?? null}
-              lowestListingPriceTotal={nearMintSkuPrice ?? null}
-              productURL={product?.tcgplayer_url ?? null}
-              isLoading={isMarketPricesLoading}
+              lowestListingPriceTotal={tcgPlayerPrice}
+              productURL={effectiveProduct?.tcgplayer_url ?? null}
+              isLoading={isLoading}
             />
           </div>
         </div>
 
-        {/* Main Content Area */}
         <div className="flex-1 p-6 space-y-6">
           <div className="flex flex-row gap-4 items-center">
             {parsedMarketDepth ? (
@@ -132,14 +131,14 @@ export default function ProductSKUDetailsPage() {
             />
             <MarketLevelsChartCard
               listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
-              currentPrice={nearMintSkuPrice ?? undefined}
+              currentPrice={tcgPlayerPrice ?? undefined}
               isLoading={!parsedMarketDepth}
             />
           </div>
 
           <Separator className="my-8" />
 
-          {product?.id && <ListingsCard productId={product.id} />}
+          <ListingsCard productVariantId={productVariantId} />
         </div>
       </div>
     </div>
@@ -152,8 +151,8 @@ function ProductImageDisplay({
   isLoading,
   ratio = 1,
 }: {
-  imageUrl?: string;
-  name?: string;
+  imageUrl?: string | null;
+  name?: string | null;
   isLoading?: boolean;
   ratio?: number;
 }) {
@@ -192,11 +191,13 @@ function ProductTitle({
   productName,
   productSetName,
   productSetID,
+  variantPrinting,
   isLoading,
 }: {
   productName: string | undefined;
   productSetName: string | undefined;
   productSetID: string | undefined;
+  variantPrinting?: string;
   isLoading: boolean;
 }) {
   if (isLoading) {
@@ -215,13 +216,20 @@ function ProductTitle({
   return (
     <div>
       <CardTitle className="text-xl font-bold">{productName}</CardTitle>
-      <Link
-        target="_blank"
-        href={`/market/set/${productSetID}`}
-        className="underline text-muted-foreground text-xs"
-      >
-        {productSetName}
-      </Link>
+      <div className="flex items-center gap-2">
+        <Link
+          target="_blank"
+          href={`/market/set/${productSetID}`}
+          className="underline text-muted-foreground text-xs"
+        >
+          {productSetName}
+        </Link>
+        {variantPrinting && (
+          <span className="text-muted-foreground text-xs">
+            {variantPrinting}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -230,14 +238,16 @@ function ProductTitleInsightsCard({
   productName,
   productSetName,
   productSetID,
+  variantPrinting,
   isLoading,
   imageUrl,
 }: {
   productName: string | undefined;
   productSetName: string | undefined;
   productSetID: string | undefined;
+  variantPrinting?: string;
   isLoading: boolean;
-  imageUrl: string | undefined;
+  imageUrl: string | undefined | null;
 }) {
   if (isLoading) {
     return (
@@ -262,6 +272,7 @@ function ProductTitleInsightsCard({
           productName={productName}
           productSetName={productSetName}
           productSetID={productSetID}
+          variantPrinting={variantPrinting}
           isLoading={isLoading}
         />
       </CardHeader>
@@ -292,7 +303,7 @@ function TCGMarketPlacePriceCard({
     <MetricCard
       title={
         <div className="flex gap-1">
-          {productURL === "string" ? (
+          {productURL ? (
             <Link
               href={productURL}
               target="_blank"
@@ -317,29 +328,28 @@ function TCGMarketPlacePriceCard({
         isLoading ? (
           <Skeleton className="h-4 w-32" />
         ) : (
-          `From ${totalQuantity} units in the market`
+          `From ${totalQuantity ?? 0} units in the market`
         )
       }
     />
   );
 }
 
-function ListingsCard({ productId }: { productId?: string }) {
+function ListingsCard({ productVariantId }: { productVariantId: string }) {
   const [selectedCondition, setSelectedCondition] =
     useState<ConditionFilter>(null);
 
   const { data: listingsData, isLoading } = useQuery(
-    getProductListingsQuery(productId!)
+    getProductVariantListingsQuery(productVariantId),
   );
 
   const allListings = listingsData?.results || [];
 
-  // Filter listings by condition if one is selected
   const filteredListings = selectedCondition
     ? allListings.filter(
         (listing) =>
           isValidCondition(listing.sku.condition.name) &&
-          listing.sku.condition.name === selectedCondition
+          listing.sku.condition.name === selectedCondition,
       )
     : allListings;
 

@@ -383,6 +383,93 @@ class MarketDataService:
 
         return {Marketplace.TCGPLAYER: results}
 
+    async def get_market_data_for_product_variant(
+        self,
+        session: Session,
+        product_variant_id: uuid.UUID,
+        sales_lookback_days: int = 30,
+    ) -> Dict[Marketplace, List[SKUMarketData]]:
+        """
+        Fetches market data for each SKU of a product variant (specific printing).
+
+        Similar to get_market_data_for_product but scoped to a single variant.
+        Returns market depth data for only one printing variant (e.g., Holofoil only).
+
+        Args:
+            session: Database session
+            product_variant_id: UUID of the product variant
+            sales_lookback_days: Number of days to look back for sales data
+
+        Returns:
+            Dictionary mapping Marketplace to list of SKUMarketData
+        """
+        skus = session.scalars(
+            select(SKU)
+            .options(
+                load_only(
+                    SKU.id,
+                    SKU.product_id,
+                    SKU.printing_id,
+                    SKU.condition_id,
+                    SKU.language_id,
+                ),
+                joinedload(SKU.product).load_only(Product.tcgplayer_id),
+                joinedload(SKU.printing).load_only(Printing.name),
+                joinedload(SKU.condition).load_only(Condition.name),
+                joinedload(SKU.language).load_only(Language.name),
+            )
+            .where(SKU.variant_id == product_variant_id)
+            .order_by(SKU.id)
+        ).all()
+
+        if not skus:
+            logger.info(f"No SKUs found for product variant: {product_variant_id}")
+            return {}
+
+        tcgplayer_id = skus[0].product.tcgplayer_id
+
+        listing_request_data = CardListingRequestData(
+            product_id=tcgplayer_id,
+        )
+        sales_request_data = CardSaleRequestData(
+            product_id=tcgplayer_id,
+        )
+
+        # Fetch listings and sales concurrently - fail fast if either fails
+        all_listings, all_sales_records = await self._fetch_listings_and_sales(
+            listing_request_data, sales_request_data, sales_lookback_days
+        )
+
+        results: List[SKUMarketData] = []
+        for sku in skus:
+            sku_listings = [
+                listing
+                for listing in all_listings
+                if (
+                    listing.printing == sku.printing.name
+                    and listing.condition == sku.condition.name
+                )
+            ]
+            sku_sales_records = [
+                sale
+                for sale in all_sales_records
+                if (
+                    sale.variant == sku.printing.name
+                    and sale.condition == sku.condition.name
+                    and sale.language == sku.language.name
+                )
+            ]
+            item = _build_sku_item(
+                sku,
+                sku_listings,
+                sku_sales_records,
+                marketplace="TCGPlayer",
+                sales_lookback_days=sales_lookback_days,
+            )
+            results.append(item)
+
+        return {Marketplace.TCGPLAYER: results}
+
 
 def get_market_data_service(
     tcgplayer_listing_service: TCGPlayerListingService = Depends(

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import uuid
 from abc import ABC, abstractmethod
-from typing import List, Optional, TypeVar, Generic
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, List, Optional, TypeVar, Generic
 
 import redis.asyncio as redis
 from pydantic import BaseModel
@@ -20,6 +23,10 @@ To invalidate cache when DTOs change:
 2. Deploy the change - old cache keys become unreachable
 3. Optionally call invalidate_cache_version("v1") to clean up old keys
 """
+
+LOCK_TTL_SECONDS = 5
+LOCK_WAIT_INTERVAL_SECONDS = 0.1
+LOCK_MAX_WAIT_SECONDS = 5
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -62,6 +69,66 @@ class BaseMarketplaceListingService(ABC, Generic[T]):
             )
         except Exception as e:
             logger.warning("Cache storage error for key %s: %s", cache_key, e)
+
+    async def _wait_for_cache_population(
+        self,
+        cache_key: str,
+        data_class: type[T],
+        timeout: float = LOCK_MAX_WAIT_SECONDS,
+    ) -> Optional[List[T]]:
+        """Poll Redis until data appears or timeout expires."""
+        elapsed = 0.0
+        while elapsed < timeout:
+            cached = await self._get_from_cache(cache_key, data_class)
+            if cached is not None:
+                return cached
+            await asyncio.sleep(LOCK_WAIT_INTERVAL_SECONDS)
+            elapsed += LOCK_WAIT_INTERVAL_SECONDS
+        return None
+
+    @asynccontextmanager
+    async def _cache_fetch_lock(self, cache_key: str) -> AsyncIterator[bool]:
+        """Attempt to acquire a short-lived lock for cache population.
+
+        Yields True if the caller owns the lock, False otherwise.
+        """
+        lock_key = f"{cache_key}:lock"
+        token = str(uuid.uuid4())
+        acquired = False
+        attempts = max(1, int(LOCK_MAX_WAIT_SECONDS / LOCK_WAIT_INTERVAL_SECONDS))
+
+        for _ in range(attempts):
+            try:
+                result = await self.redis.set(
+                    lock_key, token, nx=True, ex=LOCK_TTL_SECONDS
+                )
+            except Exception as e:  # pragma: no cover - Redis connectivity guard
+                logger.warning("Cache lock error for key %s: %s", lock_key, e)
+                break
+
+            if result:
+                acquired = True
+                break
+
+            await asyncio.sleep(LOCK_WAIT_INTERVAL_SECONDS)
+
+        try:
+            yield acquired
+        finally:
+            if acquired:
+                try:
+                    release_script = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+else
+    return 0
+end
+"""
+                    await self.redis.eval(release_script, 1, lock_key, token)
+                except Exception as e:  # pragma: no cover - Redis connectivity guard
+                    logger.warning(
+                        "Cache lock release error for key %s: %s", lock_key, e
+                    )
 
     async def invalidate_cache_version(self, version: str | None = None) -> int:
         """Invalidate all cache keys for a specific version."""

@@ -13,7 +13,7 @@ export function useGetProductSearchQuery(
   query: string,
   catalogId: string | null = null,
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
 ) {
   const { authenticatedFetch } = useAuthenticatedRequest();
 
@@ -31,7 +31,7 @@ export function useGetProductSearchQuery(
       }
 
       const response = await authenticatedFetch(
-        `${API_URL}/catalog/search?${params.toString()}`
+        `${API_URL}/catalog/search?${params.toString()}`,
       );
       return response.json() as Promise<ProductSearchResponse>;
     },
@@ -45,7 +45,7 @@ export function useGetProductDetailQuery(productId: string | undefined) {
     queryKey: ["product-detail", productId],
     queryFn: async () => {
       const response = await authenticatedFetch(
-        `${API_URL}/catalog/product/${productId}`
+        `${API_URL}/catalog/product/${productId}`,
       );
       return response.json() as Promise<ProductWithSetAndSKUsResponse>;
     },
@@ -55,7 +55,7 @@ export function useGetProductDetailQuery(productId: string | undefined) {
 
 export function useGetSkuMarketDataQuery(
   skuId: string | null,
-  salesLookbackDays: number = 30
+  salesLookbackDays: number = 30,
 ) {
   const { authenticatedFetch } = useAuthenticatedRequest();
 
@@ -63,33 +63,13 @@ export function useGetSkuMarketDataQuery(
     queryKey: ["sku-market-data", skuId, salesLookbackDays],
     queryFn: async () => {
       const response = await authenticatedFetch(
-        `${API_URL}/market/skus/${skuId}?sales_lookback_days=${salesLookbackDays}`
+        `${API_URL}/market/skus/${skuId}?sales_lookback_days=${salesLookbackDays}`,
       );
       return response.json() as Promise<{
         market_data_items: SKUMarketDataItem[];
       }>;
     },
     enabled: !!skuId,
-  });
-}
-
-export function useGetProductMarketDataQuery(
-  productId: string | undefined,
-  salesLookbackDays: number = 30
-) {
-  const { authenticatedFetch } = useAuthenticatedRequest();
-
-  return queryOptions({
-    queryKey: ["product-market-data", productId, salesLookbackDays],
-    queryFn: async () => {
-      const response = await authenticatedFetch(
-        `${API_URL}/market/products/${productId}?sales_lookback_days=${salesLookbackDays}`
-      );
-      return response.json() as Promise<{
-        market_data_items: SKUMarketDataItem[];
-      }>;
-    },
-    enabled: !!productId,
   });
 }
 

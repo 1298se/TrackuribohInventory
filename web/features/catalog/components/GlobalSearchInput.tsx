@@ -141,7 +141,7 @@ function SearchDialogContent({ onClose }: { onClose: () => void }) {
       results[selectedIndex]
     ) {
       e.preventDefault();
-      router.push(`/market/${results[selectedIndex].product.id}`);
+      router.push(`/market/product-variants/${results[selectedIndex].id}`);
       onClose();
     }
   }
@@ -275,9 +275,9 @@ function SearchResultItem({
   }
 
   return (
-    <Link href={`/market/${variant.product.id}`}>
+    <Link href={`/market/product-variants/${variant.id}`}>
       <button
-        value={variant.product.id}
+        value={variant.id}
         onClick={onSelect}
         onMouseEnter={handlePrefetch}
         className="w-full"

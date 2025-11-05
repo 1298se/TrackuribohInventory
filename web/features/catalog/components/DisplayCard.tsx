@@ -10,7 +10,7 @@ import { PlusIcon } from "lucide-react";
 
 export type DisplayCardProps = {
   decisionId: string;
-  productId: string;
+  productVariantId: string;
   name: string;
   number: string | null;
   image_url: string;
@@ -26,7 +26,7 @@ export function DisplayCard({ card }: { card: DisplayCardProps }) {
   return (
     <Card className="p-3 gap-2 h-[300px] relative">
       <Link
-        href={`/market/${card.productId}`}
+        href={`/market/product-variants/${card.productVariantId}`}
         className="absolute inset-0 z-0"
       />
       <CardContent className="px-0 py-0 w-full flex justify-center rounded-md bg-white p-2 border relative z-10 pointer-events-none">

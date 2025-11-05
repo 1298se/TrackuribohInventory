@@ -5,12 +5,7 @@ import { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shadcn/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/shadcn/ui/card";
 import { Skeleton } from "@/shadcn/ui/skeleton";
 import { getSetPriceComparisonQuery } from "@/features/catalog/api";
 import { formatCurrency, formatPercentage } from "@/shared/utils";
@@ -30,7 +25,7 @@ interface StatCardsProps {
 
 export function MarketPlaceTopStatCardsSection({ setId }: StatCardsProps) {
   const { data: priceComparisonData, isLoading } = useQuery(
-    getSetPriceComparisonQuery(setId, 30)
+    getSetPriceComparisonQuery(setId, 30),
   );
 
   const dynamicStatCards: StatCard[] = [
@@ -56,6 +51,7 @@ export function MarketPlaceTopStatCardsSection({ setId }: StatCardsProps) {
       description: priceComparisonData?.current_top_priced_card ? (
         <>
           Top Chase Card:{" "}
+          {/* TODO: switch to product variant URL once MarketPlace is live */}
           <Link
             href={`/market/${priceComparisonData.current_top_priced_card.sku_id}`}
             className="underline"

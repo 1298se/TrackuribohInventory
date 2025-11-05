@@ -17,21 +17,28 @@ export function getCardDecisionsQuery() {
     queryKey: ["cardDecisions"],
     queryFn: fetchBuyDecisions,
     select: (data) => {
-      return data.decisions.map((decision) => {
-        return {
-          decisionId: decision.id,
-          productId: decision.sku.product.id,
-          name: decision.sku.product.name,
-          number: decision.sku.product.number,
-          image_url: decision.sku.product.image_url,
-          set: {
-            name: decision.sku.product.set.name,
-            id: decision.sku.product.set.id,
-          },
-          price: decision.buy_vwap.amount,
-          product_type: decision.sku.product.product_type,
-        } satisfies DisplayCardProps;
-      });
+      return data.decisions
+        .map((decision) => {
+          const productVariantId = decision.sku.variant_id;
+          if (!productVariantId) {
+            return null;
+          }
+
+          return {
+            decisionId: decision.id,
+            productVariantId,
+            name: decision.sku.product.name,
+            number: decision.sku.product.number,
+            image_url: decision.sku.product.image_url,
+            set: {
+              name: decision.sku.product.set.name,
+              id: decision.sku.product.set.id,
+            },
+            price: decision.buy_vwap.amount,
+            product_type: decision.sku.product.product_type,
+          } satisfies DisplayCardProps;
+        })
+        .filter((card): card is DisplayCardProps => card !== null);
     },
   });
 }
@@ -201,21 +208,21 @@ function parseMarketData(marketDepth: MarketDataResponse | undefined) {
   };
 }
 
-async function fetchMarketData(
-  sku: string,
+async function fetchProductVariantMarketData(
+  productVariantId: string,
   salesLookbackDays: number = 7,
 ): Promise<MarketDataResponse> {
   const response = await fetch(
-    `${API_URL}/market/products/${sku}?sales_lookback_days=${salesLookbackDays}`,
+    `${API_URL}/market/product-variants/${productVariantId}/market-data?sales_lookback_days=${salesLookbackDays}`,
   );
   return response.json();
 }
 
-export function getMarketDepthQuery({
-  sku,
+export function getProductVariantMarketDepthQuery({
+  productVariantId,
   salesLookbackDays,
 }: {
-  sku: string;
+  productVariantId: string;
   salesLookbackDays: number;
 }) {
   return queryOptions<
@@ -223,25 +230,26 @@ export function getMarketDepthQuery({
     Error,
     ReturnType<typeof parseMarketData>
   >({
-    queryKey: ["marketDepth", sku],
-    queryFn: () => fetchMarketData(sku, salesLookbackDays),
+    queryKey: ["productVariantMarketDepth", productVariantId],
+    queryFn: () =>
+      fetchProductVariantMarketData(productVariantId, salesLookbackDays),
     select: parseMarketData,
   });
 }
 
-async function fetchProductListings(
-  productId: string,
+async function fetchProductVariantListings(
+  productVariantId: string,
 ): Promise<ProductListingsResponse> {
   const response = await fetch(
-    `${API_URL}/market/product/${productId}/listings`,
+    `${API_URL}/market/product-variants/${productVariantId}/listings`,
   );
   return response.json();
 }
 
-export function getProductListingsQuery(productId: string) {
+export function getProductVariantListingsQuery(productVariantId: string) {
   return queryOptions<ProductListingsResponse, Error>({
-    queryKey: ["productListings", productId],
-    queryFn: () => fetchProductListings(productId),
+    queryKey: ["productVariantListings", productVariantId],
+    queryFn: () => fetchProductVariantListings(productVariantId),
     select: (data) => ({
       ...data,
       results: data.results.map((listing) => ({
