@@ -7,6 +7,7 @@ import {
   HistoricalPriceComparisonResponse,
   ProductVariantResponse,
   ProductVariantPriceSummaryResponse,
+  ProductVariantPriceHistoryResponse,
 } from "./types";
 import { POKEMON_CATALOG_ID } from "@/shared/constants";
 import { queryOptions } from "@tanstack/react-query";
@@ -176,5 +177,47 @@ export function getSetPriceComparisonQuery(
   return queryOptions<HistoricalPriceComparisonResponse>({
     queryKey: ["set-price-comparison", setId, daysAgo],
     queryFn: () => fetchSetPriceComparison(setId, daysAgo),
+  });
+}
+
+async function fetchProductVariantPriceHistory(
+  productVariantId: string,
+  days: number = 30,
+  marketplace?: string,
+): Promise<ProductVariantPriceHistoryResponse> {
+  const params = new URLSearchParams();
+  params.set("days", days.toString());
+  if (marketplace) {
+    params.set("marketplace", marketplace);
+  }
+
+  const response = await fetch(
+    `${API_URL}/market/product-variants/${productVariantId}/price-history?${params.toString()}`,
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch product variant price history");
+  }
+  return response.json();
+}
+
+export function getProductVariantPriceHistoryQuery(
+  productVariantId: string | null,
+  days: number = 30,
+  marketplace?: string | null,
+) {
+  return queryOptions<ProductVariantPriceHistoryResponse>({
+    queryKey: [
+      "product-variant-price-history",
+      productVariantId,
+      days,
+      marketplace,
+    ],
+    queryFn: () =>
+      fetchProductVariantPriceHistory(
+        productVariantId!,
+        days,
+        marketplace || undefined,
+      ),
+    enabled: !!productVariantId,
   });
 }

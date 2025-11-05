@@ -402,11 +402,11 @@ def normalize_price_history(
 
 def fetch_bulk_sku_price_histories(
     session: Session, sku_ids: list[UUID], start_date: datetime, end_date: datetime
-) -> dict[UUID, list[dict]]:
+) -> dict[UUID, list[PriceHistoryPoint]]:
     """
     Fetch price histories for multiple SKUs in bulk to avoid N+1 queries.
 
-    Returns a dict mapping sku_id -> list of price history data points.
+    Returns a dict mapping sku_id -> list of PriceHistoryPoint objects.
     """
     if not sku_ids:
         return {}
@@ -456,28 +456,25 @@ def fetch_bulk_sku_price_histories(
     initial_prices_result = session.execute(initial_prices_query).all()
 
     # Group results by SKU ID
-    price_changes_by_sku: dict[UUID, list] = {}
-    initial_prices_by_sku: dict[UUID, object] = {}
+    price_changes_by_sku: dict[UUID, list[PriceSnapshot]] = {}
+    initial_prices_by_sku: dict[UUID, PriceSnapshot | None] = {}
 
     for change in price_changes_result:
         if change.sku_id not in price_changes_by_sku:
             price_changes_by_sku[change.sku_id] = []
-        price_changes_by_sku[change.sku_id].append(change)
+        price_changes_by_sku[change.sku_id].append(
+            PriceSnapshot(
+                snapshot_datetime=change.snapshot_datetime,
+                lowest_listing_price_total=change.lowest_listing_price_total,
+            )
+        )
 
     # Process initial prices - these are now tuples (sku_id, snapshot_datetime, lowest_listing_price_total)
     for sku_id, snapshot_datetime, lowest_listing_price_total in initial_prices_result:
         if sku_id not in initial_prices_by_sku:
-            # Create a simple object with the necessary attributes
-            class InitialPrice:
-                def __init__(
-                    self, sku_id, snapshot_datetime, lowest_listing_price_total
-                ):
-                    self.sku_id = sku_id
-                    self.snapshot_datetime = snapshot_datetime
-                    self.lowest_listing_price_total = lowest_listing_price_total
-
-            initial_prices_by_sku[sku_id] = InitialPrice(
-                sku_id, snapshot_datetime, lowest_listing_price_total
+            initial_prices_by_sku[sku_id] = PriceSnapshot(
+                snapshot_datetime=snapshot_datetime,
+                lowest_listing_price_total=lowest_listing_price_total,
             )
 
     # Generate normalized price history for each SKU

@@ -8,7 +8,7 @@ from app.routes.catalog.schemas import (
     SKUBaseResponseSchema,
     SKUWithProductResponseSchema,
 )
-from app.routes.utils import MoneyAmountSchema
+from app.routes.utils import MoneyAmountSchema, MoneySchema
 from core.models.price import Marketplace
 
 
@@ -162,3 +162,23 @@ class ProductVariantPriceSummaryResponseSchema(BaseModel):
     """Price summary for a product variant across all marketplaces."""
 
     prices: List[MarketplacePriceSchema]
+
+
+class PriceHistoryItemSchema(BaseModel):
+    """Normalized price point for a SKU."""
+
+    datetime: datetime
+    price: MoneySchema
+
+
+class SKUPriceHistorySeriesSchema(BaseModel):
+    """Historical price series for an individual SKU."""
+
+    sku: SKUBaseResponseSchema
+    items: list[PriceHistoryItemSchema]
+
+
+class ProductVariantPriceHistoryResponseSchema(BaseModel):
+    """All SKU price history for a product variant."""
+
+    series: list[SKUPriceHistorySeriesSchema]

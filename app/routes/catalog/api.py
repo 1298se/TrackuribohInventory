@@ -11,8 +11,7 @@ from app.routes.catalog.schemas import (
 )
 from core.database import get_db_session
 from core.models.catalog import Product, ProductVariant
-from core.models.catalog import Catalog
-from core.models.catalog import Set
+from core.models.catalog import Catalog, Set
 from core.services.schemas.schema import ProductType
 from core.dao.catalog import build_product_search_query
 

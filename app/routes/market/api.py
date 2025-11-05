@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as datetime_timezone
 from typing import Dict, List
 import uuid
 
@@ -25,8 +26,12 @@ from app.routes.market.schemas import (
     ProductSalesResponseSchema,
     MarketplacePriceSchema,
     ProductVariantPriceSummaryResponseSchema,
+    ProductVariantPriceHistoryResponseSchema,
+    SKUPriceHistorySeriesSchema,
+    PriceHistoryItemSchema,
 )
 from app.routes.catalog.schemas import SKUBaseResponseSchema
+from app.routes.utils import MoneySchema
 from core.database import get_db_session
 from core.models.catalog import Product, ProductVariant, SKU
 from core.models.catalog import Set
@@ -56,6 +61,11 @@ from core.services.sku_lookup import build_sku_name_lookup_from_skus
 from app.routes.market.service import (
     get_tcgplayer_product_variant_listings,
     get_ebay_product_variant_listings,
+)
+from core.dao.price import (
+    fetch_bulk_sku_price_histories,
+    date_to_datetime_utc,
+    PriceHistoryPoint,
 )
 
 router = APIRouter(
@@ -598,3 +608,125 @@ async def get_product_variant_price_summary(
             )
 
     return ProductVariantPriceSummaryResponseSchema(prices=prices)
+
+
+@router.get(
+    "/product-variants/{product_variant_id}/price-history",
+    response_model=ProductVariantPriceHistoryResponseSchema,
+    summary="Get price history for all SKUs in a product variant",
+)
+async def get_product_variant_price_history(
+    product_variant_id: uuid.UUID,
+    days: int | None = None,
+    _marketplace: str | None = None,
+    session: Session = Depends(get_db_session),
+    tcgplayer_catalog_service: TCGPlayerCatalogService = Depends(
+        get_tcgplayer_catalog_service
+    ),
+):
+    """
+    Return normalized daily price history for every SKU in the given product variant.
+
+    Pulls historical data from the price history table and forward-fills the most recent
+    marketplace data by calling TCGPlayer directly for today's price when available.
+
+    Parameters:
+    - days: Number of days to look back. If None, returns all historical data.
+    """
+    if days is not None:
+        start_date = datetime.now(datetime_timezone.utc) - timedelta(days=days)
+    else:
+        # Return all historical data - use a very old date as start
+        start_date = datetime(2000, 1, 1, tzinfo=datetime_timezone.utc)
+
+    end_date = datetime.now(datetime_timezone.utc)
+
+    sku_records = session.scalars(
+        select(SKU)
+        .join(Condition, SKU.condition_id == Condition.id)
+        .where(SKU.variant_id == product_variant_id)
+        .order_by(Condition.tcgplayer_id)
+        .options(*SKUBaseResponseSchema.get_load_options())
+    ).all()
+
+    if not sku_records:
+        return ProductVariantPriceHistoryResponseSchema(series=[])
+
+    sku_ids = [sku.id for sku in sku_records]
+
+    price_histories = fetch_bulk_sku_price_histories(
+        session=session,
+        sku_ids=sku_ids,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    try:
+        sku_tcgplayer_ids = [
+            sku.tcgplayer_id for sku in sku_records if sku.tcgplayer_id
+        ]
+
+        if sku_tcgplayer_ids:
+            sku_prices_response = await tcgplayer_catalog_service.get_sku_prices(
+                sku_tcgplayer_ids
+            )
+
+            if sku_prices_response.results:
+                today_iso = date_to_datetime_utc(
+                    datetime.now(datetime_timezone.utc).date()
+                ).isoformat()
+                tcgplayer_to_sku = {sku.tcgplayer_id: sku.id for sku in sku_records}
+
+                for price_result in sku_prices_response.results:
+                    sku_id = tcgplayer_to_sku.get(price_result.sku_id)
+                    if sku_id and price_result.lowest_listing_price_total is not None:
+                        price_data = price_histories.get(sku_id)
+
+                        # Only enrich SKUs that already have historical data
+                        if not price_data:
+                            continue
+
+                        fresh_price = float(price_result.lowest_listing_price_total)
+
+                        if price_data and price_data[-1].datetime_iso == today_iso:
+                            price_data[-1].price = fresh_price
+                        else:
+                            price_data.append(
+                                PriceHistoryPoint(
+                                    datetime_iso=today_iso, price=fresh_price
+                                )
+                            )
+
+    except Exception as exc:  # noqa: BLE001
+        import logging
+
+        logging.warning(
+            "Failed to fetch fresh price data for product variant %s: %s",
+            product_variant_id,
+            exc,
+        )
+
+    series: list[SKUPriceHistorySeriesSchema] = []
+    for sku in sku_records:
+        price_data = price_histories.get(sku.id, [])
+        if not price_data:
+            continue
+        history_items = [
+            PriceHistoryItemSchema(
+                datetime=datetime.fromisoformat(point.datetime_iso),
+                price=MoneySchema(
+                    amount=point.price,
+                    currency="USD",
+                ),
+            )
+            for point in price_data
+        ]
+
+        series.append(
+            SKUPriceHistorySeriesSchema(
+                sku=SKUBaseResponseSchema.model_validate(sku),
+                items=history_items,
+            )
+        )
+
+    return ProductVariantPriceHistoryResponseSchema(series=series)

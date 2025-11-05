@@ -24,9 +24,12 @@ import {
 import {
   getProductVariantQuery,
   getProductVariantPriceSummaryQuery,
+  getProductVariantPriceHistoryQuery,
 } from "@/features/catalog/api";
 import { MarketDepthChart } from "@/features/market/components/MarketDepthChart";
 import { MarketLevelsChartCard } from "@/features/market/components/MarketLevelsChartCard";
+import { PriceHistoryChart } from "@/features/inventory/components/PriceHistoryChart";
+import { TimeRangeToggle } from "@/shadcn/ui/time-range-toggle";
 import { ProductImage } from "@/features/catalog/components/ProductImage";
 import {
   MarketListingsTable,
@@ -44,6 +47,7 @@ import { assert, assertNotNullable } from "@/lib/validation";
 
 export default function ProductVariantDetailsPage() {
   const { productVariantId } = useParams();
+  const [priceHistoryDays, setPriceHistoryDays] = useState<string>("30d");
 
   assert(
     typeof productVariantId === "string",
@@ -65,6 +69,32 @@ export default function ProductVariantDetailsPage() {
         productVariantId: productVariantId,
         salesLookbackDays: 7,
       }),
+      enabled: !!productVariant,
+    },
+  );
+
+  // Helper function to convert time range to days
+  const timeRangeToDays = (timeRange: string): number => {
+    switch (timeRange) {
+      case "7d":
+        return 7;
+      case "30d":
+        return 30;
+      case "90d":
+        return 90;
+      case "1y":
+        return 365;
+      default:
+        return 30;
+    }
+  };
+
+  const { data: priceHistoryData, isLoading: isPriceHistoryLoading } = useQuery(
+    {
+      ...getProductVariantPriceHistoryQuery(
+        productVariantId,
+        timeRangeToDays(priceHistoryDays),
+      ),
       enabled: !!productVariant,
     },
   );
@@ -134,6 +164,40 @@ export default function ProductVariantDetailsPage() {
               currentPrice={tcgPlayerPrice ?? undefined}
               isLoading={!parsedMarketDepth}
             />
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                  <div>
+                    <CardTitle>Price History</CardTitle>
+                    <CardDescription>
+                      Historical prices by condition over time
+                    </CardDescription>
+                  </div>
+                  <TimeRangeToggle
+                    value={priceHistoryDays}
+                    onChange={setPriceHistoryDays}
+                    options={[
+                      { label: "7d", value: "7d" },
+                      { label: "30d", value: "30d" },
+                      { label: "90d", value: "90d" },
+                      { label: "1y", value: "1y" },
+                    ]}
+                  />
+                </div>
+              </CardHeader>
+              <Separator />
+              <CardContent className="pt-4 w-full">
+                {isPriceHistoryLoading || !priceHistoryData ? (
+                  <Skeleton className="w-full mb-1 h-[240px]" />
+                ) : (
+                  <PriceHistoryChart
+                    series={priceHistoryData.series}
+                    isLoading={false}
+                    currency="USD"
+                  />
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           <Separator className="my-8" />

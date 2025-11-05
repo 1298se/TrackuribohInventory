@@ -146,3 +146,26 @@ export interface MarketplacePrice {
 export interface ProductVariantPriceSummaryResponse {
   prices: MarketplacePrice[];
 }
+
+/* -----------------------------------------------------
+ * Price History Types
+ * ----------------------------------------------------- */
+
+export interface Money {
+  amount: number;
+  currency: string;
+}
+
+export interface PriceHistoryItem {
+  datetime: string; // ISO datetime string
+  price: Money;
+}
+
+export interface SKUPriceHistorySeries {
+  sku: SKUBase;
+  items: PriceHistoryItem[];
+}
+
+export interface ProductVariantPriceHistoryResponse {
+  series: SKUPriceHistorySeries[];
+}

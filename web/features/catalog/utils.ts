@@ -14,10 +14,10 @@ export type ConditionFilter = ConditionType | null;
 
 // Utility function to check if a condition name is valid
 export function isValidCondition(
-  conditionName: string
+  conditionName: string,
 ): conditionName is ConditionType {
   return Object.values(CONDITION_TYPES).includes(
-    conditionName as ConditionType
+    conditionName as ConditionType,
   );
 }
 
@@ -64,5 +64,23 @@ export function getConditionDisplayName(condition: string): string {
       return "Mod. Played";
     default:
       return condition;
+  }
+}
+
+// Utility function to get condition color for charts (RGB format)
+export function getConditionChartColor(condition: string): string {
+  switch (condition.toLowerCase()) {
+    case "near mint":
+      return "rgb(34 197 94)"; // green-500
+    case "lightly played":
+      return "rgb(234 179 8)"; // yellow-500
+    case "moderately played":
+      return "rgb(249 115 22)"; // orange-500
+    case "heavily played":
+      return "rgb(239 68 68)"; // red-500
+    case "damaged":
+      return "rgb(153 27 27)"; // red-800
+    default:
+      return "rgb(107 114 128)"; // gray-500
   }
 }
