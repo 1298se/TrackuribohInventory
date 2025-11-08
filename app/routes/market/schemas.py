@@ -93,7 +93,7 @@ class EbayProductListingResponseSchema(ProductListingBaseResponseSchema):
     """Listing response for eBay marketplace."""
 
     marketplace: Literal[Marketplace.EBAY]
-    image_url: Optional[str] = None
+    title: Optional[str] = None
 
 
 ProductListingResponseSchema = Annotated[

@@ -30,7 +30,10 @@ import {
   TableRow,
 } from "@/shadcn/ui/table";
 import { formatCurrency } from "@/shared/utils";
-import { ProductListingResponse } from "@/features/market/types";
+import {
+  ProductListingResponse,
+  EbayProductListingResponse,
+} from "@/features/market/types";
 import {
   getConditionColor,
   getConditionDisplayName,
@@ -48,21 +51,16 @@ const TABLE_HEADERS = [
   { key: "actions", label: "Action", sticky: true },
 ];
 
-const COLUMNS: ColumnDef<ProductListingResponse>[] = [
-  {
-    accessorKey: "marketplace",
-    header: "Marketplace",
-    cell: ({ row }) => {
-      const marketplace = row.original.marketplace;
-      const displayName = marketplace === "tcgplayer" ? "TCGPlayer" : "eBay";
-      return (
-        <Badge variant="outline" className="text-xs font-normal">
-          {displayName}
-        </Badge>
-      );
-    },
-    enableSorting: false,
-  },
+const EBAY_TABLE_HEADERS = [
+  { key: "title", label: "Title" },
+  { key: "price", label: "Price (USD)" },
+  { key: "condition", label: "Condition" },
+  { key: "seller", label: "Seller" },
+  { key: "actions", label: "Action", sticky: true },
+];
+
+// TCGPlayer-specific columns (no title needed)
+export const TCGPLAYER_COLUMNS: ColumnDef<ProductListingResponse>[] = [
   {
     accessorKey: "price",
     header: "Price (USD)",
@@ -154,11 +152,124 @@ const COLUMNS: ColumnDef<ProductListingResponse>[] = [
   },
 ];
 
+// eBay-specific columns (includes title)
+export const EBAY_COLUMNS: ColumnDef<EbayProductListingResponse>[] = [
+  {
+    accessorKey: "title",
+    header: "Title",
+    cell: ({ row }) => {
+      const listing = row.original;
+      return (
+        <div className="max-w-md">
+          <div className="font-medium text-sm line-clamp-2">
+            {listing.title || "Untitled"}
+          </div>
+        </div>
+      );
+    },
+    enableSorting: false,
+  },
+  {
+    accessorKey: "price",
+    header: "Price (USD)",
+    cell: ({ row }) => {
+      const listing = row.original;
+      return (
+        <div className="flex flex-col">
+          <div className="font-medium">{formatCurrency(listing.price)}</div>
+          <div className="text-xs text-muted-foreground font-normal">
+            {listing.shipping_price !== null
+              ? listing.shipping_price === 0
+                ? "Free shipping"
+                : `+${formatCurrency(listing.shipping_price)} shipping`
+              : "Free shipping"}
+          </div>
+        </div>
+      );
+    },
+    sortingFn: (rowA, rowB) => {
+      return rowA.original.price - rowB.original.price;
+    },
+  },
+  {
+    accessorKey: "condition",
+    header: "Condition",
+    cell: ({ row }) => {
+      const condition = row.original.sku.condition.name;
+
+      return (
+        <div className="w-32">
+          <Badge
+            variant="outline"
+            className="text-muted-foreground px-1.5 font-normal text-xs"
+          >
+            <div
+              className={`w-2 h-2 rounded-full ${getConditionColor(
+                condition,
+              )} mr-2`}
+            />
+            {getConditionDisplayName(condition)}
+          </Badge>
+        </div>
+      );
+    },
+    sortingFn: (rowA, rowB) => {
+      const rankA = getConditionRank(rowA.original.sku.condition.name);
+      const rankB = getConditionRank(rowB.original.sku.condition.name);
+      return rankA - rankB;
+    },
+  },
+  {
+    accessorKey: "seller_name",
+    header: "Seller",
+    cell: ({ row }) => {
+      const listing = row.original;
+
+      return (
+        <div className="flex flex-col">
+          <div className="font-medium">{listing.seller_name}</div>
+          {listing.seller_rating && (
+            <div className="text-xs text-muted-foreground">
+              Rating: {listing.seller_rating.toFixed(1)}%
+            </div>
+          )}
+        </div>
+      );
+    },
+    enableSorting: false,
+  },
+  {
+    id: "actions",
+    header: "Action",
+    cell: ({ row }) => {
+      const listing = row.original;
+      const purchaseUrl = listing.listing_url;
+      return (
+        <Button variant="outline" size="sm">
+          <a
+            href={purchaseUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center"
+          >
+            <ExternalLink className="w-2 h-2 mr-2" />
+            View
+          </a>
+        </Button>
+      );
+    },
+    enableSorting: false,
+  },
+];
+
 export function MarketListingsTable({
   listings,
+  columns,
 }: {
   listings: ProductListingResponse[];
+  columns?: ColumnDef<ProductListingResponse>[];
 }) {
+  const tableColumns = columns || TCGPLAYER_COLUMNS;
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "condition", desc: true },
   ]);
@@ -171,7 +282,7 @@ export function MarketListingsTable({
 
   const table = useReactTable({
     data: listings,
-    columns: COLUMNS,
+    columns: tableColumns,
     state: {
       sorting,
       columnVisibility,
@@ -264,7 +375,7 @@ export function MarketListingsTable({
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={COLUMNS.length}
+                  colSpan={tableColumns.length}
                   className="h-24 text-center"
                 >
                   No results

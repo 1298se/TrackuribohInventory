@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shadcn/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shadcn/ui/tabs";
 import { MetricCard } from "@/shadcn/ui/metric-card";
 import { Skeleton } from "@/shadcn/ui/skeleton";
 import { Separator } from "@/shadcn/ui/separator";
@@ -34,6 +35,8 @@ import { ProductImage } from "@/features/catalog/components/ProductImage";
 import {
   MarketListingsTable,
   MarketListingsTableLoading,
+  TCGPLAYER_COLUMNS,
+  EBAY_COLUMNS,
 } from "@/features/catalog/components/MarketListingsTable";
 import { MarketListingsTableConditions } from "@/features/catalog/components/MarketListingsTableConditions";
 import {
@@ -409,26 +412,60 @@ function ListingsCard({ productVariantId }: { productVariantId: string }) {
 
   const allListings = listingsData?.results || [];
 
-  const filteredListings = selectedCondition
-    ? allListings.filter(
+  // Split listings by marketplace
+  const tcgListings = allListings.filter((l) => l.marketplace === "tcgplayer");
+  const ebayListings = allListings.filter((l) => l.marketplace === "ebay");
+
+  // Apply condition filter to each marketplace's listings
+  const filteredTcgListings = selectedCondition
+    ? tcgListings.filter(
         (listing) =>
           isValidCondition(listing.sku.condition.name) &&
           listing.sku.condition.name === selectedCondition,
       )
-    : allListings;
+    : tcgListings;
+
+  const filteredEbayListings = selectedCondition
+    ? ebayListings.filter(
+        (listing) =>
+          isValidCondition(listing.sku.condition.name) &&
+          listing.sku.condition.name === selectedCondition,
+      )
+    : ebayListings;
 
   if (isLoading) {
     return <MarketListingsTableLoading />;
   }
 
   return (
-    <div>
+    <div className="space-y-4">
       <MarketListingsTableConditions
         listings={allListings}
         selectedCondition={selectedCondition}
         onConditionSelect={setSelectedCondition}
       />
-      <MarketListingsTable listings={filteredListings} />
+      <Tabs defaultValue="tcgplayer">
+        <TabsList>
+          <TabsTrigger value="tcgplayer">
+            TCGPlayer ({filteredTcgListings.length})
+          </TabsTrigger>
+          <TabsTrigger value="ebay">
+            eBay ({filteredEbayListings.length})
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="tcgplayer">
+          <MarketListingsTable
+            listings={filteredTcgListings}
+            columns={TCGPLAYER_COLUMNS}
+          />
+        </TabsContent>
+        <TabsContent value="ebay">
+          <MarketListingsTable
+            listings={filteredEbayListings}
+            columns={EBAY_COLUMNS as any}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

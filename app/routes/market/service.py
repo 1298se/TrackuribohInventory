@@ -184,7 +184,7 @@ async def get_ebay_product_variant_listings(
                 condition=condition_name,
                 seller_name=listing.seller_name,
                 seller_rating=listing.seller_rating,
-                image_url=listing.image_url,
+                title=listing.title,
                 listing_url=ebay_listing_url,
             )
         )

@@ -166,7 +166,7 @@ export interface TCGPlayerProductListingResponse
 
 export interface EbayProductListingResponse extends ProductListingBaseResponse {
   marketplace: "ebay";
-  image_url: string | null;
+  title: string | null;
 }
 
 export type ProductListingResponse =
