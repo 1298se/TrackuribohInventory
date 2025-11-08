@@ -28,7 +28,6 @@ import {
   getProductVariantPriceHistoryQuery,
 } from "@/features/catalog/api";
 import { MarketDepthChart } from "@/features/market/components/MarketDepthChart";
-import { MarketLevelsChartCard } from "@/features/market/components/MarketLevelsChartCard";
 import { PriceHistoryChart } from "@/features/inventory/components/PriceHistoryChart";
 import { TimeRangeToggle } from "@/shadcn/ui/time-range-toggle";
 import { ProductImage } from "@/features/catalog/components/ProductImage";
@@ -161,11 +160,6 @@ export default function ProductVariantDetailsPage() {
             <MarketDepthChartCard
               listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
               salesCumulativeDepth={parsedMarketDepth?.salesChartData}
-            />
-            <MarketLevelsChartCard
-              listingsCumulativeDepth={parsedMarketDepth?.listingChartData}
-              currentPrice={tcgPlayerPrice ?? undefined}
-              isLoading={!parsedMarketDepth}
             />
             <Card>
               <CardHeader>
@@ -484,9 +478,9 @@ function MarketDepthChartCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Depth analysis</CardTitle>
+        <CardTitle>Market Depth Analysis</CardTitle>
         <CardDescription>
-          Showing total listings and sales for the last 7 days
+          Cumulative listings and sales depth by price
         </CardDescription>
       </CardHeader>
       <Separator />

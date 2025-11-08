@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { AreaChart, Area, XAxis, YAxis } from "recharts";
+import { useMemo, useState } from "react";
+import { AreaChart, Area, XAxis, YAxis, ReferenceLine } from "recharts";
+import type { ReferenceLineProps } from "recharts";
 import {
   ChartContainer,
   ChartLegend,
@@ -26,9 +27,77 @@ export function MarketDepthChart({
   salesCumulativeDepth = [],
   currency = "USD",
 }: MarketDepthChartProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
   const mergedData = useMemo(() => {
     return mergeMarketDepthData(listingsCumulativeDepth, salesCumulativeDepth);
   }, [listingsCumulativeDepth, salesCumulativeDepth]);
+
+  // Calculate price levels (percentiles) for reference lines
+  const priceLevels = useMemo(() => {
+    if (listingsCumulativeDepth.length === 0)
+      return {
+        low: { count: 0, price: 0 },
+        medium: { count: 0, price: 0 },
+        high: { count: 0, price: 0 },
+      };
+
+    const sortedData = [...listingsCumulativeDepth].sort(
+      (a, b) => a.price - b.price,
+    );
+
+    // Indices at 33rd, 66th, and 100th percentiles
+    const lowIndex = Math.floor(sortedData.length * 0.33);
+    const mediumIndex = Math.floor(sortedData.length * 0.66);
+    const highIndex = sortedData.length - 1;
+
+    const lowPoint = sortedData[lowIndex];
+    const mediumPoint = sortedData[mediumIndex];
+    const highPoint = sortedData[highIndex];
+
+    return {
+      low: {
+        count: Math.round(lowPoint.cumulativeCount),
+        price: lowPoint.price,
+      },
+      medium: {
+        count: Math.round(mediumPoint.cumulativeCount),
+        price: mediumPoint.price,
+      },
+      high: {
+        count: Math.round(highPoint.cumulativeCount),
+        price: highPoint.price,
+      },
+    };
+  }, [listingsCumulativeDepth]);
+
+  const createReferenceLineProps = (
+    count: number,
+    price?: number,
+  ): Pick<
+    ReferenceLineProps,
+    "stroke" | "strokeDasharray" | "strokeWidth" | "label"
+  > => ({
+    stroke: "rgba(255, 255, 255, 0.6)",
+    strokeDasharray: "4 4",
+    strokeWidth: 0.5,
+    label: isHovered
+      ? undefined
+      : {
+          value: price
+            ? `${count} listings to be sold until ${formatCurrency(
+                price,
+                currency,
+              )}`
+            : `${count} listings`,
+          position: "top",
+          style: {
+            fill: "rgba(255, 255, 255, 0.9)",
+            fontSize: "11px",
+            fontWeight: "500",
+          },
+        },
+  });
 
   return (
     <ChartContainer
@@ -47,7 +116,9 @@ export function MarketDepthChart({
     >
       <AreaChart
         data={mergedData}
-        margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+        margin={{ top: 20, right: 0, left: 0, bottom: 0 }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         <defs>
           <linearGradient id="listingsGradient" x1="0" y1="0" x2="0" y2="1">
@@ -71,10 +142,43 @@ export function MarketDepthChart({
         />
         <YAxis
           type="number"
-          domain={[0, "dataMax"]}
+          domain={[0, "dataMax + 10"]}
           tickFormatter={(val) => String(val)}
           hide={true}
         />
+
+        {/* Price level reference lines */}
+        <ReferenceLine
+          y={priceLevels.low.count}
+          {...createReferenceLineProps(
+            priceLevels.low.count,
+            priceLevels.low.price,
+          )}
+          style={{
+            transition: "opacity 0.3s ease-in-out",
+          }}
+        />
+        <ReferenceLine
+          y={priceLevels.medium.count}
+          {...createReferenceLineProps(
+            priceLevels.medium.count,
+            priceLevels.medium.price,
+          )}
+          style={{
+            transition: "opacity 0.3s ease-in-out",
+          }}
+        />
+        <ReferenceLine
+          y={priceLevels.high.count}
+          {...createReferenceLineProps(
+            priceLevels.high.count,
+            priceLevels.high.price,
+          )}
+          style={{
+            transition: "opacity 0.3s ease-in-out",
+          }}
+        />
+
         <ChartTooltip
           shared
           content={
@@ -84,7 +188,7 @@ export function MarketDepthChart({
 
                 return `Price: ${formatCurrency(
                   value.payload.price,
-                  currency
+                  currency,
                 )}`;
               }}
               formatter={(value: ValueType, name: NameType) => {
@@ -117,6 +221,10 @@ export function MarketDepthChart({
           stroke="rgb(59 130 246)" // blue-500
           fill="url(#listingsGradient)"
           connectNulls
+          opacity={isHovered ? 1 : 0.4}
+          style={{
+            transition: "opacity 0.3s ease-in-out",
+          }}
         />
         <Area
           type="stepAfter"
@@ -125,6 +233,10 @@ export function MarketDepthChart({
           stroke="rgb(34 197 94)" // green-500
           fill="url(#salesGradient)"
           connectNulls
+          opacity={isHovered ? 1 : 0.4}
+          style={{
+            transition: "opacity 0.3s ease-in-out",
+          }}
         />
       </AreaChart>
     </ChartContainer>
@@ -133,22 +245,22 @@ export function MarketDepthChart({
 
 function mergeMarketDepthData(
   listingsCumulativeDepth: { price: number; cumulativeCount: number }[],
-  salesCumulativeDepth: { price: number; cumulativeCount: number }[]
+  salesCumulativeDepth: { price: number; cumulativeCount: number }[],
 ) {
   // Merge series by price, sorted from lowest to highest (left to right)
   const prices = Array.from(
     new Set([
       ...listingsCumulativeDepth.map((d) => d.price),
       ...salesCumulativeDepth.map((d) => d.price),
-    ])
+    ]),
   ).sort((a, b) => a - b);
 
   const listingMap: Record<number, number> = Object.fromEntries(
-    listingsCumulativeDepth.map((d) => [d.price, d.cumulativeCount])
+    listingsCumulativeDepth.map((d) => [d.price, d.cumulativeCount]),
   );
 
   const salesMap: Record<number, number> = Object.fromEntries(
-    salesCumulativeDepth.map((d) => [d.price, d.cumulativeCount])
+    salesCumulativeDepth.map((d) => [d.price, d.cumulativeCount]),
   );
 
   // Track last known values for step interpolation
