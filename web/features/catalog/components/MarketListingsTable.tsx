@@ -271,7 +271,7 @@ export function MarketListingsTable({
 }) {
   const tableColumns = columns || TCGPLAYER_COLUMNS;
   const [sorting, setSorting] = React.useState<SortingState>([
-    { id: "condition", desc: true },
+    { id: "price", desc: false },
   ]);
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
