@@ -42,10 +42,10 @@ def test_get_product_variant_listings():
         assert "results" in data
 
 
-def test_get_product_sales():
+def test_get_product_variant_sales():
     with TestClient(app) as client:
         response = client.get(
-            url=f"/market/product/{PRISMATIC_EVOLUTIONS_BB_PRODUCT_ID}/sales",
+            url=f"/market/product-variants/{MEGA_GARDEVOIR_EX_VARIANT_ID}/sales",
             params={"marketplace": "tcgplayer"},
         )
         assert response.status_code in [200, 404], response.json()

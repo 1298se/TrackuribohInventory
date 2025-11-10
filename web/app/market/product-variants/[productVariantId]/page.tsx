@@ -21,6 +21,7 @@ import { getLargeTCGPlayerImage } from "@/features/market/utils";
 import {
   getProductVariantMarketDepthQuery,
   getProductVariantListingsQuery,
+  getProductVariantSalesQuery,
 } from "@/features/market/api";
 import {
   getProductVariantQuery,
@@ -37,6 +38,10 @@ import {
   TCGPLAYER_COLUMNS,
   EBAY_COLUMNS,
 } from "@/features/catalog/components/MarketListingsTable";
+import {
+  SalesTable,
+  SalesTableLoading,
+} from "@/features/catalog/components/SalesTable";
 import { MarketListingsTableConditions } from "@/features/catalog/components/MarketListingsTableConditions";
 import {
   type ConditionFilter,
@@ -400,17 +405,22 @@ function ListingsCard({ productVariantId }: { productVariantId: string }) {
   const [selectedCondition, setSelectedCondition] =
     useState<ConditionFilter>(null);
 
-  const { data: listingsData, isLoading } = useQuery(
+  const { data: listingsData, isLoading: isListingsLoading } = useQuery(
     getProductVariantListingsQuery(productVariantId),
   );
 
+  const { data: salesData, isLoading: isSalesLoading } = useQuery(
+    getProductVariantSalesQuery(productVariantId),
+  );
+
   const allListings = listingsData?.results || [];
+  const allSales = salesData?.results || [];
 
   // Split listings by marketplace
   const tcgListings = allListings.filter((l) => l.marketplace === "tcgplayer");
   const ebayListings = allListings.filter((l) => l.marketplace === "ebay");
 
-  // Apply condition filter to each marketplace's listings
+  // Apply condition filter to listings
   const filteredTcgListings = selectedCondition
     ? tcgListings.filter(
         (listing) =>
@@ -427,37 +437,72 @@ function ListingsCard({ productVariantId }: { productVariantId: string }) {
       )
     : ebayListings;
 
-  if (isLoading) {
+  // Apply condition filter to sales
+  const filteredSales = selectedCondition
+    ? allSales.filter(
+        (sale) =>
+          isValidCondition(sale.sku.condition.name) &&
+          sale.sku.condition.name === selectedCondition,
+      )
+    : allSales;
+
+  if (isListingsLoading) {
     return <MarketListingsTableLoading />;
   }
 
   return (
     <div className="space-y-4">
-      <MarketListingsTableConditions
-        listings={allListings}
-        selectedCondition={selectedCondition}
-        onConditionSelect={setSelectedCondition}
-      />
-      <Tabs defaultValue="tcgplayer">
+      <Tabs defaultValue="listings">
         <TabsList>
-          <TabsTrigger value="tcgplayer">
-            TCGPlayer ({filteredTcgListings.length})
-          </TabsTrigger>
-          <TabsTrigger value="ebay">
-            eBay ({filteredEbayListings.length})
-          </TabsTrigger>
+          <TabsTrigger value="listings">Active Listings</TabsTrigger>
+          <TabsTrigger value="sales">Sales</TabsTrigger>
         </TabsList>
-        <TabsContent value="tcgplayer">
-          <MarketListingsTable
-            listings={filteredTcgListings}
-            columns={TCGPLAYER_COLUMNS}
+
+        <TabsContent value="listings" className="space-y-4">
+          <MarketListingsTableConditions
+            listings={allListings}
+            selectedCondition={selectedCondition}
+            onConditionSelect={setSelectedCondition}
           />
+          <Tabs defaultValue="tcgplayer">
+            <TabsList>
+              <TabsTrigger value="tcgplayer">
+                TCGPlayer ({filteredTcgListings.length})
+              </TabsTrigger>
+              <TabsTrigger value="ebay">
+                eBay ({filteredEbayListings.length})
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="tcgplayer">
+              <MarketListingsTable
+                listings={filteredTcgListings}
+                columns={TCGPLAYER_COLUMNS}
+              />
+            </TabsContent>
+            <TabsContent value="ebay">
+              <MarketListingsTable
+                listings={filteredEbayListings}
+                columns={EBAY_COLUMNS as any}
+              />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
-        <TabsContent value="ebay">
-          <MarketListingsTable
-            listings={filteredEbayListings}
-            columns={EBAY_COLUMNS as any}
+
+        <TabsContent value="sales" className="space-y-4">
+          <MarketListingsTableConditions
+            listings={allSales.map((sale) => ({
+              marketplace: "tcgplayer",
+              sku: sale.sku,
+              price: sale.price.amount,
+            }))}
+            selectedCondition={selectedCondition}
+            onConditionSelect={setSelectedCondition}
           />
+          {isSalesLoading ? (
+            <SalesTableLoading />
+          ) : (
+            <SalesTable sales={filteredSales} />
+          )}
         </TabsContent>
       </Tabs>
     </div>

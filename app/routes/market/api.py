@@ -253,12 +253,12 @@ async def get_product_variant_listings(
 
 
 @router.get(
-    "/product/{product_id}/sales",
+    "/product-variants/{product_variant_id}/sales",
     response_model=ProductSalesResponseSchema,
-    summary="Get recent sales for a product",
+    summary="Get recent sales for a product variant",
 )
-async def get_product_sales(
-    product_id: uuid.UUID,
+async def get_product_variant_sales(
+    product_variant_id: uuid.UUID,
     request_params: ProductSalesRequestParams = Depends(),
     session: Session = Depends(get_db_session),
     tcgplayer_listing_service: TCGPlayerListingService = Depends(
@@ -266,20 +266,27 @@ async def get_product_sales(
     ),
 ):
     """
-    Fetch recent sales for a product (up to 100 most recent).
+    Fetch recent sales for a product variant (up to 100 most recent).
     """
-    # Verify product exists
-    product = session.get(Product, product_id)
-    if product is None:
-        raise HTTPException(status_code=404, detail="Product not found")
+    # Verify product variant exists
+    product_variant = session.get(ProductVariant, product_variant_id)
+    if product_variant is None:
+        raise HTTPException(status_code=404, detail="Product variant not found")
 
-    # Get product's TCGPlayer ID directly; if missing, return empty results
-    tcgplayer_product_id = product.tcgplayer_id
-    if tcgplayer_product_id is None:
+    # Get product's TCGPlayer ID; if missing, return empty results
+    if product_variant.product.tcgplayer_id is None:
         return ProductSalesResponseSchema(results=[])
 
+    tcgplayer_product_id = product_variant.product.tcgplayer_id
+
+    # Get printing TCGPlayer ID for filtering
+    printing_tcgplayer_id = product_variant.printing.tcgplayer_id
+
     # Fetch sales from TCGPlayer (last 30 days, up to 100 results)
-    tcgplayer_request = CardSaleRequestData(product_id=int(tcgplayer_product_id))
+    # Filter by printing to get sales only for this specific variant
+    tcgplayer_request = CardSaleRequestData(
+        product_id=int(tcgplayer_product_id), printings=[int(printing_tcgplayer_id)]
+    )
     tcgplayer_sales = await tcgplayer_listing_service.get_sales(
         tcgplayer_request, timedelta(days=30)
     )
@@ -287,15 +294,15 @@ async def get_product_sales(
     # Limit to 100 most recent
     tcgplayer_sales = tcgplayer_sales[:100]
 
-    # Get product SKUs for matching (eager-load product for nested serialization)
-    product_skus = session.scalars(
+    # Get variant SKUs for matching (eager-load product for nested serialization)
+    variant_skus = session.scalars(
         select(SKU)
-        .where(SKU.product_id == product_id)
+        .where(SKU.variant_id == product_variant_id)
         .options(*SKUWithProductResponseSchema.get_load_options())
     ).all()
 
     # Create SKU lookup by condition/printing/language
-    sku_lookup = build_sku_name_lookup_from_skus(product_skus)
+    sku_lookup = build_sku_name_lookup_from_skus(variant_skus)
 
     results = []
     for sale in tcgplayer_sales:
@@ -308,8 +315,12 @@ async def get_product_sales(
                 ProductSaleResponseSchema(
                     sku=sku,
                     quantity=sale.quantity,
-                    price=sale.purchase_price,
-                    shipping_price=sale.shipping_price,
+                    price=MoneySchema(amount=sale.purchase_price, currency="USD"),
+                    shipping_price=MoneySchema(
+                        amount=sale.shipping_price, currency="USD"
+                    )
+                    if sale.shipping_price
+                    else None,
                     order_date=sale.order_date,
                 )
             )

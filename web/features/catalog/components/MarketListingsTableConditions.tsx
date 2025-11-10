@@ -33,7 +33,7 @@ export function MarketListingsTableConditions({
   const conditionData: ConditionData[] = Object.values(CONDITION_TYPES)
     .map((conditionType) => {
       const conditionListings = listings.filter(
-        (listing) => listing.sku.condition.name === conditionType
+        (listing) => listing.sku.condition.name === conditionType,
       );
 
       if (conditionListings.length === 0) {
@@ -53,7 +53,7 @@ export function MarketListingsTableConditions({
     .filter(isTruthy);
 
   conditionData.sort(
-    (a, b) => getConditionRank(b.name!) - getConditionRank(a.name!)
+    (a, b) => getConditionRank(b.name!) - getConditionRank(a.name!),
   );
 
   return (
@@ -79,18 +79,15 @@ export function MarketListingsTableConditions({
             <div className="flex items-center gap-2">
               <div
                 className={`w-2 h-2 rounded-full ${getConditionColor(
-                  condition.name as string
+                  condition.name as string,
                 )}`}
               />
               <span>{getConditionDisplayName(condition.name as string)}</span>
               <Badge
                 variant="outline"
-                className="flex gap-2 items-center text-xs"
+                className="text-[10px] text-muted-foreground"
               >
-                {formatCurrency(condition.averagePrice)}{" "}
-                <span className="text-[10px] text-muted-foreground">
-                  {condition.count}
-                </span>
+                {condition.count}
               </Badge>
             </div>
           </TabsTrigger>

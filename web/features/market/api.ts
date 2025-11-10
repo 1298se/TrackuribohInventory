@@ -3,6 +3,7 @@ import {
   MarketDataResponse,
   BuyDecisionsResponse,
   ProductListingsResponse,
+  ProductSalesResponse,
 } from "./types";
 import { DisplayCardProps } from "@/features/catalog/components/DisplayCard";
 import { queryOptions } from "@tanstack/react-query";
@@ -261,5 +262,21 @@ export function getProductVariantListingsQuery(productVariantId: string) {
             : null,
       })),
     }),
+  });
+}
+
+async function fetchProductVariantSales(
+  productVariantId: string,
+): Promise<ProductSalesResponse> {
+  const response = await fetch(
+    `${API_URL}/market/product-variants/${productVariantId}/sales`,
+  );
+  return response.json();
+}
+
+export function getProductVariantSalesQuery(productVariantId: string) {
+  return queryOptions<ProductSalesResponse, Error>({
+    queryKey: ["productVariantSales", productVariantId],
+    queryFn: () => fetchProductVariantSales(productVariantId),
   });
 }

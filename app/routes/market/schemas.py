@@ -125,8 +125,8 @@ class ProductSaleResponseSchema(BaseModel):
 
     sku: SKUWithProductResponseSchema
     quantity: int
-    price: MoneyAmountSchema
-    shipping_price: Optional[MoneyAmountSchema]
+    price: MoneySchema
+    shipping_price: Optional[MoneySchema]
     order_date: datetime
 
 
