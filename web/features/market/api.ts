@@ -267,16 +267,23 @@ export function getProductVariantListingsQuery(productVariantId: string) {
 
 async function fetchProductVariantSales(
   productVariantId: string,
+  days: number = 30,
 ): Promise<ProductSalesResponse> {
+  const params = new URLSearchParams({
+    days: days.toString(),
+  });
   const response = await fetch(
-    `${API_URL}/market/product-variants/${productVariantId}/sales`,
+    `${API_URL}/market/product-variants/${productVariantId}/sales?${params.toString()}`,
   );
   return response.json();
 }
 
-export function getProductVariantSalesQuery(productVariantId: string) {
+export function getProductVariantSalesQuery(
+  productVariantId: string,
+  days: number = 30,
+) {
   return queryOptions<ProductSalesResponse, Error>({
-    queryKey: ["productVariantSales", productVariantId],
-    queryFn: () => fetchProductVariantSales(productVariantId),
+    queryKey: ["productVariantSales", productVariantId, days],
+    queryFn: () => fetchProductVariantSales(productVariantId, days),
   });
 }

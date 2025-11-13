@@ -7,6 +7,7 @@ from sqlalchemy import select, desc, func
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 
+from core.models.catalog import SKU
 from core.models.listings import SaleRecord
 from core.models.price import Marketplace
 
@@ -136,6 +137,42 @@ def get_recent_sales_for_skus(
             sales_by_sku[sale.sku_id].append(sale)
 
     return sales_by_sku
+
+
+def get_recent_sales_for_product_variant(
+    session: Session,
+    product_variant_id: uuid.UUID,
+    marketplace: Marketplace,
+    since_date: datetime,
+) -> List[SaleRecord]:
+    """
+    Query recent sales for all SKUs in a product variant.
+
+    Args:
+        session: Database session
+        product_variant_id: UUID of the product variant
+        marketplace: Marketplace enum (e.g., TCGPLAYER)
+        since_date: Only return sales after this date
+
+    Returns:
+        List of SaleRecord objects ordered by sale_date descending
+    """
+    if not product_variant_id:
+        return []
+
+    # Query sales through SKU relationship
+    query = (
+        select(SaleRecord)
+        .join(SKU, SaleRecord.sku_id == SKU.id)
+        .where(
+            SKU.variant_id == product_variant_id,
+            SaleRecord.marketplace == marketplace,
+            SaleRecord.sale_date >= since_date,
+        )
+        .order_by(desc(SaleRecord.sale_date))
+    )
+
+    return session.scalars(query).all()
 
 
 def get_sales_event_counts_for_skus(

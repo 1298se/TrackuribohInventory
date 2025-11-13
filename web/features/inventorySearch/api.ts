@@ -53,26 +53,6 @@ export function useGetProductDetailQuery(productId: string | undefined) {
   });
 }
 
-export function useGetSkuMarketDataQuery(
-  skuId: string | null,
-  salesLookbackDays: number = 30,
-) {
-  const { authenticatedFetch } = useAuthenticatedRequest();
-
-  return queryOptions({
-    queryKey: ["sku-market-data", skuId, salesLookbackDays],
-    queryFn: async () => {
-      const response = await authenticatedFetch(
-        `${API_URL}/market/skus/${skuId}?sales_lookback_days=${salesLookbackDays}`,
-      );
-      return response.json() as Promise<{
-        market_data_items: SKUMarketDataItem[];
-      }>;
-    },
-    enabled: !!skuId,
-  });
-}
-
 // Catalogs query (non-authenticated, no hook wrapper needed)
 export function getCatalogsQuery() {
   return queryOptions<CatalogsResponse>({

@@ -257,54 +257,6 @@ class MarketDataService:
             logger.error(f"Failed to fetch TCGPlayer data: {e}")
             raise
 
-    async def get_market_data_for_sku(
-        self,
-        session: Session,
-        sku_id: uuid.UUID,
-        sales_lookback_days: int = 30,
-    ) -> Dict[Marketplace, List[SKUMarketData]]:
-        """
-        Fetches market data (cumulative depth + summary) for a specific SKU ID.
-        Raises SkuNotFoundError if SKU not found.
-        """
-        sku = session.execute(
-            select(SKU)
-            .options(
-                joinedload(SKU.product, innerjoin=True),
-                joinedload(SKU.printing, innerjoin=True),
-                joinedload(SKU.condition, innerjoin=True),
-                joinedload(SKU.language, innerjoin=True),
-            )
-            .where(SKU.id == sku_id)
-        ).scalar_one()
-
-        listing_request_data = CardListingRequestData(
-            product_id=sku.product.tcgplayer_id,
-            printings=[sku.printing.name],
-            conditions=[sku.condition.name],
-            languages=[sku.language.name],
-        )
-        sales_request_data = CardSaleRequestData(
-            product_id=sku.product.tcgplayer_id,
-            printings=[sku.printing.tcgplayer_id],
-            conditions=[sku.condition.tcgplayer_id],
-            languages=[sku.language.tcgplayer_id],
-        )
-
-        # Fetch listings and sales concurrently - fail fast if either fails
-        listings, sales_records = await self._fetch_listings_and_sales(
-            listing_request_data, sales_request_data, sales_lookback_days
-        )
-
-        item = _build_sku_item(
-            sku,
-            listings,
-            sales_records,
-            marketplace="TCGPlayer",
-            sales_lookback_days=sales_lookback_days,
-        )
-        return {Marketplace.TCGPLAYER: [item]}
-
     async def get_market_data_for_product(
         self,
         session: Session,

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from datetime import timezone as datetime_timezone
-from typing import Dict, List
+from typing import Dict, List, Optional
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -42,7 +42,6 @@ from core.services import market_data_service
 from core.services.market_data_service import (
     MarketDataService,
     get_market_data_service,
-    SkuNotFoundError,
 )
 from core.services.tcgplayer_listing_service import (
     CardSaleRequestData,
@@ -172,33 +171,6 @@ async def get_product_variant_market_data(
 
 
 @router.get(
-    "/skus/{sku_id}",
-    response_model=MarketDataResponseSchema,
-    summary="Get market-depth data for a SKU variant",
-)
-async def get_sku_data(
-    sku_id: uuid.UUID,
-    sales_lookback_days: int = 30,
-    session: Session = Depends(get_db_session),
-    market_data_service: MarketDataService = Depends(get_market_data_service),
-):
-    """
-    Return market data for a specific SKU variant.
-    Now calls the dedicated service function.
-    """
-    try:
-        service_data = await market_data_service.get_market_data_for_sku(
-            session=session,
-            sku_id=sku_id,
-            sales_lookback_days=sales_lookback_days,
-        )
-    except SkuNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-    return _convert_service_data_to_response(service_data, session)
-
-
-@router.get(
     "/product-variants/{product_variant_id}/listings",
     response_model=ProductListingsResponseSchema,
     summary="Get marketplace listings for a product variant",
@@ -259,6 +231,7 @@ async def get_product_variant_listings(
 )
 async def get_product_variant_sales(
     product_variant_id: uuid.UUID,
+    days: Optional[int] = None,
     request_params: ProductSalesRequestParams = Depends(),
     session: Session = Depends(get_db_session),
     tcgplayer_listing_service: TCGPlayerListingService = Depends(
@@ -266,7 +239,13 @@ async def get_product_variant_sales(
     ),
 ):
     """
-    Fetch recent sales for a product variant (up to 100 most recent).
+    Fetch recent sales for a product variant.
+
+    Combines sales from database (persistent) and API (live), with automatic
+    background persistence of new sales.
+
+    Args:
+        days: Number of days to look back for sales. If None, returns all sales.
     """
     # Verify product variant exists
     product_variant = session.get(ProductVariant, product_variant_id)
@@ -278,54 +257,93 @@ async def get_product_variant_sales(
         return ProductSalesResponseSchema(results=[])
 
     tcgplayer_product_id = product_variant.product.tcgplayer_id
-
-    # Get printing TCGPlayer ID for filtering
     printing_tcgplayer_id = product_variant.printing.tcgplayer_id
 
-    # Fetch sales from TCGPlayer (last 30 days, up to 100 results)
-    # Filter by printing to get sales only for this specific variant
+    # Prepare API request
     tcgplayer_request = CardSaleRequestData(
         product_id=int(tcgplayer_product_id), printings=[int(printing_tcgplayer_id)]
     )
-    tcgplayer_sales = await tcgplayer_listing_service.get_sales(
-        tcgplayer_request, timedelta(days=30)
+
+    # Calculate time delta (None means all sales)
+    time_delta = timedelta(days=days) if days else None
+
+    # Fetch from API and DB, schedule background persistence
+    api_sales, db_sales = await tcgplayer_listing_service.get_and_persist_sales(
+        request=tcgplayer_request,
+        time_delta=time_delta,
+        product_variant_id=product_variant_id,
+        session=session,
     )
 
-    # Limit to 100 most recent
-    tcgplayer_sales = tcgplayer_sales[:100]
-
-    # Get variant SKUs for matching (eager-load product for nested serialization)
+    # Get variant SKUs for matching
     variant_skus = session.scalars(
         select(SKU)
         .where(SKU.variant_id == product_variant_id)
         .options(*SKUWithProductResponseSchema.get_load_options())
     ).all()
 
-    # Create SKU lookup by condition/printing/language
-    sku_lookup = build_sku_name_lookup_from_skus(variant_skus)
+    # Create SKU lookups
+    sku_lookup_by_name = build_sku_name_lookup_from_skus(variant_skus)
+    sku_lookup_by_id = {sku.id: sku for sku in variant_skus}
 
     results = []
-    for sale in tcgplayer_sales:
-        # Find matching SKU
-        sku_key = (sale.condition, sale.variant, sale.language)
-        sku = sku_lookup.get(sku_key)
 
-        if sku:  # Only include sales for SKUs we have in our database
+    # Transform DB sales to response format
+    for db_sale in db_sales:
+        sku = sku_lookup_by_id.get(db_sale.sku_id)
+        if sku:
             results.append(
                 ProductSaleResponseSchema(
-                    sku=sku,
-                    quantity=sale.quantity,
-                    price=MoneySchema(amount=sale.purchase_price, currency="USD"),
+                    sku=SKUWithProductResponseSchema.model_validate(sku),
+                    quantity=db_sale.quantity,
+                    price=MoneySchema(amount=db_sale.sale_price, currency="USD"),
                     shipping_price=MoneySchema(
-                        amount=sale.shipping_price, currency="USD"
+                        amount=db_sale.shipping_price, currency="USD"
                     )
-                    if sale.shipping_price
+                    if db_sale.shipping_price
                     else None,
-                    order_date=sale.order_date,
+                    order_date=db_sale.sale_date,
                 )
             )
 
-    return ProductSalesResponseSchema(results=results)
+    # Transform API sales to response format
+    for api_sale in api_sales:
+        sku_key = (api_sale.condition, api_sale.variant, api_sale.language)
+        sku = sku_lookup_by_name.get(sku_key)
+        if sku:
+            results.append(
+                ProductSaleResponseSchema(
+                    sku=SKUWithProductResponseSchema.model_validate(sku),
+                    quantity=api_sale.quantity,
+                    price=MoneySchema(amount=api_sale.purchase_price, currency="USD"),
+                    shipping_price=MoneySchema(
+                        amount=api_sale.shipping_price, currency="USD"
+                    )
+                    if api_sale.shipping_price
+                    else None,
+                    order_date=api_sale.order_date,
+                )
+            )
+
+    # Deduplicate by (sku_id, order_date, price, shipping, quantity)
+    seen = set()
+    unique_results = []
+    for sale in results:
+        key = (
+            sale.sku.id,
+            sale.order_date,
+            sale.price.amount,
+            sale.shipping_price.amount if sale.shipping_price else None,
+            sale.quantity,
+        )
+        if key not in seen:
+            seen.add(key)
+            unique_results.append(sale)
+
+    # Sort by date descending
+    unique_results.sort(key=lambda s: s.order_date, reverse=True)
+
+    return ProductSalesResponseSchema(results=unique_results)
 
 
 @router.get(
